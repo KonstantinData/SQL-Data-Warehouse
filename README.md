@@ -27,3 +27,13 @@ It serves as a learning project to gain practical experience with real-world dat
 This repository will evolve as I explore data engineering, with a stronger focus on analytics engineering while 
 still incorporating elements of data analysis
 
+## 📜 License
+
+This project is licensed under the terms of the **MIT License**. See the [LICENSE.txt](LICENSE.txt) file for details.
+
+## 🧑‍💻 About Me  
+
+Hi! I'm **Konstantin Milonas** – a Certified Commercial Specialist (IHK), Senior Retail Consultant, and Aspiring Data Analyst. I'm currently enrolled 
+in a **7-month Bootcamp**, concluding on **April 21, 2025**, to enhance my expertise in **database design, statistical analysis, and data tools**, 
+including Tableau, Python, PostgreSQL, Excel, Google Sheets, and Machine Learning.
+
