@@ -8,7 +8,7 @@ It serves as a learning project to gain practical experience with real-world dat
 
 
 **Notion Project Table**  
-🔗 [Data Warehouse Project](https://www.notion.so/Data-Warehouse-Project-19fe4332bcfa800c8e0ff85312887a48?pvs=4)  
+🔗 [Data Warehouse Project]([https://www.notion.so/Data-Warehouse-Project-19fe4332bcfa800c8e0ff85312887a48?pvs=4](https://www.notion.so/Welcome-to-the-Project-fccab1cbaaf843d584d237ec6dce641e?pvs=4))  
 
 📌 **Access:** View-only access is granted upon request and can be revoked at any time.
 
