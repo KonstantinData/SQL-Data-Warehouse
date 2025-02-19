@@ -7,8 +7,8 @@ This project is my hands-on exploration of **data engineering** concepts, focusi
 It serves as a learning project to gain practical experience with real-world datasets while developing a structured approach to data warehousing.
 
 
-**Notion Project Table**  
-🔗 [Data Warehouse Project]([https://www.notion.so/Data-Warehouse-Project-19fe4332bcfa800c8e0ff85312887a48?pvs=4](https://www.notion.so/Welcome-to-the-Project-fccab1cbaaf843d584d237ec6dce641e?pvs=4))  
+**Welcome to the Project**  
+🔗 [Project Overview](https://www.notion.so/Welcome-to-the-Project-fccab1cbaaf843d584d237ec6dce641e?pvs=4)  
 
 📌 **Access:** View-only access is granted upon request and can be revoked at any time.
 
