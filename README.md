@@ -24,22 +24,6 @@ It serves as a learning project to gain practical experience with real-world dat
 - **Cloud Services** (optional): AWS, GCP, or Azure for scalable storage and compute solutions.
 - **BigQuery / Snowflake** (optional): Exploring cloud-based data warehousing solutions.
 
-## 🚀 Getting Started
-
-1. **Clone this repository**:
-   ```bash
-   git clone https://github.com/your-repo-url.git
-   cd your-repo-folder
-   ```
-2. **Set up the environment**:
-   - Install dependencies
-   - Configure database connections
-   - Set up ETL pipeline with Airflow
-   
-3. **Run the project**:
-   - Start containers if using Docker
-   - Execute the ETL pipeline
-   - Query the warehouse for insights
-
-This repository will evolve as I progress, integrating new concepts and refining my approach to data engineering.
+This repository will evolve as I explore data engineering, with a stronger focus on analytics engineering while 
+still incorporating elements of data analysis
 
