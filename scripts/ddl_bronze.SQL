@@ -1,3 +1,23 @@
+/*
+============================================================================================================
+DDL Script: Create Bronze Tables
+============================================================================================================
+Script Purpose:
+	This script creates tables in the 'bronze' schema, removing existing ones if they already exist.
+	Execute this script to redefine the DDL (Data Definition Language) structure of the 'bronze' tables.
+
+Parameters:
+	None.
+	This stored procedure does not accept any parameters or return any values.
+
+Usage Example:
+	EXEC bronze.load_bronze;
+============================================================================================================
+*/
+
+
+
+
 IF OBJECT_ID ('bronze.crm_cst_info', 'U' ) IS NOT NULL
 	DROP TABLE bronze.crm_cst_info;
 CREATE TABLE bronze.crm_cst_info (
