@@ -19,7 +19,7 @@ BEGIN
 	
 		PRINT '>>Inserting Data into: bronze.crm_cst_info';
 		BULK INSERT bronze.crm_cst_info
-		FROM "D:\local_repositories\Baraa-sql-data-warehouse-project\datasets\source_crm\cst_info.csv"
+		FROM "D:\Repositories\Git_GitHub\SQL-Data-Warehouse\datasets\source_crm\cst_info.csv"
 		WITH (
 			FIRSTROW = 2,
 			FIELDTERMINATOR = ',',
@@ -36,7 +36,7 @@ BEGIN
 	
 		PRINT '>>Inserting Data into: bronze.crm_prd_info';
 		BULK INSERT bronze.crm_prd_info
-		FROM "D:\local_repositories\Baraa-sql-data-warehouse-project\datasets\source_crm\prd_info.csv"
+		FROM "D:\Repositories\Git_GitHub\SQL-Data-Warehouse\datasets\source_crm\prd_info.csv"
 		WITH (
 			FIRSTROW = 2,
 			FIELDTERMINATOR = ',',
@@ -53,7 +53,7 @@ BEGIN
 	
 		PRINT '>>Inserting Data into: bronze.crm_sales_details';
 		BULK INSERT bronze.crm_sales_details
-		FROM "D:\local_repositories\Baraa-sql-data-warehouse-project\datasets\source_crm\sales_details.csv"
+		FROM "D:\Repositories\Git_GitHub\SQL-Data-Warehouse\datasets\source_crm\sales_details.csv"
 		WITH (
 			FIRSTROW = 2,
 			FIELDTERMINATOR = ',',
@@ -73,7 +73,7 @@ BEGIN
 
 		PRINT '>>Inserting Data into: bronze.erp_cst_az12';
 		BULK INSERT bronze.erp_cst_az12
-		FROM "D:\local_repositories\Baraa-sql-data-warehouse-project\datasets\source_erp\CST_AZ12.csv"
+		FROM "D:\Repositories\Git_GitHub\SQL-Data-Warehouse\datasets\source_erp\CST_AZ12.csv"
 		WITH (
 			FIRSTROW = 2,
 			FIELDTERMINATOR = ',',
@@ -90,7 +90,7 @@ BEGIN
 
 		PRINT '>>Inserting Data into: bronze.erp_loc_a101';
 		BULK INSERT bronze.erp_loc_a101
-		FROM "D:\local_repositories\Baraa-sql-data-warehouse-project\datasets\source_erp\LOC_A101.csv"
+		FROM "D:\Repositories\Git_GitHub\SQL-Data-Warehouse\datasets\source_erp\LOC_A101.csv"
 		WITH (
 			FIRSTROW = 2,
 			FIELDTERMINATOR = ',',
@@ -107,7 +107,7 @@ BEGIN
 
 		PRINT '>>Inserting Data into: bronze.erp_px_cat_g1v2';
 		BULK INSERT bronze.erp_px_cat_g1v2
-		FROM "D:\local_repositories\Baraa-sql-data-warehouse-project\datasets\source_erp\PX_CAT_G1V2.csv"
+		FROM "D:\Repositories\Git_GitHub\SQL-Data-Warehouse\datasets\source_erp\PX_CAT_G1V2.csv"
 		WITH (
 			FIRSTROW = 2,
 			FIELDTERMINATOR = ',',
