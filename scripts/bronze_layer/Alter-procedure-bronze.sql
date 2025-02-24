@@ -1,3 +1,32 @@
+/*
+**Script Description:**  
+===============================================================================================================================================================================
+The `bronze.load_bronze` stored procedure is responsible for loading data into the Bronze Layer of a data warehouse. It performs the following key operations:
+
+1. **Batch Processing Initialization**  
+   - Captures the start time of the batch process.
+
+2. **CRM Data Loading**  
+   - Truncates and reloads customer (`crm_cst_info`), product (`crm_prd_info`), and sales details (`crm_sales_details`) tables from CSV files located in a specified directory.
+   - Uses `BULK INSERT` to efficiently load data.
+   - Logs the duration of each table load.
+
+3. **ERP Data Loading**  
+   - Truncates and reloads ERP-related tables (`erp_cst_az12`, `erp_loc_a101`, and `erp_px_cat_g1v2`).
+   - Similar `BULK INSERT` operations ensure efficient data ingestion.
+   - Logs the duration for each ERP table load.
+
+4. **Error Handling**  
+   - If any error occurs, the procedure captures and prints the error message, number, and state.
+
+5. **Completion Logging**  
+   - Records and prints the total duration of the batch processing.
+
+This procedure is designed for efficient and structured ingestion of CRM and ERP datasets into the Bronze Layer while ensuring error logging and execution tracking.
+===============================================================================================================================================================================
+*/
+
+
 CREATE OR ALTER PROCEDURE bronze.load_bronze AS
 
 BEGIN

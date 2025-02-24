@@ -1,62 +1,66 @@
 /*
-**Script Description:**  
-==================================================================================================================================
-This SQL script verifies the effectiveness of the data cleansing process in the `silver.crm_cst_info` table by checking for 
-any remaining `NULL` values or duplicate entries in the primary key column `cst_id`. It also focuses on identifying and 
-validating data consistency for a specific `cst_id` to ensure proper deduplication.
+**Script Overview:**
+======================================================================================================================
+This SQL script updates the `silver.crm_cst_info` table by adding an `is_future` column and inserting the latest 
+cleaned customer records from `bronze.crm_cst_info`. It ensures data consistency by:  
 
-### Steps:
+- Selecting the most recent record per customer (`cst_id`) using `ROW_NUMBER()`.  
+- Cleaning names and standardizing marital status and gender values.  
+- Flagging future-dated records in the `is_future` column.  
 
-1. **Checking Data Integrity:**
-   - The script first groups records by `cst_id` and filters results to detect duplicates (`COUNT(*) > 1`) or `NULL` values.
-   - If no results are returned, the primary key column is confirmed as unique and non-null.
-
-2. **Investigating a Specific `cst_id`:**
-   - The script retrieves all records where `cst_id = 29466`, identified from the previous integrity check.
-
-3. **Ranking Duplicate Entries:**
-   - The `ROW_NUMBER()` window function assigns a ranking (`flag_last`) to each record with the same `cst_id`, ordered by 
-     `cst_create_date` in descending order. This step helps in identifying the latest record.
-
-4. **Filtering for the Latest Records Only:**
-   - The final query selects only the latest entry for each `cst_id`, ensuring that only the most recent data is retained 
-     by filtering `flag_last = 1`. This step removes outdated duplicates while keeping the most relevant record.
-==================================================================================================================================
+This script is part of an ETL process, ensuring accurate and up-to-date customer data for analytics and reporting. 🚀
+=======================================================================================================================
 */
 
-
-SELECT 
-cst_id,
-COUNT(*)
-FROM silver.crm_cst_info
-GROUP BY cst_id
-HAVING COUNT(*) > 1 OR cst_id IS NULL;
+IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = 'silver' 
+    AND TABLE_NAME = 'crm_cst_info' 
+    AND COLUMN_NAME = 'cst_is_future'
+)
+BEGIN
+    ALTER TABLE silver.crm_cst_info 
+    ADD cst_is_future BIT NOT NULL DEFAULT 0;
+END
 GO
 
+INSERT INTO DataWarehouse.silver.crm_cst_info(
+	cst_id,
+	cst_key,
+	cst_firstname,
+	cst_lastname,
+	cst_material_status,
+	cst_gender,
+	cst_create_date,
+	cst_is_future
+	)
 
-SELECT 
-*
-FROM silver.crm_cst_info
-WHERE cst_id = 29466; -- Is picked from the check_null_duplicates script
-GO
-
-
-SELECT 
-*,
-ROW_NUMBER() OVER(PARTITION BY cst_id ORDER BY cst_create_date DESC) as flag_last -- With the Window function we rank the Rows
-FROM silver.crm_cst_info
-WHERE cst_id = 29466;
-GO
-
-
-SELECT 
-*
-FROM(
-	SELECT 
-	*,
-	ROW_NUMBER() OVER(PARTITION BY cst_id ORDER BY cst_create_date DESC) AS flag_last
-	FROM silver.crm_cst_info
+SELECT
+	cst_id,
+	cst_key,
+	TRIM(cst_firstname) AS cst_firstname,
+	TRIM(cst_lastname) AS cst_lastname,
+	CASE 
+		WHEN UPPER(TRIM(cst_material_status)) = 'M' THEN 'Married'
+		WHEN UPPER(TRIM(cst_material_status)) = 'S' THEN 'Single'
+		ELSE 'n/a'
+	END AS cst_material_status,
+	CASE 
+		WHEN UPPER(TRIM(cst_gender)) = 'M' THEN 'Male'
+		WHEN UPPER(TRIM(cst_gender)) = 'F' THEN 'Female'
+		ELSE 'n/a'
+	END AS cst_gender,
+	cst_create_date,
+	CASE 
+		WHEN cst_create_date IS NULL THEN 0
+		WHEN cst_create_date > GETDATE() THEN 1
+		ELSE 0
+	END AS cst_is_future
+FROM(SELECT
+		*,
+		ROW_NUMBER() OVER(PARTITION BY cst_id ORDER BY cst_create_date DESC) AS flag_last
+	FROM bronze.crm_cst_info
 	WHERE cst_id IS NOT NULL
-) t WHERE flag_last = 1; -- With flag_ast = 1 we ensure that only the latest data is shown
-GO
+	) latest_record
+WHERE flag_last = 1;
 

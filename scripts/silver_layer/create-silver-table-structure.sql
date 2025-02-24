@@ -1,3 +1,18 @@
+/*
+**Script Description: Silver Layer Table Management**  
+
+This script manages the **silver layer** tables in the **DataWarehouse** by checking for existing tables, 
+dropping them if they exist, and recreating them with a standardized schema.  
+
+**Key Functions:**  
+- Ensures fresh table structures by **dropping and recreating** them.  
+- Stores **customer, product, sales, location, and category data** for ETL processes.  
+- Includes a **`dwh_create_date` column** to track data insertion timestamps.  
+
+This script keeps the silver layer **consistent, clean, and ready for analysis**. 🚀
+*/
+
+
 IF OBJECT_ID ('silver.crm_cst_info', 'U' ) IS NOT NULL
 	DROP TABLE silver.crm_cst_info;
 CREATE TABLE silver.crm_cst_info (
