@@ -84,6 +84,29 @@ If you use SSMS/ADS with SQLCMD mode enabled, you can run the full pipeline via:
 
 This script chains the database init, Bronze load, and Silver cleansing steps in order.
 
+## ✅ CI Automation (GitHub Actions + Local Runner)
+
+This repo ships with a lightweight GitHub Actions workflow that provisions a SQL Server
+container, runs the ETL pipeline, and executes the CI-grade quality checks in
+`tests/quality_checks_ci.sql`. The workflow runs on every push and pull request to catch
+schema or data integrity regressions early.
+
+You can also run the same automation locally with Docker:
+
+```
+scripts/ci/run_ci_checks.sh
+```
+
+Optional environment variables for local runs:
+- `SA_PASSWORD` (defaults to `YourStrong!Passw0rd1`)
+- `MSSQL_IMAGE` (defaults to `mcr.microsoft.com/mssql/server:2022-latest`)
+- `MSSQL_TOOLS_IMAGE` (defaults to `mcr.microsoft.com/mssql-tools:latest`)
+- `SQLCMD_SERVER` (defaults to `localhost`)
+- `SQLCMD_NETWORK` (defaults to `host`)
+
+If you already have SQL Server running, set `START_CONTAINER=false` to skip container
+startup and only run the pipeline + checks.
+
 ## 🐍 One-Click Orchestration (Python + sqlcmd)
 
 If you prefer a single command outside SSMS/ADS, use the Python runner that calls `sqlcmd`
