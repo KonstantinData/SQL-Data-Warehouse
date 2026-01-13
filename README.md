@@ -1,10 +1,6 @@
 # SQL-Data-Warehouse
 Building an end-to-end SQL data warehouse pipeline (Bronze ➜ Silver ➜ Gold) with automated quality checks.
 
-## 👋 Who This Is For
-
-Recruiters: A compact, end-to-end portfolio project demonstrating SQL data modeling, ETL, and QA automation.  
-Freelance clients: A template for building a reliable, documented data warehouse pipeline with CI-based validation.
 
 ## 📌 Overview
 
