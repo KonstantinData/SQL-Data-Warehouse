@@ -24,14 +24,17 @@ SELECT
     prd_id,
     prd_key,
     TRIM(prd_nm),
-    ISNULL(prd_cost, 0),
+    CASE
+        WHEN prd_cost IS NULL OR prd_cost <= 0 THEN 1
+        ELSE prd_cost
+    END,
     TRIM(prd_line),
     prd_start_dt,
-    prd_end_dt
-FROM bronze.crm_prd_info
-WHERE prd_cost IS NOT NULL
-  AND prd_cost > 0
-  AND (prd_end_dt IS NULL OR prd_end_dt >= prd_start_dt);
+    CASE
+        WHEN prd_end_dt IS NOT NULL AND prd_end_dt < prd_start_dt THEN NULL
+        ELSE prd_end_dt
+    END
+FROM bronze.crm_prd_info;
 
 INSERT INTO silver.crm_sales_details (
     sls_ord_num,
