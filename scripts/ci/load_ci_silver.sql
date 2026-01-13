@@ -28,7 +28,10 @@ SELECT
     TRIM(prd_line),
     prd_start_dt,
     prd_end_dt
-FROM bronze.crm_prd_info;
+FROM bronze.crm_prd_info
+WHERE prd_cost IS NOT NULL
+  AND prd_cost > 0
+  AND (prd_end_dt IS NULL OR prd_end_dt >= prd_start_dt);
 
 INSERT INTO silver.crm_sales_details (
     sls_ord_num,
@@ -51,7 +54,17 @@ SELECT
     sls_sales,
     sls_quantity,
     sls_price
-FROM bronze.crm_sales_details;
+FROM bronze.crm_sales_details s
+WHERE EXISTS (
+    SELECT 1
+    FROM silver.crm_prd_info p
+    WHERE p.prd_key = s.sls_prd_key
+)
+AND EXISTS (
+    SELECT 1
+    FROM silver.crm_cust_info c
+    WHERE c.cust_id = s.sls_cust_id
+);
 
 INSERT INTO silver.erp_cust_az12 (
     cid,
