@@ -1,10 +1,35 @@
 # SQL-Data-Warehouse
-Building an SQL Data Warehouse Solution from scratch
+Building an end-to-end SQL data warehouse pipeline (Bronze ➜ Silver ➜ Gold) with automated quality checks.
+
+## 👋 Who This Is For
+
+- **Recruiters**: A compact, end-to-end portfolio project demonstrating SQL data modeling, ETL, and QA automation.
+- **Freelance clients**: A template for building a reliable, documented data warehouse pipeline with CI-based validation.
 
 ## 📌 Overview
 
 This project is a hands-on exploration of **data engineering** concepts, focusing on data extraction, transformation, loading (ETL), and pipeline automation. 
 It serves as a learning project to gain practical experience with real-world datasets while developing a structured approach to data warehousing.
+
+**Highlights**
+- Layered architecture (Bronze, Silver, Gold) with clear transformation boundaries.
+- Automated data quality checks and CI pipeline execution.
+- Reproducible SQL scripts plus optional Python orchestration.
+
+## 🎯 Project Goals
+
+- **Design** a simple, maintainable warehouse model.
+- **Implement** repeatable ETL steps in SQL Server.
+- **Validate** data quality with automated tests.
+- **Document** setup, execution, and dataset context for fast onboarding.
+
+## 🧱 Tech Stack
+
+- **SQL Server 2019+** (or **Azure SQL Edge** for containers)
+- **T-SQL** for DDL/DML and transformations
+- **SQLCMD** for orchestration
+- **Python 3.10+** (optional) for local orchestration/notebooks
+- **GitHub Actions** for CI automation
 
 
 ## ✅ Prerequisites
@@ -14,6 +39,14 @@ It serves as a learning project to gain practical experience with real-world dat
 - **Python 3.10+** (optional; only needed for the Jupyter notebooks in `scripts/`).
 - Access to the `datasets/` directory from the SQL Server host (required for `BULK INSERT`).
 
+## 🧭 Architecture at a Glance
+
+- **Bronze**: raw CSV ingest via `BULK INSERT`
+- **Silver**: cleansed and standardized tables
+- **Gold**: analytics-ready dimensions and facts
+
+Diagram: `architecture.drawio` (editable) and `docs/` for reference material.
+
 ## 📁 Repository Layout
 
 | Path | Purpose |
@@ -21,6 +54,11 @@ It serves as a learning project to gain practical experience with real-world dat
 | `datasets/` | CRM + ERP CSV extracts used as the Bronze layer source. |
 | `scripts/` | SQL scripts for schema creation, Bronze/Silver loads, and notebooks. |
 | `tests/` | Data quality checks for Bronze/Silver/Gold layers. |
+| `docs/` | Supporting documentation and notes. |
+| `drawio/` | Architecture diagrams and exports. |
+| `.github/workflows/ci.yml` | CI workflow that runs the pipeline and checks. |
+| `requirements.txt` | Python dependencies for notebooks/orchestration. |
+| `logs/` | Local pipeline logs (if generated). |
 
 ## ⚙️ Setup
 
@@ -38,6 +76,20 @@ It serves as a learning project to gain practical experience with real-world dat
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    pip install -r requirements.txt
    ```
+
+## 🚀 Quick Start (Happy Path)
+
+If you have SQLCMD mode enabled in SSMS/ADS, run the full pipeline:
+
+```
+:r .\scripts\run_pipeline.sql
+```
+
+Then validate with:
+
+```
+:r .\tests\quality_checks_ci.sql
+```
 
 ## ▶️ Execution Guide (Manual)
 
@@ -113,6 +165,15 @@ python scripts/orchestrate_pipeline.py --server localhost --database master --tr
 ```
 
 For SQL authentication, pass `--username` and `--password` instead of `--trusted-connection`.
+
+## ✅ Data Quality Checks
+
+The `tests/` directory includes SQL-based validations for each layer, such as:
+- Row-count sanity checks.
+- Key uniqueness and null checks.
+- Gold layer referential integrity checks.
+
+CI runs `tests/quality_checks_ci.sql` to ensure the pipeline remains valid.
 
 ## 🧾 Data Description
 
@@ -202,12 +263,32 @@ ORDER BY cust_id;
 
 Expected outcome: rows return with cleaned first/last names, standardized gender values, and `cust_is_future` indicating invalid future dates.
 
+## 🧩 How to Extend
+
+- Add new source CSVs to `datasets/` and create a Bronze loader script.
+- Implement Silver cleansing rules for the new entities.
+- Enrich Gold dimensions/facts and extend the QA scripts.
+
 ## 📜 License
 
 This project is licensed under the terms of the **MIT License**. See the [LICENSE.txt](LICENSE.txt) file for details.
 
 ## 🧑‍💻 About Me  
 
-Hi! I'm **Konstantin Milonas** – a Certified Commercial Specialist (IHK), Senior Retail Consultant, and Aspiring Data Analyst. I'm currently enrolled 
-in a **7-month Bootcamp**, concluding on **April 21, 2025**, to enhance my expertise in **database design, statistical analysis, and data tools**, 
-including Tableau, Python, PostgreSQL, Excel, Google Sheets, and Machine Learning.
+**AI-Driven Business Data Analyst | Solutions Consultant with B2B Sales & Operations Expertise | Turning Data into Measurable Business Impact (Analytics Architecture & Cloud/AI Strategy)**
+
+I am an analytics specialist with a strong focus on AI, targeting the intersection of data, business operations, and scalable solution design. As a solutions consultant with deep experience in B2B sales and operations, I translate complex data challenges into clear architectures, cloud- and AI-driven workflows, and measurable business outcomes.
+
+My work is about building analytics solutions that are technically reliable and directly aligned with commercial strategy, operational needs, and organisational goals. I focus on data architectures and AI-supported processes that reduce complexity, improve decision-making, and generate real impact across the value chain.
+
+**What I bring**
+- A solid background in B2B sales, operations, and performance management.
+- Experience turning business requirements into analytics architectures and AI-driven workflows.
+- Skills in Python, SQL, data visualisation, and modern cloud data platforms.
+- A structured, value-oriented approach to solution design and consulting.
+- The ability to connect data, processes, and business logic to drive measurable improvement.
+
+**How I work**
+I approach analytics with clarity, curiosity, and a focus on good architecture. For me, data and AI only matter when they create visible results — improving workflows, speeding up decisions, and helping organisations operate more effectively.
+
+If you believe that data should not only inform but also drive real change, I’d be happy to connect.
