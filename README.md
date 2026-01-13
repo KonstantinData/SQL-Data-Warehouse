@@ -107,7 +107,7 @@ Run the scripts in this order:
    `scripts/silver_layer/create-silver-table-structure.sql`
 6. **Run Silver cleansing scripts**  
    - `scripts/silver_layer/cleansing_crm_cust_info.sql` (loads cleaned customer data into Silver)
-   - `scripts/silver_layer/cleansing_crm_prd_info.sql` (currently exploratory; returns a cleaned projection for product data)
+   - `scripts/silver_layer/cleansing_crm_prd_info.sql` (loads cleaned product data into `silver.crm_prd_info`)
 7. **Gold layer views**  
    Create the Gold layer views with `scripts/gold_layer/create_gold_views.sql`:
    - `gold.dim_customers`
