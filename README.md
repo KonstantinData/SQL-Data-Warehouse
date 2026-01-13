@@ -109,6 +109,44 @@ The project uses small CRM and ERP CSV extracts (included in `datasets/`) for de
 - `LOC_A101.csv`: customer location (country).
 - `PX_CAT_G1V2.csv`: product category, subcategory, and maintenance indicator.
 
+## 📚 Data Dictionary & Governance Notes
+
+The tables below summarize the core warehouse entities, key fields, and notable transformations so you can understand the business context without reading every SQL file.
+
+### Bronze layer (raw ingest)
+
+| Table | Grain | Key fields | Description |
+| --- | --- | --- | --- |
+| `bronze.crm_cust_info` | One row per customer per CRM extract | `cust_id`, `cust_key`, `cust_firstname`, `cust_lastname`, `cust_marital_status`, `cust_gender`, `cust_create_date` | Raw customer records from the CRM extract. |
+| `bronze.crm_prd_info` | One row per product per CRM extract | `prd_id`, `prd_key`, `prd_nm`, `prd_cost`, `prd_line`, `prd_start_dt`, `prd_end_dt` | Raw product master data from the CRM extract. |
+| `bronze.crm_sales_details` | One row per sales order line | `sls_ord_num`, `sls_prd_key`, `sls_cust_id`, `sls_order_dt`, `sls_ship_dt`, `sls_due_dt`, `sls_sales`, `sls_quantity`, `sls_price` | Raw sales transactions with dates stored as integer yyyymmdd values. |
+| `bronze.erp_cust_az12` | One row per customer per ERP extract | `cid`, `bdate`, `gen` | ERP customer demographics (birthdate, gender). |
+| `bronze.erp_loc_a101` | One row per customer per ERP extract | `cid`, `cntry` | ERP customer location details (country). |
+| `bronze.erp_px_cat_g1v2` | One row per product category | `id`, `cat`, `subcat`, `maintenance` | ERP product category hierarchy and maintenance flag. |
+
+### Silver layer (cleansed & standardized)
+
+| Table | Grain | Key fields | Transformations |
+| --- | --- | --- | --- |
+| `silver.crm_cust_info` | Latest row per customer | `cust_id`, `cust_key`, `cust_firstname`, `cust_lastname`, `cust_marital_status`, `cust_gender`, `cust_create_date`, `cust_is_future` | Trims names, standardizes marital status and gender, keeps latest record per customer, and flags future-dated creates via `cust_is_future`. |
+| `silver.crm_prd_info` | One row per product | `prd_id`, `prd_key`, `prd_nm`, `prd_cost`, `prd_line`, `prd_start_dt`, `prd_end_dt` | Mirrors CRM product master data for cleansing and downstream transformations. |
+| `silver.crm_sales_details` | One row per sales order line | `sls_ord_num`, `sls_prd_key`, `sls_cust_id`, `sls_order_dt`, `sls_ship_dt`, `sls_due_dt`, `sls_sales`, `sls_quantity`, `sls_price` | Retains CRM sales details for conversion to analytical dates in Gold. |
+| `silver.erp_cust_az12` | One row per customer | `cid`, `bdate`, `gen` | ERP customer demographics retained for enrichment. |
+| `silver.erp_loc_a101` | One row per customer | `cid`, `cntry` | ERP customer locations retained for enrichment. |
+| `silver.erp_px_cat_g1v2` | One row per product category | `id`, `cat`, `subcat`, `maintenance` | ERP product category hierarchy retained for enrichment. |
+
+### Gold layer (analytics-ready views)
+
+| View | Grain | Key fields | Business rules |
+| --- | --- | --- | --- |
+| `gold.dim_customers` | One row per customer | `customer_key`, `customer_id`, `customer_number`, `first_name`, `last_name`, `marital_status`, `gender`, `birth_date`, `country` | Joins CRM and ERP sources; `gender` prioritizes cleaned CRM values and falls back to ERP `gen` when CRM is `n/a`. |
+| `gold.dim_products` | One row per product | `product_key`, `product_id`, `product_number`, `product_name`, `product_cost`, `product_line`, `category`, `subcategory`, `maintenance` | Standardizes product line codes (M/R/S/T) to descriptive labels and enriches with ERP categories. |
+| `gold.fact_sales` | One row per sales order line | `order_number`, `customer_key`, `product_key`, `order_date`, `ship_date`, `due_date`, `sales_amount`, `quantity`, `price` | Converts integer dates to `DATE` and joins to the customer/product dimensions. |
+
+### Privacy & GDPR considerations
+
+This project uses **fictional, synthetic data** included in the `datasets/` folder for learning and testing. It does **not** contain real personal data, and no production identifiers are used. As a result, no anonymization or masking techniques are required in this repo. If you adapt these pipelines for real customer data, apply privacy-by-design controls such as masking, tokenization, or row-level security before loading to analytics layers.
+
 ## ✅ Outcomes & Example Queries
 
 **Current output layers**
