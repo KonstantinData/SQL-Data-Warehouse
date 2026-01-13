@@ -170,6 +170,21 @@ The tables below summarize the core warehouse entities, key fields, and notable 
 
 This project uses **fictional, synthetic data** included in the `datasets/` folder for learning and testing. It does **not** contain real personal data, and no production identifiers are used. To demonstrate privacy-by-design, the Gold customer view hashes last names (`last_name_hash`) so analytical consumers can join and segment without direct identifiers. If you adapt these pipelines for real customer data, apply privacy-by-design controls such as masking, tokenization, encryption, or row-level security before loading to analytics layers.
 
+## 🚀 Performance & Scalability Considerations (Future Work)
+
+The current datasets are intentionally small, so performance is a non-issue. If the warehouse were scaled to larger volumes, the following optimizations would make the model more production-ready:
+
+- **Add primary and foreign keys**  
+  Define primary keys on dimension tables (for example, `customer_key` on `gold.dim_customers`) and foreign key relationships from fact tables to dimensions. This enforces referential integrity and helps the SQL optimizer produce better execution plans.
+- **Index common join/filter columns**  
+  Add non-clustered indexes on high-usage join keys such as `silver.crm_cust_info.cust_key` and `silver.crm_sales_details.sls_cust_id` to speed up joins between CRM and ERP data.
+- **Store dates as DATE/DATETIME in Silver**  
+  Convert integer date fields (for example, `sls_order_dt`, `sls_ship_dt`, `sls_due_dt`) into `DATE`/`DATETIME` types in the Silver layer to simplify filtering and enable date functions without repeated conversions.
+- **Partition large fact tables when volumes grow**  
+  If `gold.fact_sales` becomes large, partition by a date column (such as `order_date`) to improve manageability and query performance.
+- **Materialize Gold views if needed**  
+  If the Gold layer moves from views to materialized tables for performance, apply the same indexing strategy used for facts/dimensions.
+
 ## ✅ Outcomes & Example Queries
 
 **Current output layers**
