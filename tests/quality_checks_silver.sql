@@ -23,22 +23,22 @@ Usage Notes:
 -- Check for NULLs or Duplicates in Primary Key
 -- Expectation: No Results
 SELECT 
-    cst_id,
+    cust_id,
     COUNT(*) 
 FROM silver.crm_cust_info
-GROUP BY cst_id
-HAVING COUNT(*) > 1 OR cst_id IS NULL;
+GROUP BY cust_id
+HAVING COUNT(*) > 1 OR cust_id IS NULL;
 
 -- Check for Unwanted Spaces
 -- Expectation: No Results
 SELECT 
-    cst_key 
+    cust_key 
 FROM silver.crm_cust_info
-WHERE cst_key != TRIM(cst_key);
+WHERE cust_key != TRIM(cust_key);
 
 -- Data Standardization & Consistency
 SELECT DISTINCT 
-    cst_marital_status 
+    cust_marital_status 
 FROM silver.crm_cust_info;
 
 -- ====================================================================

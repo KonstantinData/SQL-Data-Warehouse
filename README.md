@@ -52,7 +52,7 @@ Run the scripts in this order:
 2. **Create Bronze tables**  
    `scripts/bronze_layer/create_table_bronze_layer.SQL`
 3. **Create the Bronze load procedure**  
-   `scripts/bronze_layer/bulk_insert_crm_cst_info.sql`
+   `scripts/bronze_layer/bulk_insert_crm_cust_info.sql`
 4. **Load Bronze data**  
    `scripts/bronze_layer/bronze-load-bronze.sql`  
    *Override the default base path if needed:*  
@@ -62,7 +62,7 @@ Run the scripts in this order:
 5. **Create Silver tables**  
    `scripts/silver_layer/create-silver-table-structure.sql`
 6. **Run Silver cleansing scripts**  
-   - `scripts/silver_layer/cleansing_crm_cst_info.sql` (loads cleaned customer data into Silver)
+   - `scripts/silver_layer/cleansing_crm_cust_info.sql` (loads cleaned customer data into Silver)
    - `scripts/silver_layer/cleansing_crm_prd_info.sql` (currently exploratory; returns a cleaned projection for product data)
 7. **Gold layer views (planned)**  
    The `scripts/gold_layer/` folder is a placeholder. The target tables referenced in `tests/quality_checks_gold.sql` are:
@@ -113,22 +113,22 @@ The project uses small CRM and ERP CSV extracts (included in `datasets/`) for de
 
 **Current output layers**
 - **Bronze**: raw CSV loads into `bronze.*` tables via `BULK INSERT`.
-- **Silver**: cleaned `crm_cst_info` data (trimmed strings, standardized values, future-date flag).
+- **Silver**: cleaned `crm_cust_info` data (trimmed strings, standardized values, future-date flag).
 - **Gold**: planned dimensional model (`dim_customers`, `dim_products`, `fact_sales`) referenced by the gold QA script.
 
 **Example validation query**
 ```
 SELECT TOP 10
-    cst_id,
-    cst_firstname,
-    cst_lastname,
-    cst_gender,
-    cst_is_future
-FROM silver.crm_cst_info
-ORDER BY cst_id;
+    cust_id,
+    cust_firstname,
+    cust_lastname,
+    cust_gender,
+    cust_is_future
+FROM silver.crm_cust_info
+ORDER BY cust_id;
 ```
 
-Expected outcome: rows return with cleaned first/last names, standardized gender values, and `cst_is_future` indicating invalid future dates.
+Expected outcome: rows return with cleaned first/last names, standardized gender values, and `cust_is_future` indicating invalid future dates.
 
 ## 📜 License
 
