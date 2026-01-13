@@ -7,16 +7,8 @@
      - Silver & Gold: must be clean → violations fail CI via RAISERROR.
 
    Assumptions:
-     - Database context is already set to DataWarehouse (e.g. via sqlcmd -d).
-     - Tables/Schemata:
-         Bronze: bronze.crm_cust_info,
-                 bronze.crm_prd_info,
-                 bronze.crm_sales_details,
-                 bronze.erp_cust_az12
-         Silver: silver.crm_cust_info,
-                 silver.crm_prd_info,
-                 silver.crm_sales_details
-       (Passe Namen an, falls dein Schema abweicht.)
+     - Database context is already set to DataWarehouse
+       (e.g. via sqlcmd -d DataWarehouse in CI).
    ======================================================================== */
 
 SET NOCOUNT ON;
@@ -42,7 +34,7 @@ BEGIN
     PRINT 'WARNING (Bronze): bronze.crm_cust_info has duplicate or NULL cust_id values.';
 END
 
--- 2) NULL or negative product costs in bronze.crm_prd_info
+-- 2) NULL or non-positive product costs in bronze.crm_prd_info
 IF EXISTS (
     SELECT 1
     FROM bronze.crm_prd_info
@@ -87,6 +79,7 @@ END
 PRINT 'Bronze checks completed (diagnostic only).';
 PRINT '====================================================================';
 PRINT '';
+PRINT '';
 
 
 /* ========================================================================
@@ -97,7 +90,7 @@ PRINT '====================================================================';
 PRINT 'SILVER LAYER DATA QUALITY (ENFORCED – VIOLATIONS WILL FAIL CI)';
 PRINT '====================================================================';
 
--- Beispiel: Existenz der wichtigsten Silver-Tabellen
+-- Existenz der wichtigsten Silver-Tabellen
 IF OBJECT_ID('silver.crm_cust_info', 'U') IS NULL
 BEGIN
     SET @error_count += 1;
@@ -116,7 +109,7 @@ BEGIN
     PRINT 'ERROR (Silver): Table silver.crm_sales_details does not exist.';
 END
 
--- Nur weiterführende Checks ausführen, wenn die Tabellen existieren
+-- Nur inhaltliche Checks, wenn Tabellen existieren
 IF OBJECT_ID('silver.crm_cust_info', 'U') IS NOT NULL
 BEGIN
     -- Keine NULL-cust_id in Silver
@@ -130,7 +123,7 @@ BEGIN
         PRINT 'ERROR (Silver): silver.crm_cust_info has NULL cust_id values.';
     END
 
-    -- Optional: Duplikate in Silver sollten nicht mehr vorkommen
+    -- Keine Duplikate in Silver
     IF EXISTS (
         SELECT 1
         FROM silver.crm_cust_info
@@ -201,42 +194,73 @@ END
 PRINT 'Silver checks completed.';
 PRINT '====================================================================';
 PRINT '';
+PRINT '';
 
 
 /* ========================================================================
-   GOLD LAYER CHECKS (optional – anpassen an deine Views/Marts)
+   GOLD LAYER CHECKS (ENFORCED – VIOLATIONS WILL FAIL CI)
    ======================================================================== */
 
 PRINT '====================================================================';
 PRINT 'GOLD LAYER DATA QUALITY (ENFORCED – VIOLATIONS WILL FAIL CI)';
 PRINT '====================================================================';
 
--- Beispiel: Prüfen, dass eine zentrale Gold-View existiert.
--- Passe die Namen an deine tatsächlichen Views an (oder kommentiere diesen
--- Block aus, bis du deine Gold-Views final definiert hast).
+-- Gold-Objekte laut create_gold_views.sql:
+--   gold.dim_customers
+--   gold.dim_products
+--   gold.fact_sales
 
-IF OBJECT_ID('gold.vw_customer_sales', 'V') IS NULL
+-- 1) Existenz der Views/Tabellen in Gold
+IF OBJECT_ID('gold.dim_customers', 'V') IS NULL AND OBJECT_ID('gold.dim_customers', 'U') IS NULL
 BEGIN
-    -- Wenn du diese View (noch) nicht hast, entweder den Namen anpassen
-    -- oder diesen Block vorerst auskommentieren.
     SET @error_count += 1;
-    PRINT 'ERROR (Gold): View gold.vw_customer_sales does not exist.';
+    PRINT 'ERROR (Gold): gold.dim_customers does not exist (as view or table).';
 END
-ELSE
+
+IF OBJECT_ID('gold.dim_products', 'V') IS NULL AND OBJECT_ID('gold.dim_products', 'U') IS NULL
 BEGIN
-    -- Beispiel-Check: Es sollte mindestens eine Zeile geben
-    IF NOT EXISTS (
-        SELECT 1
-        FROM gold.vw_customer_sales
-    )
+    SET @error_count += 1;
+    PRINT 'ERROR (Gold): gold.dim_products does not exist (as view or table).';
+END
+
+IF OBJECT_ID('gold.fact_sales', 'V') IS NULL AND OBJECT_ID('gold.fact_sales', 'U') IS NULL
+BEGIN
+    SET @error_count += 1;
+    PRINT 'ERROR (Gold): gold.fact_sales does not exist (as view or table).';
+END
+
+-- 2) Optional: einfache inhaltliche Checks (nur wenn Objekte existieren)
+
+IF (OBJECT_ID('gold.dim_customers', 'V') IS NOT NULL OR OBJECT_ID('gold.dim_customers', 'U') IS NOT NULL)
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM gold.dim_customers)
     BEGIN
         SET @error_count += 1;
-        PRINT 'ERROR (Gold): gold.vw_customer_sales returns no rows.';
+        PRINT 'ERROR (Gold): gold.dim_customers returns no rows.';
+    END
+END
+
+IF (OBJECT_ID('gold.dim_products', 'V') IS NOT NULL OR OBJECT_ID('gold.dim_products', 'U') IS NOT NULL)
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM gold.dim_products)
+    BEGIN
+        SET @error_count += 1;
+        PRINT 'ERROR (Gold): gold.dim_products returns no rows.';
+    END
+END
+
+IF (OBJECT_ID('gold.fact_sales', 'V') IS NOT NULL OR OBJECT_ID('gold.fact_sales', 'U') IS NOT NULL)
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM gold.fact_sales)
+    BEGIN
+        SET @error_count += 1;
+        PRINT 'ERROR (Gold): gold.fact_sales returns no rows.';
     END
 END
 
 PRINT 'Gold checks completed.';
 PRINT '====================================================================';
+PRINT '';
 PRINT '';
 
 
