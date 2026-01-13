@@ -1,6 +1,7 @@
 # SQL-Data-Warehouse
 Building an end-to-end SQL data warehouse pipeline (Bronze ➜ Silver ➜ Gold) with automated quality checks.
 
+
 ## 📌 Overview
 
 This project is a hands-on exploration of **data engineering** concepts, focusing on data extraction, transformation, loading (ETL), and pipeline automation. 
