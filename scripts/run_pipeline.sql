@@ -13,10 +13,10 @@ Notes:
 */
 
 :r .\scripts\init.database.sql
-:r .\scripts\bronze_layer\create_table_bronze_layer.SQL
+:r .\scripts\bronze_layer\create_table_bronze_layer.sql
 :r .\scripts\bronze_layer\bulk_insert_crm_cust_info.sql
 :r .\scripts\bronze_layer\bronze-load-bronze.sql
-:r .\scripts\silver_layer\create-silver-table-structure.sql
+:r .\scripts\silver_layer\create_silver_table_structure.sql
 :r .\scripts\silver_layer\cleansing_crm_cust_info.sql
 :r .\scripts\silver_layer\cleansing_crm_prd_info.sql
 :r .\scripts\gold_layer\create_gold_views.sql

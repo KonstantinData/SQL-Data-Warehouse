@@ -94,7 +94,7 @@ Run the scripts in this order:
 1. **Initialize database + schemas**  
    `scripts/init.database.sql` (drops/recreates `DataWarehouse`, then creates `bronze`, `silver`, `gold` schemas).
 2. **Create Bronze tables**  
-   `scripts/bronze_layer/create_table_bronze_layer.SQL`
+   `scripts/bronze_layer/create_table_bronze_layer.sql`
 3. **Create the Bronze load procedure**  
    `scripts/bronze_layer/bulk_insert_crm_cust_info.sql`
 4. **Load Bronze data**  
@@ -104,7 +104,7 @@ Run the scripts in this order:
    EXEC bronze.load_bronze @base_path = N'C:\data\SQL-Data-Warehouse\datasets';
    ```
 5. **Create Silver tables**  
-   `scripts/silver_layer/create-silver-table-structure.sql`
+   `scripts/silver_layer/create_silver_table_structure.sql`
 6. **Run Silver cleansing scripts**  
    - `scripts/silver_layer/cleansing_crm_cust_info.sql` (loads cleaned customer data into Silver)
    - `scripts/silver_layer/cleansing_crm_prd_info.sql` (loads cleaned product data into `silver.crm_prd_info`)

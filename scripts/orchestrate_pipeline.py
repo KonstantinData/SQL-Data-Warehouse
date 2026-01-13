@@ -10,10 +10,10 @@ from pathlib import Path
 
 SQL_FILES = [
     "scripts/init.database.sql",
-    "scripts/bronze_layer/create_table_bronze_layer.SQL",
+    "scripts/bronze_layer/create_table_bronze_layer.sql",
     "scripts/bronze_layer/bulk_insert_crm_cust_info.sql",
     "scripts/bronze_layer/bronze-load-bronze.sql",
-    "scripts/silver_layer/create-silver-table-structure.sql",
+    "scripts/silver_layer/create_silver_table_structure.sql",
     "scripts/silver_layer/cleansing_crm_cust_info.sql",
     "scripts/silver_layer/cleansing_crm_prd_info.sql",
 ]
