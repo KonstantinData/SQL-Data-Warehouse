@@ -84,6 +84,17 @@ If you use SSMS/ADS with SQLCMD mode enabled, you can run the full pipeline via:
 
 This script chains the database init, Bronze load, and Silver cleansing steps in order.
 
+## 🐍 One-Click Orchestration (Python + sqlcmd)
+
+If you prefer a single command outside SSMS/ADS, use the Python runner that calls `sqlcmd`
+for each step:
+
+```
+python scripts/orchestrate_pipeline.py --server localhost --database master --trusted-connection
+```
+
+For SQL authentication, pass `--username` and `--password` instead of `--trusted-connection`.
+
 ## 🧾 Data Description
 
 The project uses small CRM and ERP CSV extracts (included in `datasets/`) for demo purposes. These are **sample datasets** intended for learning and testing ETL logic.
