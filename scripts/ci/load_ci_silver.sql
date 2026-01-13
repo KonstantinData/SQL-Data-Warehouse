@@ -45,22 +45,19 @@ INSERT INTO silver.crm_sales_details (
     sls_price
 )
 SELECT
-    sls_ord_num,
-    sls_prd_key,
-    sls_cust_id,
-    sls_order_dt,
-    sls_ship_dt,
-    sls_due_dt,
-    sls_sales,
-    sls_quantity,
-    sls_price
+    s.sls_ord_num,
+    p.prd_key,
+    s.sls_cust_id,
+    s.sls_order_dt,
+    s.sls_ship_dt,
+    s.sls_due_dt,
+    s.sls_sales,
+    s.sls_quantity,
+    s.sls_price
 FROM bronze.crm_sales_details s
+INNER JOIN silver.crm_prd_info p
+    ON SUBSTRING(p.prd_key, 7, LEN(p.prd_key)) = s.sls_prd_key
 WHERE EXISTS (
-    SELECT 1
-    FROM silver.crm_prd_info p
-    WHERE SUBSTRING(p.prd_key, 7, LEN(p.prd_key)) = s.sls_prd_key
-)
-AND EXISTS (
     SELECT 1
     FROM silver.crm_cust_info c
     WHERE c.cust_id = s.sls_cust_id
