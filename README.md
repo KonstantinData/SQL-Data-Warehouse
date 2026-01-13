@@ -6,10 +6,6 @@ Building an SQL Data Warehouse Solution from scratch
 This project is a hands-on exploration of **data engineering** concepts, focusing on data extraction, transformation, loading (ETL), and pipeline automation. 
 It serves as a learning project to gain practical experience with real-world datasets while developing a structured approach to data warehousing.
 
-**Welcome to the Project**  
-🔗 [Project Overview](https://www.notion.so/Welcome-to-the-Project-fccab1cbaaf843d584d237ec6dce641e?pvs=4)  
-
-📌 **Access:** View-only access is granted upon request and can be revoked at any time.
 
 ## ✅ Prerequisites
 
