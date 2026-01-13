@@ -58,7 +58,7 @@ FROM bronze.crm_sales_details s
 WHERE EXISTS (
     SELECT 1
     FROM silver.crm_prd_info p
-    WHERE p.prd_key = s.sls_prd_key
+    WHERE SUBSTRING(p.prd_key, 7, LEN(p.prd_key)) = s.sls_prd_key
 )
 AND EXISTS (
     SELECT 1
