@@ -1,40 +1,53 @@
-USE DataWarehouse;
+/*
+**Script Overview:**
+======================================================================================================================
+This SQL script cleanses product records from `bronze.crm_prd_info` and loads them into `silver.crm_prd_info`.
+It ensures data consistency by:
 
-SELECT COLUMN_NAME, DATA_TYPE
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_NAME = 'crm_prd_info'
-AND TABLE_SCHEMA = 'bronze'
+- Removing duplicate product IDs (keeping the most recent start date).
+- Standardizing product line labels.
+- Trimming unwanted spaces in product identifiers and names.
+- Defaulting missing/invalid costs to 0.
+- Nulling invalid date ranges where end dates precede start dates.
 
+This script is part of an ETL process, ensuring accurate and up-to-date product data for analytics and reporting. 🚀
+=======================================================================================================================
+*/
+
+INSERT INTO DataWarehouse.silver.crm_prd_info (
+    prd_id,
+    prd_key,
+    prd_nm,
+    prd_cost,
+    prd_line,
+    prd_start_dt,
+    prd_end_dt
+)
 SELECT
-	prd_id,
-	COUNT(*) AS count_prd_key
-FROM bronze.crm_prd_info
-GROUP BY prd_id
-HAVING count(*) > 1 OR prd_id IS NULL -- Checked no duplicates
-
-SELECT
-	prd_id,
-	prd_key,
-	REPLACE(SUBSTRING(prd_key,1,5),'-','_') as cat_id,
-	SUBSTRING(prd_key, 7, len(prd_key)) AS prd_key, -- prd_key is now a double? ow to handle
-	prd_nm,
-	ISNULL(prd_cost,0) as prod_cost,
-	CASE UPPER(TRIM(prd_line)) -- ONLY WITH VALUES!!! Not with complex conditions
-		WHEN 'M' THEN 'Mountain'
-		WHEN 'R' THEN 'Road'
-		WHEN 'S' THEN 'other Sales'
-		WHEN 'T' THEN 'Touring'
-		ELSE 'n/a'
-	END AS prd_line,
-	prd_start_dt,
-	prd_end_dt
-FROM bronze.crm_prd_info;
--- CHECK if all cat_id´s are available in bronze.erp_px_cat_g1v2
--- WHERE REPLACE(SUBSTRING(prd_key,1,5),'-','_') NOT IN
--- (SELECT distinct id from bronze.erp_px_cat_g1v2) -- cat_id CO_PE is not available in bronze.erp_px_cat_g1v2 (How to handle) 
-
---Check if all prd_key´s are available in bronze.crm_sales-details
---WHERE SUBSTRING(prd_key, 7, len(prd_key)) IN ( -- with NOT IN we checkefd first the entrance question
---SELECT sls_prd_key FROM bronze.crm_sales_details)-- Theire are a lott of prd_key´s not aveilable
-
--- SELECT sls_prd_key FROM bronze.crm_sales_details WHERE sls_prd_key LIKE 'FR-%' --theese are prd_key´s which have no orders.
+    prd_id,
+    TRIM(prd_key) AS prd_key,
+    TRIM(prd_nm) AS prd_nm,
+    CASE
+        WHEN prd_cost IS NULL OR prd_cost < 0 THEN 0
+        ELSE prd_cost
+    END AS prd_cost,
+    CASE UPPER(TRIM(prd_line))
+        WHEN 'M' THEN 'Mountain'
+        WHEN 'R' THEN 'Road'
+        WHEN 'S' THEN 'Other Sales'
+        WHEN 'T' THEN 'Touring'
+        ELSE TRIM(prd_line)
+    END AS prd_line,
+    prd_start_dt,
+    CASE
+        WHEN prd_end_dt IS NOT NULL AND prd_end_dt < prd_start_dt THEN NULL
+        ELSE prd_end_dt
+    END AS prd_end_dt
+FROM (
+    SELECT
+        *,
+        ROW_NUMBER() OVER (PARTITION BY prd_id ORDER BY prd_start_dt DESC) AS flag_last
+    FROM bronze.crm_prd_info
+    WHERE prd_id IS NOT NULL
+) latest_record
+WHERE flag_last = 1;
