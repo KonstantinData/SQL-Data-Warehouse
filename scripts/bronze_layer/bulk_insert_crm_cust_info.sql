@@ -7,12 +7,12 @@ The `bronze.load_bronze` stored procedure is responsible for loading data into t
    - Captures the start time of the batch process.
 
 2. **CRM Data Loading**  
-   - Truncates and reloads customer (`crm_cst_info`), product (`crm_prd_info`), and sales details (`crm_sales_details`) tables from CSV files located in a configurable base directory.
+   - Truncates and reloads customer (`crm_cust_info`), product (`crm_prd_info`), and sales details (`crm_sales_details`) tables from CSV files located in a configurable base directory.
    - Uses `BULK INSERT` to efficiently load data.
    - Logs the duration of each table load.
 
 3. **ERP Data Loading**  
-   - Truncates and reloads ERP-related tables (`erp_cst_az12`, `erp_loc_a101`, and `erp_px_cat_g1v2`) using the same base path configuration.
+   - Truncates and reloads ERP-related tables (`erp_cust_az12`, `erp_loc_a101`, and `erp_px_cat_g1v2`) using the same base path configuration.
    - Similar `BULK INSERT` operations ensure efficient data ingestion.
    - Logs the duration for each ERP table load.
 
@@ -53,11 +53,11 @@ BEGIN
 		PRINT '=======================================================================================';
 
 		SET @start_time = GETDATE();
-		PRINT '>>Truncating Table: bronze.crm_cst_info';
-		TRUNCATE TABLE bronze.crm_cst_info;
+		PRINT '>>Truncating Table: bronze.crm_cust_info';
+		TRUNCATE TABLE bronze.crm_cust_info;
 	
-		PRINT '>>Inserting Data into: bronze.crm_cst_info';
-		SET @sql = N'BULK INSERT bronze.crm_cst_info
+		PRINT '>>Inserting Data into: bronze.crm_cust_info';
+		SET @sql = N'BULK INSERT bronze.crm_cust_info
 		FROM ' + QUOTENAME(@dataset_path + N'source_crm\cst_info.csv', '''') + N'
 		WITH (
 			FIRSTROW = 2,
@@ -110,11 +110,11 @@ BEGIN
 		PRINT '=======================================================================================';
 
 		SET @start_time = GETDATE();
-		PRINT '>>Truncating Table: bronze.erp_cst_az12';
-		TRUNCATE TABLE bronze.erp_cst_az12;
+		PRINT '>>Truncating Table: bronze.erp_cust_az12';
+		TRUNCATE TABLE bronze.erp_cust_az12;
 
-		PRINT '>>Inserting Data into: bronze.erp_cst_az12';
-		SET @sql = N'BULK INSERT bronze.erp_cst_az12
+		PRINT '>>Inserting Data into: bronze.erp_cust_az12';
+		SET @sql = N'BULK INSERT bronze.erp_cust_az12
 		FROM ' + QUOTENAME(@dataset_path + N'source_erp\CST_AZ12.csv', '''') + N'
 		WITH (
 			FIRSTROW = 2,

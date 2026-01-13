@@ -13,16 +13,16 @@ This script keeps the silver layer **consistent, clean, and ready for analysis**
 */
 
 
-IF OBJECT_ID ('silver.crm_cst_info', 'U' ) IS NOT NULL
-	DROP TABLE silver.crm_cst_info;
-CREATE TABLE silver.crm_cst_info (
-    cst_id INT,
-    cst_key NVARCHAR(50),
-    cst_firstname NVARCHAR(50),
-    cst_lastname NVARCHAR(50),
-    cst_material_status NVARCHAR(50),
-    cst_gender NVARCHAR(10),
-    cst_create_date DATE,
+IF OBJECT_ID ('silver.crm_cust_info', 'U' ) IS NOT NULL
+	DROP TABLE silver.crm_cust_info;
+CREATE TABLE silver.crm_cust_info (
+    cust_id INT,
+    cust_key NVARCHAR(50),
+    cust_firstname NVARCHAR(50),
+    cust_lastname NVARCHAR(50),
+    cust_marital_status NVARCHAR(50),
+    cust_gender NVARCHAR(10),
+    cust_create_date DATE,
 	dwh_create_date DATETIME DEFAULT GETDATE()
 );
 GO
@@ -57,9 +57,9 @@ dwh_create_date DATETIME DEFAULT GETDATE()
 );
 GO
 
-IF OBJECT_ID ('silver.erp_cst_az12', 'U' ) IS NOT NULL
-	DROP TABLE silver.erp_cst_az12;
-CREATE TABLE silver.erp_cst_az12(
+IF OBJECT_ID ('silver.erp_cust_az12', 'U' ) IS NOT NULL
+	DROP TABLE silver.erp_cust_az12;
+CREATE TABLE silver.erp_cust_az12(
 cid NVARCHAR(50),
 bdate DATE, 
 gen NVARCHAR(10),

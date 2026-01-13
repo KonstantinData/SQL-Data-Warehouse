@@ -18,16 +18,16 @@ Usage Example:
 
 
 
-IF OBJECT_ID ('bronze.crm_cst_info', 'U' ) IS NOT NULL
-	DROP TABLE bronze.crm_cst_info;
-CREATE TABLE bronze.crm_cst_info (
-    cst_id INT,
-    cst_key NVARCHAR(50),
-    cst_firstname NVARCHAR(50),
-    cst_lastname NVARCHAR(50),
-    cst_material_status NVARCHAR(50),
-    cst_gender NVARCHAR(10),
-    cst_create_date DATE
+IF OBJECT_ID ('bronze.crm_cust_info', 'U' ) IS NOT NULL
+	DROP TABLE bronze.crm_cust_info;
+CREATE TABLE bronze.crm_cust_info (
+    cust_id INT,
+    cust_key NVARCHAR(50),
+    cust_firstname NVARCHAR(50),
+    cust_lastname NVARCHAR(50),
+    cust_marital_status NVARCHAR(50),
+    cust_gender NVARCHAR(10),
+    cust_create_date DATE
 );
 GO
 
@@ -59,9 +59,9 @@ sls_price INT
 );
 GO
 
-IF OBJECT_ID ('bronze.erp_cst_az12', 'U' ) IS NOT NULL
-	DROP TABLE bronze.erp_cst_az12;
-CREATE TABLE bronze.erp_cst_az12(
+IF OBJECT_ID ('bronze.erp_cust_az12', 'U' ) IS NOT NULL
+	DROP TABLE bronze.erp_cust_az12;
+CREATE TABLE bronze.erp_cust_az12(
 cid NVARCHAR(50),
 bdate DATE, 
 gen NVARCHAR(10)
