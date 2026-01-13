@@ -19,3 +19,4 @@ Notes:
 :r .\scripts\silver_layer\create-silver-table-structure.sql
 :r .\scripts\silver_layer\cleansing_crm_cust_info.sql
 :r .\scripts\silver_layer\cleansing_crm_prd_info.sql
+:r .\scripts\gold_layer\create_gold_views.sql
