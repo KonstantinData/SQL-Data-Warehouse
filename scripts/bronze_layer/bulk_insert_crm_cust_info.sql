@@ -34,13 +34,15 @@ AS
 BEGIN
 	DECLARE @start_time DATETIME, @end_time DATETIME, @batch_start_time DATETIME, @batch_end_time DATETIME;
 	DECLARE @dataset_path NVARCHAR(4000);
+	DECLARE @path_separator NCHAR(1);
 	DECLARE @sql NVARCHAR(MAX);
 	SET @batch_start_time = GETDATE();
 	SET @dataset_path = @base_path;
+	SET @path_separator = CASE WHEN CHARINDEX('/', @dataset_path) > 0 THEN '/' ELSE '\' END;
 
 	IF RIGHT(@dataset_path, 1) NOT IN ('\', '/')
 	BEGIN
-		SET @dataset_path += N'\';
+		SET @dataset_path += @path_separator;
 	END
 
 	BEGIN TRY	
@@ -58,7 +60,7 @@ BEGIN
 	
 		PRINT '>>Inserting Data into: bronze.crm_cust_info';
 		SET @sql = N'BULK INSERT bronze.crm_cust_info
-		FROM ' + QUOTENAME(@dataset_path + N'source_crm\cst_info.csv', '''') + N'
+		FROM ' + QUOTENAME(@dataset_path + N'source_crm' + @path_separator + N'cst_info.csv', '''') + N'
 		WITH (
 			FIRSTROW = 2,
 			FIELDTERMINATOR = '','',
@@ -76,7 +78,7 @@ BEGIN
 	
 		PRINT '>>Inserting Data into: bronze.crm_prd_info';
 		SET @sql = N'BULK INSERT bronze.crm_prd_info
-		FROM ' + QUOTENAME(@dataset_path + N'source_crm\prd_info.csv', '''') + N'
+		FROM ' + QUOTENAME(@dataset_path + N'source_crm' + @path_separator + N'prd_info.csv', '''') + N'
 		WITH (
 			FIRSTROW = 2,
 			FIELDTERMINATOR = '','',
@@ -94,7 +96,7 @@ BEGIN
 	
 		PRINT '>>Inserting Data into: bronze.crm_sales_details';
 		SET @sql = N'BULK INSERT bronze.crm_sales_details
-		FROM ' + QUOTENAME(@dataset_path + N'source_crm\sales_details.csv', '''') + N'
+		FROM ' + QUOTENAME(@dataset_path + N'source_crm' + @path_separator + N'sales_details.csv', '''') + N'
 		WITH (
 			FIRSTROW = 2,
 			FIELDTERMINATOR = '','',
@@ -115,7 +117,7 @@ BEGIN
 
 		PRINT '>>Inserting Data into: bronze.erp_cust_az12';
 		SET @sql = N'BULK INSERT bronze.erp_cust_az12
-		FROM ' + QUOTENAME(@dataset_path + N'source_erp\CST_AZ12.csv', '''') + N'
+		FROM ' + QUOTENAME(@dataset_path + N'source_erp' + @path_separator + N'CST_AZ12.csv', '''') + N'
 		WITH (
 			FIRSTROW = 2,
 			FIELDTERMINATOR = '','',
@@ -133,7 +135,7 @@ BEGIN
 
 		PRINT '>>Inserting Data into: bronze.erp_loc_a101';
 		SET @sql = N'BULK INSERT bronze.erp_loc_a101
-		FROM ' + QUOTENAME(@dataset_path + N'source_erp\LOC_A101.csv', '''') + N'
+		FROM ' + QUOTENAME(@dataset_path + N'source_erp' + @path_separator + N'LOC_A101.csv', '''') + N'
 		WITH (
 			FIRSTROW = 2,
 			FIELDTERMINATOR = '','',
@@ -151,7 +153,7 @@ BEGIN
 
 		PRINT '>>Inserting Data into: bronze.erp_px_cat_g1v2';
 		SET @sql = N'BULK INSERT bronze.erp_px_cat_g1v2
-		FROM ' + QUOTENAME(@dataset_path + N'source_erp\PX_CAT_G1V2.csv', '''') + N'
+		FROM ' + QUOTENAME(@dataset_path + N'source_erp' + @path_separator + N'PX_CAT_G1V2.csv', '''') + N'
 		WITH (
 			FIRSTROW = 2,
 			FIELDTERMINATOR = '','',

@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  sql-quality-checks:
+    runs-on: ubuntu-latest
+    env:
+      SA_PASSWORD: "YourStrong!Passw0rd1"
+      MSSQL_IMAGE: "mcr.microsoft.com/mssql/server:2022-latest"
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_PID: "Express"
+          SA_PASSWORD: "YourStrong!Passw0rd1"
+        ports:
+          - 1433:1433
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Wait for SQL Server
+        run: |
+          for i in {1..30}; do
+            if docker run --rm --network host mcr.microsoft.com/mssql-tools /opt/mssql-tools18/bin/sqlcmd \
+              -S localhost -U sa -P "$SA_PASSWORD" -C -Q "SELECT 1"; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "SQL Server did not become available in time."
+          exit 1
+
+      - name: Copy datasets into SQL Server container
+        run: |
+          MSSQL_CONTAINER=$(docker ps --filter "ancestor=$MSSQL_IMAGE" --format "{{.ID}}")
+          if [ -z "$MSSQL_CONTAINER" ]; then
+            echo "SQL Server container not found."
+            exit 1
+          fi
+          docker cp datasets "$MSSQL_CONTAINER":/datasets
+          docker exec "$MSSQL_CONTAINER" chmod -R 777 /datasets
+
+      - name: Run pipeline
+        run: |
+          docker run --rm --network host -v "$PWD":/workspace mcr.microsoft.com/mssql-tools \
+            /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$SA_PASSWORD" -C -b \
+            -i /workspace/scripts/ci/run_ci_pipeline.sql
+
+      - name: Run CI quality checks
+        run: |
+          docker run --rm --network host -v "$PWD":/workspace mcr.microsoft.com/mssql-tools \
+            /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$SA_PASSWORD" -C -b \
+            -d DataWarehouse -i /workspace/tests/quality_checks_ci.sql
