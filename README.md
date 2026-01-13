@@ -162,13 +162,13 @@ The tables below summarize the core warehouse entities, key fields, and notable 
 
 | View | Grain | Key fields | Business rules |
 | --- | --- | --- | --- |
-| `gold.dim_customers` | One row per customer | `customer_key`, `customer_id`, `customer_number`, `first_name`, `last_name`, `marital_status`, `gender`, `birth_date`, `country` | Joins CRM and ERP sources; `gender` prioritizes cleaned CRM values and falls back to ERP `gen` when CRM is `n/a`. |
+| `gold.dim_customers` | One row per customer | `customer_key`, `customer_id`, `customer_number`, `first_name`, `last_name_hash`, `marital_status`, `gender`, `birth_date`, `country` | Joins CRM and ERP sources; `gender` prioritizes cleaned CRM values and falls back to ERP `gen` when CRM is `n/a`. Last names are hashed in Gold to demonstrate data minimization. |
 | `gold.dim_products` | One row per product | `product_key`, `product_id`, `product_number`, `product_name`, `product_cost`, `product_line`, `category`, `subcategory`, `maintenance` | Standardizes product line codes (M/R/S/T) to descriptive labels and enriches with ERP categories. |
 | `gold.fact_sales` | One row per sales order line | `order_number`, `customer_key`, `product_key`, `order_date`, `ship_date`, `due_date`, `sales_amount`, `quantity`, `price` | Converts integer dates to `DATE` and joins to the customer/product dimensions. |
 
 ### Privacy & GDPR considerations
 
-This project uses **fictional, synthetic data** included in the `datasets/` folder for learning and testing. It does **not** contain real personal data, and no production identifiers are used. As a result, no anonymization or masking techniques are required in this repo. If you adapt these pipelines for real customer data, apply privacy-by-design controls such as masking, tokenization, or row-level security before loading to analytics layers.
+This project uses **fictional, synthetic data** included in the `datasets/` folder for learning and testing. It does **not** contain real personal data, and no production identifiers are used. To demonstrate privacy-by-design, the Gold customer view hashes last names (`last_name_hash`) so analytical consumers can join and segment without direct identifiers. If you adapt these pipelines for real customer data, apply privacy-by-design controls such as masking, tokenization, encryption, or row-level security before loading to analytics layers.
 
 ## ✅ Outcomes & Example Queries
 

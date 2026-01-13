@@ -45,7 +45,7 @@ SELECT
     cust_id AS customer_id,
     cust_key AS customer_number,
     cust_firstname AS first_name,
-    cust_lastname AS last_name,
+    CONVERT(VARCHAR(64), HASHBYTES('SHA2_256', cust_lastname), 2) AS last_name_hash,
     cust_marital_status AS marital_status,
     COALESCE(NULLIF(cust_gender, 'n/a'), gen) AS gender,
     bdate AS birth_date,
