@@ -64,8 +64,8 @@ Run the scripts in this order:
 6. **Run Silver cleansing scripts**  
    - `scripts/silver_layer/cleansing_crm_cust_info.sql` (loads cleaned customer data into Silver)
    - `scripts/silver_layer/cleansing_crm_prd_info.sql` (currently exploratory; returns a cleaned projection for product data)
-7. **Gold layer views (planned)**  
-   The `scripts/gold_layer/` folder is a placeholder. The target tables referenced in `tests/quality_checks_gold.sql` are:
+7. **Gold layer views**  
+   Create the Gold layer views with `scripts/gold_layer/create_gold_views.sql`:
    - `gold.dim_customers`
    - `gold.dim_products`
    - `gold.fact_sales`
@@ -114,7 +114,7 @@ The project uses small CRM and ERP CSV extracts (included in `datasets/`) for de
 **Current output layers**
 - **Bronze**: raw CSV loads into `bronze.*` tables via `BULK INSERT`.
 - **Silver**: cleaned `crm_cust_info` data (trimmed strings, standardized values, future-date flag).
-- **Gold**: planned dimensional model (`dim_customers`, `dim_products`, `fact_sales`) referenced by the gold QA script.
+- **Gold**: dimensional model views (`dim_customers`, `dim_products`, `fact_sales`) referenced by the gold QA script.
 
 **Example validation query**
 ```
