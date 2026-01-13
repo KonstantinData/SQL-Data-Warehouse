@@ -1,0 +1,8 @@
+# Python dependencies for notebooks and optional tooling
+sqlalchemy>=2.0.0
+pandas>=2.0.0
+pyodbc>=5.0.0
+
+dbt-core>=1.9.0
+# Install the SQL Server adapter if you plan to use dbt with SQL Server
+# dbt-sqlserver>=1.9.0
