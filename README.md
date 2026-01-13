@@ -73,6 +73,19 @@ Diagram: `architecture.drawio` (editable) and `docs/` for reference material.
    pip install -r requirements.txt
    ```
 
+## 🧪 Containerized Demo (Self-Contained)
+
+If you'd rather avoid local SQL Server + file path setup, you can run the same pipeline and checks
+in a disposable Docker container. The helper script handles container startup, copies the
+`datasets/` folder into the container, and runs the SQLCMD-driven pipeline + quality checks.
+
+```bash
+scripts/ci/run_ci_checks.sh
+```
+
+You can still customize credentials or images with the environment variables listed in the
+CI Automation section below.
+
 ## 🚀 Quick Start (Happy Path)
 
 If you have SQLCMD mode enabled in SSMS/ADS, run the full pipeline:
