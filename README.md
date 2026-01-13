@@ -37,6 +37,12 @@ It serves as a learning project to gain practical experience with real-world dat
 3. **Optional: Python notebooks**  
    If you want to explore `scripts/python_sql_server_connection.ipynb`, install Python 3.10+ and the ODBC driver, then configure your connection string.
 
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
 ## ▶️ Execution Guide (Manual)
 
 Run the scripts in this order:
