@@ -22,5 +22,5 @@ GO
 
 :r /workspace/scripts/silver_layer/create-silver-table-structure.sql
 :r /workspace/scripts/silver_layer/cleansing_crm_cust_info.sql
-:r /workspace/scripts/silver_layer/cleansing_crm_prd_info.sql
+:r /workspace/scripts/ci/load_ci_silver.sql
 :r /workspace/scripts/gold_layer/create_gold_views.sql
