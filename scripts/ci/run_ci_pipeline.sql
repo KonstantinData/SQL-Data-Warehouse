@@ -12,7 +12,13 @@ Notes:
 :r /workspace/scripts/bronze_layer/create_table_bronze_layer.SQL
 :r /workspace/scripts/bronze_layer/bulk_insert_crm_cust_info.sql
 
+USE DataWarehouse;
+GO
+
 EXECUTE bronze.load_bronze @base_path = N'/datasets';
+
+USE DataWarehouse;
+GO
 
 :r /workspace/scripts/silver_layer/create-silver-table-structure.sql
 :r /workspace/scripts/silver_layer/cleansing_crm_cust_info.sql
