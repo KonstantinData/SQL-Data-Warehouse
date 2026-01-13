@@ -47,7 +47,7 @@ jobs:
             exit 1
           fi
           docker cp datasets "$MSSQL_CONTAINER":/datasets
-          docker exec "$MSSQL_CONTAINER" chmod -R 777 /datasets
+          docker exec --user 0 "$MSSQL_CONTAINER" chmod -R a+rX /datasets
 
       - name: Run pipeline
         run: |
