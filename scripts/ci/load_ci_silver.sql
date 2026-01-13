@@ -46,7 +46,7 @@ INSERT INTO silver.crm_sales_details (
 )
 SELECT
     s.sls_ord_num,
-    p.prd_key,
+    s.sls_prd_key,
     s.sls_cust_id,
     s.sls_order_dt,
     s.sls_ship_dt,

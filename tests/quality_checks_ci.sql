@@ -182,7 +182,7 @@ BEGIN
         SELECT 1
         FROM silver.crm_sales_details s
         LEFT JOIN silver.crm_prd_info p
-            ON s.sls_prd_key = p.prd_key
+            ON s.sls_prd_key = SUBSTRING(p.prd_key, 7, LEN(p.prd_key))
         WHERE p.prd_key IS NULL
     )
     BEGIN
