@@ -41,7 +41,7 @@ prd_start_dt DATETIME NOT NULL,
 prd_end_dt DATETIME,
 dwh_create_date DATETIME DEFAULT GETDATE(),
 CONSTRAINT pk_silver_crm_prd_info PRIMARY KEY (prd_id),
-CONSTRAINT uq_silver_crm_prd_info_prd_key UNIQUE (prd_key)
+CONSTRAINT uq_silver_crm_prd_info_prd_key UNIQUE (prd_key) WITH (IGNORE_DUP_KEY = ON)
 );
 GO
 
