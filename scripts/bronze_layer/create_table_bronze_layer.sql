@@ -21,6 +21,7 @@ Usage Example:
 IF OBJECT_ID ('bronze.crm_cust_info', 'U' ) IS NOT NULL
 	DROP TABLE bronze.crm_cust_info;
 CREATE TABLE bronze.crm_cust_info (
+    cust_info_id INT IDENTITY(1,1) NOT NULL,
     cust_id INT NOT NULL,
     cust_key NVARCHAR(50) NOT NULL,
     cust_firstname NVARCHAR(50),
@@ -28,7 +29,7 @@ CREATE TABLE bronze.crm_cust_info (
     cust_marital_status NVARCHAR(50),
     cust_gender NVARCHAR(10),
     cust_create_date DATE NOT NULL,
-    CONSTRAINT pk_bronze_crm_cust_info PRIMARY KEY (cust_id, cust_key)
+    CONSTRAINT pk_bronze_crm_cust_info PRIMARY KEY (cust_info_id)
 );
 GO
 
