@@ -21,67 +21,73 @@ Usage Example:
 IF OBJECT_ID ('bronze.crm_cust_info', 'U' ) IS NOT NULL
 	DROP TABLE bronze.crm_cust_info;
 CREATE TABLE bronze.crm_cust_info (
-    cust_id INT,
-    cust_key NVARCHAR(50),
+    cust_id INT NOT NULL,
+    cust_key NVARCHAR(50) NOT NULL,
     cust_firstname NVARCHAR(50),
     cust_lastname NVARCHAR(50),
     cust_marital_status NVARCHAR(50),
     cust_gender NVARCHAR(10),
-    cust_create_date DATE
+    cust_create_date DATE NOT NULL,
+    CONSTRAINT pk_bronze_crm_cust_info PRIMARY KEY (cust_id)
 );
 GO
 
 IF OBJECT_ID ('bronze.crm_prd_info', 'U' ) IS NOT NULL
 	DROP TABLE bronze.crm_prd_info;
 CREATE TABLE bronze.crm_prd_info(
-prd_id INT,
-prd_key NVARCHAR(50),
+prd_id INT NOT NULL,
+prd_key NVARCHAR(50) NOT NULL,
 prd_nm NVARCHAR(50),
-prd_cost INT,
+prd_cost INT NOT NULL,
 prd_line NVARCHAR(50),
-prd_start_dt DATETIME,
-prd_end_dt DATETIME
+prd_start_dt DATETIME NOT NULL,
+prd_end_dt DATETIME,
+CONSTRAINT pk_bronze_crm_prd_info PRIMARY KEY (prd_id)
 );
 GO
 
 IF OBJECT_ID ('bronze.crm_sales_details', 'U' ) IS NOT NULL
 	DROP TABLE bronze.crm_sales_details;
 CREATE TABLE bronze.crm_sales_details(
-sls_ord_num NVARCHAR(50),
-sls_prd_key NVARCHAR(50),
-sls_cust_id INT,
-sls_order_dt INT,
-sls_ship_dt INT,
-sls_due_dt INT,
-sls_sales INT,
-sls_quantity INT,
-sls_price INT
+sls_ord_num NVARCHAR(50) NOT NULL,
+sls_prd_key NVARCHAR(50) NOT NULL,
+sls_cust_id INT NOT NULL,
+sls_order_dt INT NOT NULL,
+sls_ship_dt INT NOT NULL,
+sls_due_dt INT NOT NULL,
+sls_sales INT NOT NULL,
+sls_quantity INT NOT NULL,
+sls_price INT NOT NULL,
+CONSTRAINT pk_bronze_crm_sales_details PRIMARY KEY (sls_ord_num)
 );
 GO
 
 IF OBJECT_ID ('bronze.erp_cust_az12', 'U' ) IS NOT NULL
 	DROP TABLE bronze.erp_cust_az12;
 CREATE TABLE bronze.erp_cust_az12(
-cid NVARCHAR(50),
-bdate DATE, 
-gen NVARCHAR(10)
+cid NVARCHAR(50) NOT NULL,
+bdate DATE NOT NULL, 
+gen NVARCHAR(10),
+CONSTRAINT pk_bronze_erp_cust_az12 PRIMARY KEY (cid)
 );
 GO
 
 IF OBJECT_ID ('bronze.erp_loc_a101', 'U' ) IS NOT NULL
 	DROP TABLE bronze.erp_loc_a101;
 CREATE TABLE bronze.erp_loc_a101(
-cid NVARCHAR(50),
-cntry NVARCHAR(50)
+cid NVARCHAR(50) NOT NULL,
+cntry NVARCHAR(50),
+CONSTRAINT pk_bronze_erp_loc_a101 PRIMARY KEY (cid)
 );
 GO
 
 IF OBJECT_ID ('bronze.erp_px_cat_g1v2', 'U' ) IS NOT NULL
 	DROP TABLE bronze.erp_px_cat_g1v2;
 CREATE TABLE bronze.erp_px_cat_g1v2(
-id NVARCHAR(50),
+id NVARCHAR(50) NOT NULL,
 cat NVARCHAR(50),
 subcat NVARCHAR(50),
-maintenance NVARCHAR(50)
+maintenance NVARCHAR(50),
+CONSTRAINT pk_bronze_erp_px_cat_g1v2 PRIMARY KEY (id)
 );
 GO

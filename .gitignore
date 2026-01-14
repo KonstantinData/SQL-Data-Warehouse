@@ -2,3 +2,4 @@
 sqlvenv/
 .venv/
 venv/
+artifacts/
