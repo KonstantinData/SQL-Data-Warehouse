@@ -28,7 +28,7 @@ CREATE TABLE bronze.crm_cust_info (
     cust_marital_status NVARCHAR(50),
     cust_gender NVARCHAR(10),
     cust_create_date DATE NOT NULL,
-    CONSTRAINT pk_bronze_crm_cust_info PRIMARY KEY (cust_id)
+    CONSTRAINT pk_bronze_crm_cust_info PRIMARY KEY (cust_id) WITH (IGNORE_DUP_KEY = ON)
 );
 GO
 
