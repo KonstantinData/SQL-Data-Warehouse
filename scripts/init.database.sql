@@ -1,43 +1,31 @@
 /*
-==============================================================================================================
-Create Database and Schemas
-==============================================================================================================
-Script Purpose:
-  This script creates a new database named 'DataWarehouse' after checking if it already exists.
-  If the database exists, it is dropped an recreated. Additionally, the script isets up three schemas
-  within the database: 'bronze','silver','gold'.
+================================================================================
+Safe database bootstrap
+================================================================================
+Creates the DataWarehouse database and required schemas when they do not exist.
+This script is intentionally non-destructive and is safe to run repeatedly.
 
-Warning:
-  Running this scrit will drop the entire 'DataWarehouse' database if it exists. All data in the database will 
-  be permanently deleted. Proceed with caution an enszure you have propper backups before running this script.
+For a disposable development reset, use:
+  scripts/operations/reset_development.sql
+================================================================================
 */
 
 USE master;
 GO
 
--- Überprüfen, ob die Datenbank existiert und löschen
-IF EXISTS (SELECT 1 FROM sys.databases WHERE name = 'DataWarehouse')
+IF DB_ID(N'DataWarehouse') IS NULL
 BEGIN
-    ALTER DATABASE DataWarehouse SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-    DROP DATABASE DataWarehouse;
+    CREATE DATABASE DataWarehouse;
 END;
 GO
 
--- Neue Datenbank erstellen
-CREATE DATABASE DataWarehouse;
-GO
-
--- Sicherstellen, dass die Datenbank korrekt verwendet wird
 USE DataWarehouse;
 GO
 
--- Schemas erstellen
-CREATE SCHEMA bronze;
+IF SCHEMA_ID(N'bronze') IS NULL EXEC(N'CREATE SCHEMA bronze AUTHORIZATION dbo;');
+IF SCHEMA_ID(N'silver') IS NULL EXEC(N'CREATE SCHEMA silver AUTHORIZATION dbo;');
+IF SCHEMA_ID(N'gold') IS NULL EXEC(N'CREATE SCHEMA gold AUTHORIZATION dbo;');
+IF SCHEMA_ID(N'control') IS NULL EXEC(N'CREATE SCHEMA control AUTHORIZATION dbo;');
 GO
 
-CREATE SCHEMA silver;
-GO
-
-CREATE SCHEMA gold;
-GO
-
+:r scripts/control/create_runtime_control.sql
