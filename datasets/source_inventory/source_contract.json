@@ -1,0 +1,54 @@
+{
+  "contract_version": "1.0.0",
+  "source_name": "synthetic_inventory_snapshots",
+  "source_system": "SYNTHETIC_WMS",
+  "file": "datasets/source_inventory/inventory_snapshots.csv",
+  "format": {
+    "encoding": "UTF-8",
+    "delimiter": ",",
+    "header": true,
+    "quoting_supported": false,
+    "line_terminator": "LF or CRLF"
+  },
+  "grain": [
+    "snapshot_date",
+    "warehouse_code",
+    "product_id"
+  ],
+  "columns": [
+    {"name": "source_row_id", "type": "string", "required": true},
+    {"name": "source_system", "type": "string", "required": true, "allowed": ["SYNTHETIC_WMS"]},
+    {"name": "snapshot_date", "type": "date", "format": "YYYY-MM-DD", "required": true},
+    {"name": "warehouse_code", "type": "string", "required": true},
+    {"name": "warehouse_name", "type": "string", "required": true},
+    {"name": "product_id", "type": "integer", "required": true},
+    {"name": "product_number", "type": "string", "required": true},
+    {"name": "on_hand_qty", "type": "integer", "minimum": 0, "required": true},
+    {"name": "reserved_qty", "type": "integer", "minimum": 0, "required": true},
+    {"name": "reorder_point_qty", "type": "integer", "minimum": 0, "required": true},
+    {"name": "unit_cost", "type": "decimal(18,2)", "minimum": 0, "required": true},
+    {"name": "currency_code", "type": "string", "required": true, "allowed": ["EUR"]},
+    {"name": "extracted_at_utc", "type": "datetime2(0)", "format": "ISO-8601 UTC; fixture uses trailing Z", "required": true}
+  ],
+  "normalization": {
+    "trim_all_text": true,
+    "uppercase": ["source_system", "warehouse_code", "product_number", "currency_code"]
+  },
+  "mapping": {
+    "warehouse_codes": ["WH-BER-01", "WH-HAM-01"],
+    "product_rule": "product_id and product_number must identify exactly one row in gold.dim_products"
+  },
+  "duplicate_survivor": "latest extracted_at_utc, then greatest source_row_id",
+  "expected_fixture_outcomes": {
+    "bronze_rows": 14,
+    "silver_rows": 10,
+    "reject_rows": 4,
+    "gold_rows": 10,
+    "reject_reason_counts": {
+      "DUPLICATE_SUPERSEDED": 1,
+      "NEGATIVE_ON_HAND_QTY": 1,
+      "RESERVED_EXCEEDS_ON_HAND_QTY": 1,
+      "PRODUCT_MAPPING_NOT_FOUND": 1
+    }
+  }
+}
