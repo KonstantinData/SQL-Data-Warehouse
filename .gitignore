@@ -2,3 +2,6 @@
 sqlvenv/
 .venv/
 venv/
+
+# Environment variables
+.env
