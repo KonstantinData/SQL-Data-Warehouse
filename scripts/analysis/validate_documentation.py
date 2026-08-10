@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
@@ -11,7 +12,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from repository_analysis import build_inventory
+from repository_analysis import build_inventory, mask_sql
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -27,6 +28,9 @@ REQUIRED_FILES = (
     "docs/data/source_to_target_mapping.md",
     "docs/data/data_catalog.md",
     "docs/data/dependency_analysis.md",
+    "docs/data/data_dictionary.md",
+    "docs/data/business_glossary.md",
+    "docs/data/data_quality_rules.md",
     "docs/legacy/legacy_object_inventory.md",
     "docs/legacy/deprecation_and_removal.md",
 )
@@ -39,6 +43,231 @@ LOCAL_LINK_RE = re.compile(r"\[[^\]]+\]\((?!https?://|#)([^)]+)\)")
 MERMAID_RE = re.compile(r"```mermaid\s*\n(.*?)```", re.DOTALL)
 
 
+def documentation_files(root: Path) -> list[Path]:
+    """Return tracked and non-ignored Markdown artifacts, including unstaged additions."""
+
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", "*.md"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+        )
+        paths = [root / value.decode("utf-8", errors="surrogateescape") for value in result.stdout.split(b"\0") if value]
+        return sorted(path for path in paths if path.is_file())
+    except (OSError, subprocess.CalledProcessError):
+        excluded = {".git", ".pytest_cache", "venv", "sqlvenv", "__pycache__"}
+        return sorted(
+            path for path in root.rglob("*.md") if path.is_file() and not excluded.intersection(path.parts)
+        )
+
+
+def markdown_tables(text: str) -> list[tuple[list[str], list[dict[str, str]]]]:
+    """Parse well-formed pipe tables without coupling validation to prose wording."""
+
+    lines = text.splitlines()
+    tables: list[tuple[list[str], list[dict[str, str]]]] = []
+    index = 0
+    while index + 1 < len(lines):
+        if not lines[index].strip().startswith("|") or not lines[index + 1].strip().startswith("|"):
+            index += 1
+            continue
+
+        def cells(line: str) -> list[str]:
+            return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+        headers = cells(lines[index])
+        separator = cells(lines[index + 1])
+        if len(headers) != len(separator) or not all(
+            re.fullmatch(r":?-{3,}:?", cell) for cell in separator
+        ):
+            index += 1
+            continue
+        index += 2
+        rows: list[dict[str, str]] = []
+        while index < len(lines) and lines[index].strip().startswith("|"):
+            values = cells(lines[index])
+            if len(values) == len(headers):
+                rows.append({header: value for header, value in zip(headers, values)})
+            index += 1
+        tables.append((headers, rows))
+    return tables
+
+
+def normalize_header(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", value.lower())
+
+
+def validate_markdown_structure(root: Path, paths: list[Path]) -> list[str]:
+    failures: list[str] = []
+    for path in paths:
+        relative = path.relative_to(root).as_posix()
+        text = path.read_text(encoding="utf-8")
+        for match in LOCAL_LINK_RE.finditer(text):
+            target_text = match.group(1).split("#", 1)[0]
+            if not target_text:
+                continue
+            target = (path.parent / target_text).resolve()
+            if not target.exists():
+                failures.append(f"Broken local link in {relative}: {match.group(1)}")
+        for block in MERMAID_RE.findall(text):
+            if not re.search(r"\b(flowchart|graph|sequenceDiagram|erDiagram)\b", block):
+                failures.append(f"Unsupported or missing Mermaid diagram type in {relative}")
+            if block.count("[") != block.count("]"):
+                failures.append(f"Unbalanced Mermaid brackets in {relative}")
+    return failures
+
+
+def validate_structured_data_docs(root: Path) -> list[str]:
+    failures: list[str] = []
+    data_dictionary_rows: list[dict[str, str]] = []
+    contracts = {
+        "docs/data/data_dictionary.md": {
+            "object",
+            "column",
+            "datatype",
+            "nullable",
+            "businessmeaning",
+            "sourcederivation",
+            "dqrules",
+            "sensitivity",
+            "owner",
+        },
+        "docs/data/business_glossary.md": {"term", "definition"},
+        "docs/data/data_quality_rules.md": {
+            "rulecode",
+            "severity",
+            "scope",
+            "condition",
+            "dispositionresponse",
+            "owner",
+        },
+    }
+    for relative, required_headers in contracts.items():
+        path = root / relative
+        if not path.is_file():
+            failures.append(f"Missing required artifact: {relative}")
+            continue
+        candidates = markdown_tables(path.read_text(encoding="utf-8"))
+        matching = [
+            (headers, rows)
+            for headers, rows in candidates
+            if required_headers <= {normalize_header(header) for header in headers}
+        ]
+        if not matching:
+            failures.append(
+                f"Structured documentation table in {relative} lacks required fields: "
+                f"{sorted(required_headers)}"
+            )
+            continue
+        _, rows = matching[0]
+        if relative == "docs/data/data_dictionary.md":
+            data_dictionary_rows = rows
+        if not rows:
+            failures.append(f"Structured documentation table has no data rows: {relative}")
+            continue
+        for row_number, row in enumerate(rows, start=1):
+            normalized_row = {normalize_header(header): value for header, value in row.items()}
+            missing_values = sorted(header for header in required_headers if not normalized_row.get(header))
+            if missing_values:
+                failures.append(
+                    f"Structured documentation row {row_number} in {relative} has empty fields: {missing_values}"
+                )
+    if data_dictionary_rows:
+        documented_source_columns = {
+            (
+                row.get("Object", "").strip().strip("`").lower(),
+                row.get("Column", "").strip().strip("`").lower(),
+            )
+            for row in data_dictionary_rows
+        }
+        inventory = build_inventory(root)
+        for source in inventory["csv_sources"]:
+            for column in source["columns"]:
+                key = (source["path"].lower(), column.lower())
+                if key not in documented_source_columns:
+                    failures.append(f"CSV source column is missing from data dictionary: {source['path']}.{column}")
+    return failures
+
+
+def validate_inventory_source_contract(root: Path) -> list[str]:
+    path = root / "datasets" / "source_inventory" / "source_contract.json"
+    if not path.is_file():
+        return ["Inventory source contract is missing: datasets/source_inventory/source_contract.json"]
+    try:
+        contract = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return [f"Inventory source contract is invalid JSON: {exc}"]
+    product_rule = contract.get("mapping", {}).get("product_rule")
+    if not isinstance(product_rule, dict):
+        return ["Inventory product_rule must be a structured object"]
+    required_fields = {"business_key", "temporal_predicate", "cardinality", "unknown_member_policy"}
+    missing = sorted(field for field in required_fields if not product_rule.get(field))
+    failures = [f"Inventory product_rule missing fields: {missing}"] if missing else []
+    business_key = str(product_rule.get("business_key", "")).lower()
+    temporal = " ".join(str(product_rule.get("temporal_predicate", "")).lower().split())
+    cardinality = str(product_rule.get("cardinality", "")).lower()
+    unknown_policy = str(product_rule.get("unknown_member_policy", "")).lower()
+    if "product_id" not in business_key or "product_number" not in business_key:
+        failures.append("Inventory product_rule business_key must include product_id and product_number")
+    if not all(token in temporal for token in ("snapshot_date", "effective_from", "effective_to", ">=", "<")):
+        failures.append("Inventory product_rule temporal_predicate must define the half-open effective interval")
+    if "exactly one" not in cardinality or "gold.dim_products" not in cardinality:
+        failures.append("Inventory product_rule cardinality must require exactly one gold.dim_products row")
+    if "product_key" not in unknown_policy or not re.search(r"(?:>|greater than)\s*(?:0|zero)", unknown_policy):
+        failures.append("Inventory product_rule unknown_member_policy must require product_key > 0")
+    return failures
+
+
+def validate_inventory_sql_mapping(root: Path) -> list[str]:
+    """Keep both Inventory mapping stages aligned with the structured product rule."""
+
+    failures: list[str] = []
+    for relative in (
+        "scripts/source_inventory/20_transform_silver.sql",
+        "scripts/source_inventory/30_create_gold_views.sql",
+    ):
+        path = root / relative
+        if not path.is_file():
+            failures.append(f"Inventory mapping SQL is missing: {relative}")
+            continue
+        sql = " ".join(mask_sql(path.read_text(encoding="utf-8-sig")).split())
+        product_key = re.search(r"\b(?P<product>[A-Za-z_]\w*)\.product_key\s*>\s*0\b", sql, re.IGNORECASE)
+        if not product_key:
+            failures.append(f"Inventory mapping does not exclude the unknown Product member: {relative}")
+            continue
+        product = re.escape(product_key.group("product"))
+        id_match = re.search(
+            rf"\b{product}\.product_id\s*=\s*[A-Za-z_]\w*\.product_id(?:_typed)?\b",
+            sql,
+            re.IGNORECASE,
+        )
+        number_match = re.search(
+            rf"\bUPPER\s*\(\s*{product}\.product_number\s*\)\s*=\s*[A-Za-z_]\w*\.product_number(?:_clean)?\b",
+            sql,
+            re.IGNORECASE,
+        )
+        date_match = re.search(
+            rf"\b(?P<date>[A-Za-z_]\w*\.snapshot_date(?:_typed)?)\s*>=\s*{product}\.effective_from\b",
+            sql,
+            re.IGNORECASE,
+        )
+        if not id_match or not number_match:
+            failures.append(f"Inventory mapping lacks the complete Product business key: {relative}")
+        if not date_match:
+            failures.append(f"Inventory mapping lacks the effective_from predicate: {relative}")
+            continue
+        date = re.escape(date_match.group("date"))
+        effective_to = re.search(
+            rf"{product}\.effective_to\s+IS\s+NULL\s+OR\s+{date}\s*<\s*{product}\.effective_to",
+            sql,
+            re.IGNORECASE,
+        )
+        if not effective_to:
+            failures.append(f"Inventory mapping lacks the half-open effective_to predicate: {relative}")
+    return failures
+
+
 def validate(render_mermaid: bool = False) -> list[str]:
     failures: list[str] = []
     for relative in REQUIRED_FILES:
@@ -47,6 +276,10 @@ def validate(render_mermaid: bool = False) -> list[str]:
 
     if failures:
         return failures
+
+    failures.extend(validate_structured_data_docs(ROOT))
+    failures.extend(validate_inventory_source_contract(ROOT))
+    failures.extend(validate_inventory_sql_mapping(ROOT))
 
     all_text = "\n".join((ROOT / path).read_text(encoding="utf-8") for path in REQUIRED_FILES)
     required_statements = (
@@ -66,21 +299,8 @@ def validate(render_mermaid: bool = False) -> list[str]:
         if url not in provenance_text and url not in notice_text:
             failures.append(f"Missing primary-source citation: {url}")
 
-    for relative in REQUIRED_FILES:
-        path = ROOT / relative
-        text = path.read_text(encoding="utf-8")
-        for match in LOCAL_LINK_RE.finditer(text):
-            target_text = match.group(1).split("#", 1)[0]
-            if not target_text:
-                continue
-            target = (path.parent / target_text).resolve()
-            if not target.exists():
-                failures.append(f"Broken local link in {relative}: {match.group(1)}")
-        for block in MERMAID_RE.findall(text):
-            if not re.search(r"\b(flowchart|graph|sequenceDiagram|erDiagram)\b", block):
-                failures.append(f"Unsupported or missing Mermaid diagram type in {relative}")
-            if block.count("[") != block.count("]"):
-                failures.append(f"Unbalanced Mermaid brackets in {relative}")
+    markdown_files = documentation_files(ROOT)
+    failures.extend(validate_markdown_structure(ROOT, markdown_files))
 
     if render_mermaid:
         renderer = shutil.which("mmdc")
@@ -90,8 +310,9 @@ def validate(render_mermaid: bool = False) -> list[str]:
             with tempfile.TemporaryDirectory(prefix="sql-dw-mermaid-") as temporary:
                 temp_root = Path(temporary)
                 block_number = 0
-                for relative in REQUIRED_FILES:
-                    text = (ROOT / relative).read_text(encoding="utf-8")
+                for path in markdown_files:
+                    relative = path.relative_to(ROOT).as_posix()
+                    text = path.read_text(encoding="utf-8")
                     for block in MERMAID_RE.findall(text):
                         block_number += 1
                         source = temp_root / f"diagram-{block_number}.mmd"

@@ -28,10 +28,12 @@ Entry point: **Executive Overview**. The next best action is to inspect the larg
 
 ### Data Quality
 
-- Primary: pass rate, failed checks, unevaluated checks, last model refresh UTC.
+- Primary: global overall DQ status, Error failures, Warning failures, unevaluated checks, pass rate, and last model refresh UTC.
 - Secondary: exception counts for dates, amount reconciliation, country mapping, future customer dates, and product cost.
 - Tertiary: check register with severity, evaluation state, and failed rows.
 - Decision: hold release for Error failures; investigate Warnings; never treat an unevaluated check as a pass.
+
+The global release status, register, Product-cost check, and refresh timestamp are not country-filtered. Sales, Customer, Inventory, and data-through measures follow `CountrySalesViewer`. Visual labels and stakeholder evidence must preserve that distinction even when global and protected measures appear on the same page.
 
 ## Interaction contract
 
@@ -40,7 +42,7 @@ Entry point: **Executive Overview**. The next best action is to inspect the larg
 - Reset Filters must use a documented default bookmark based on the latest available data, not today's date.
 - Empty state: `No rows in selected scope. Clear filters or contact your access administrator.`
 - Refresh failure: show the failure state and last successful data-through date; do not preserve a false green state.
-- Missing RLS entitlement returns zero rows and must not expose out-of-scope totals or entitlement lists.
+- Missing RLS entitlement returns zero protected Sales and Inventory rows and must not expose out-of-scope protected totals or entitlement lists. Intentionally global Product, Date, data-quality, and refresh metadata remain visible and must be labelled as global.
 - Wide tables are excluded from the phone overview; users open the desktop/table view for detail.
 
 Bookmark, slicer synchronization, reset controls, tooltip, drillthrough, and page navigation require Desktop authoring and are explicitly pending. The source-authored pages already expose page title, synthetic-data status, access scope, data-through date, refresh context, headline measures, analysis visuals, and embedded visual titles/alt text. The files do not claim the pending interactions are already rendered.

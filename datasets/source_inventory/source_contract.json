@@ -1,5 +1,5 @@
 {
-  "contract_version": "1.0.0",
+  "contract_version": "1.1.0",
   "source_name": "synthetic_inventory_snapshots",
   "source_system": "SYNTHETIC_WMS",
   "file": "datasets/source_inventory/inventory_snapshots.csv",
@@ -36,7 +36,12 @@
   },
   "mapping": {
     "warehouse_codes": ["WH-BER-01", "WH-HAM-01"],
-    "product_rule": "product_id and product_number must identify exactly one row in gold.dim_products"
+    "product_rule": {
+      "business_key": "product_id and normalized product_number",
+      "temporal_predicate": "snapshot_date >= effective_from and (effective_to is null or snapshot_date < effective_to)",
+      "cardinality": "exactly one matching gold.dim_products row",
+      "unknown_member_policy": "product_key must be greater than zero"
+    }
   },
   "duplicate_survivor": "latest extracted_at_utc, then greatest source_row_id",
   "expected_fixture_outcomes": {

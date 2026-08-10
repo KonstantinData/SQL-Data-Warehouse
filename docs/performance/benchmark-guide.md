@@ -75,4 +75,15 @@ The expected design effect is a transition from broad fact scans to covering dat
 
 ## Evidence acceptance
 
-A completed evidence record must include SQL Server version/edition, compatibility level, repository commit, Gold and benchmark row counts, scale factor, parameters, cache policy, MAXDOP, statistics timestamp, all measured reads/CPU/elapsed values, result-equivalence proof, saved plan paths, interpretation, and limitations. Use `benchmark-evidence.md` as the record template.
+A current quantitative evidence record must include SQL Server version/edition,
+compatibility level, the exact immutable executable revision, an explicit
+working-tree scope statement, Gold and benchmark row counts, scale factor,
+parameters, cache policy, MAXDOP, statistics timestamp, all measured
+reads/CPU/elapsed values, result-equivalence proof, interpretation, cleanup,
+and limitations. Retain raw SQLCMD output paths when the files are persisted;
+otherwise record that they were transient and preserve their hashes before
+cleanup. A **plan-complete** record additionally requires saved actual-plan
+paths and operator-level interpretation. A run from an earlier data
+cardinality or a worktree whose changes affect measured SQL, tests, or fixtures
+is historical methodology evidence and must not be labelled current for a
+later executable revision. Use `benchmark-evidence.md` as the record template.

@@ -73,7 +73,7 @@ Gold customer, product, date, and sales objects are physical tables with persist
 
 | Profile | Behavior | Intended use |
 | --- | --- | --- |
-| `scripts/run_pipeline.sql` | Canonical CRM/ERP runtime, Gold model, Inventory | SQLCMD/SSMS execution |
+| `scripts/run_pipeline.sql` | Canonical six-file CRM/ERP runtime, Gold model, and seventh Inventory file | SQLCMD/SSMS execution |
 | `scripts/orchestrate_pipeline.py` | Calls the same canonical SQLCMD file and keeps passwords out of argv | Local/operator automation |
 | `scripts/ci/run_ci_checks.sh` | Pinned isolated SQL Server, positive and negative gates, cleanup | CI and reproducible local verification |
 | `scripts/operations/reset_development.sql` | Guarded destructive reset | Disposable development database only |
@@ -81,11 +81,12 @@ Gold customer, product, date, and sales objects are physical tables with persist
 ## Integrity and operational boundaries
 
 - CRM/ERP publication is serialized with an application lock and audited before mutation.
-- Failed Bronze or Silver publication preserves the previous published layer and rethrows the original error.
-- Every source row is reconciled to Bronze publication or durable quarantine.
+- Failed Bronze or Silver publication preserves that layer's previous published state and rethrows the original error. Bronze may already be committed when Silver fails.
+- Every CRM/ERP source row is reconciled to published Bronze or durable `control.load_reject` quarantine. Inventory separately reconciles its current Bronze snapshot to current Silver acceptance plus `silver.inventory_snapshot_reject`.
 - Successful immutable source versions replay as `SKIPPED`; linked restarts require a compatible failed batch.
 - Gold rejects ambiguous grains, preserves Unknown members, and supports stable reruns.
-- Inventory loading is independently transactional and idempotent.
+- Silver and its six core watermarks commit before downstream publication. Gold and Inventory publish together in the full runner's downstream transaction; failure rolls both back while the already-published Silver layer and watermarks remain.
+- Inventory loading is idempotent for the current snapshot, but its source version/watermark is coupled to the core batch and its row-level rejects are replaced on the next load.
 - Power BI refresh must follow successful warehouse and quality gates.
 
 Production services such as scheduling, alert routing, backups, disaster recovery, gateway binding, Power BI Service deployment, accountable approvals, and environment-specific secrets remain deployment responsibilities.

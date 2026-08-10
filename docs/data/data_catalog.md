@@ -2,13 +2,19 @@
 
 All committed records are synthetic. Operational metadata uses UTC unless explicitly stated.
 
+## Detailed reference artifacts
+
+- `data_dictionary.md` documents every committed source column and the curated Gold reporting interfaces, including types, nullability, derivation, DQ rules, sensitivity, and ownership gaps.
+- `business_glossary.md` defines the shared DWH, KPI, publication, SCD2, Inventory, and RLS terminology.
+- `data_quality_rules.md` catalogs implemented Core/Inventory reject codes and materialized Power BI DQ checks with severity and response.
+
 ## Control plane
 
 | Object | Grain/key | Purpose |
 | --- | --- | --- |
 | `control.pipeline_batch` | one execution attempt, `batch_id` | source version/watermark, restart relation, status, timestamps, durable error |
 | `control.pipeline_step` | one step attempt per batch | source/target, row metrics, watermarks, status, error |
-| `control.load_watermark` | pipeline and source | last successful version/watermark/batch |
+| `control.load_watermark` | pipeline and source | last successfully published core Silver source delivery; the referenced full-pipeline batch can later fail in Gold or Inventory |
 | `control.load_reject` | rejected rule occurrence | source provenance, row reference, business key, rule, raw evidence, remediation message |
 | `control.run_pipeline` | procedure | serialize and coordinate Bronze/Silver publication and audit outcome |
 
@@ -30,7 +36,7 @@ Every core table carries batch/source metadata appropriate to its layer. `bronze
 | Object | Grain/key | Important contract |
 | --- | --- | --- |
 | `gold.dim_customers` | one customer; identity `customer_key` | unique customer ID, Unknown member, hashed last name |
-| `gold.dim_products` | one product version; identity `product_key` | unique product ID and product/effective-start, non-overlapping SCD2, one current row |
+| `gold.dim_products` | one product version; identity `product_key` | unique product ID and product/effective-start; cross-row tests enforce non-overlapping SCD2 ranges and zero or one current row per business key |
 | `gold.dim_date` | one calendar day; `yyyymmdd` key | contiguous range plus Unknown member |
 | `gold.fact_sales` | one accepted order/product line; identity `sales_key` | trusted customer/product/date foreign keys and source-grain uniqueness |
 | `gold.usp_load_gold` | procedure | transactional dimensions/fact load with application lock and ambiguity checks |

@@ -53,8 +53,9 @@ differ only by an added final LF required for complete Linux SQL Server
 
 ## Safe professional statement
 
-> Extended and hardened an MIT-licensed SQL Server medallion-architecture
-> learning project with an audited runtime, physical star schema, new-source
+> Extended and hardened a public SQL Server medallion-architecture learning
+> project whose upstream repository carries an MIT license, with an audited
+> runtime, physical star schema, new-source
 > onboarding, Power BI project, performance evidence, automated validation,
 > lineage, catalog, and change governance over synthetic data.
 
@@ -64,8 +65,13 @@ multi-year warehouse operations.
 
 ## License and terms
 
-[`License.txt`](../../License.txt) preserves the upstream MIT copyright notice
-and identifies local modifications separately. [`NOTICE.md`](../../NOTICE.md)
-records the material and attribution boundary. The official course-page usage
-notice is more restrictive than the repository's MIT statement; the bundled
-datasets therefore require clarification or replacement before commercial use.
+[`License.txt`](../../License.txt) preserves the upstream MIT copyright notice,
+identifies local modifications separately, and is the repository license for
+its code and documentation. [`NOTICE.md`](../../NOTICE.md) records the material
+and attribution boundary. Of the six upstream-derived CRM/ERP fixtures, four
+are byte-identical and two contain only the documented rename/final-LF
+normalization; Inventory is repository-specific. The official course-page usage
+notice is more restrictive than the repository's MIT statement, and this
+repository does not resolve whether those separate terms apply to each fixture.
+The six upstream-derived fixtures therefore require clarification or
+replacement before commercial reuse or redistribution.

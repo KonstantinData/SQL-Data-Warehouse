@@ -61,12 +61,16 @@ covers Gold and Inventory publication.
 - SQL Server 2019 or newer and `sqlcmd` are available.
 - The SQL Server service identity can read the absolute `BasePath`. `BULK INSERT`
   reads from the server host, not from the client running `sqlcmd`.
-- All six expected CRM/ERP files are present and stable.
-- `SourceVersion` identifies the exact immutable bytes/manifest. Never reuse it
-  for changed files.
+- All six expected CRM/ERP files plus `source_inventory/inventory_snapshots.csv`
+  are present and stable. The full runner always executes Inventory.
+- `SourceVersion` identifies the exact immutable bytes/manifest for the complete
+  seven-file delivery. Inventory has no independent version or watermark, so
+  changed Inventory bytes also require a new core `SourceVersion`.
 - `SourceWatermark` is a positive, monotonically increasing delivery sequence.
-- `SnapshotAsOf` is the immutable ISO business date used to close product
-  versions retired by this full snapshot.
+- `SnapshotAsOf` is the operator-governed ISO business date used to close
+  product versions retired by this full snapshot. It is not stored in
+  `control.pipeline_batch`; preserve it with the delivery manifest and reuse it
+  on linked restart.
 - `MaxRejectRows` is an explicit operator decision. `0` is strictest. The
   current repository synthetic snapshot produces 23 quarantined source rows
   under SQL Server 2022 verification: 4 missing required customer keys, 18
@@ -111,7 +115,9 @@ sqlcmd -S "<server>" -d master -E -b `
 ```
 
 The referenced batch must be `FAILED` and must have the same version and
-watermark. If any source bytes changed, allocate a new version and a greater
+watermark. The runtime does not compare `SnapshotAsOf` because the audit schema
+does not persist it; the operator must supply the identical governed date. If
+any of the seven source files changed, allocate a new version and a greater
 watermark instead. Replaying an already successful version is audited as
 `SKIPPED` and changes no targets, rejects, or watermarks.
 
@@ -129,17 +135,28 @@ watermark instead. Replaying an already successful version is audited as
   effective version by order date and persists the resulting surrogate key.
 - All six Silver tables, six watermarks, and the Silver step publish in one
   transaction. The batch deliberately remains `RUNNING`.
-- The same session and application lock then publish physical Gold and
-  Inventory. Separate audited steps record both results. Only after both
-  succeed does the batch transition to `SUCCEEDED`; a downstream error records
-  the same batch and active step as `FAILED` and is rethrown.
+- The same session and application lock then opens one downstream transaction
+  covering physical Gold plus Inventory Bronze, Silver, and Gold views.
+  Separate audited steps record both results. Only after both succeed does the
+  transaction commit and the batch transition to `SUCCEEDED`; a downstream
+  error rolls back Gold and Inventory, records the same batch as `FAILED`, and
+  is rethrown. Previously committed Silver and its watermarks are not rolled
+  back.
 - Every `CATCH` rolls back an active transaction, records full SQL error
   metadata, and rethrows the original error.
 - A Silver failure can occur after Bronze committed. This is deliberate
   layer-atomicity: Silver and watermarks remain on the previous snapshot, while
   a linked retry always restages and republishes Bronze.
+- A Gold or Inventory failure occurs after the six Silver watermarks committed.
+  Those watermarks therefore mean "last successfully published core Silver
+  delivery," not "last successful end-to-end batch." Join them to
+  `control.pipeline_batch` before interpreting full-pipeline status.
 - Reject counts are validation-rule violations. The explicit ceiling is a
   release gate; rejected rows do not enter the affected published target.
+- CRM/ERP rejects are durable in `control.load_reject`. Inventory accepted and
+  rejected rows are current-snapshot tables that are replaced on every
+  Inventory load; the end-to-end batch preserves only aggregate Inventory step
+  counts and errors.
 
 ## Audit and evidence queries
 
@@ -181,6 +198,19 @@ ORDER BY pipeline_name, source_name;
 staging, not a guaranteed physical CSV line or a cross-retry identity.
 `source_file`, business key, raw payload, and rule code are the primary
 remediation evidence.
+
+The batch table does not contain `SnapshotAsOf`; reconstructing or proving that
+input requires the external immutable delivery manifest. Inventory row-level
+reject evidence is read from `silver.inventory_snapshot_reject` and is not a
+historical control ledger.
+
+```sql
+SELECT source_row_id, reason_code, source_system, snapshot_date,
+       warehouse_code, product_id, product_number,
+       on_hand_qty, reserved_qty, load_batch_id
+FROM silver.inventory_snapshot_reject
+ORDER BY bronze_row_id;
+```
 
 Potentially stale client-disconnect evidence is found with an operator-chosen
 threshold:
@@ -232,28 +262,35 @@ Run only against a disposable database initialized with synthetic data:
 
 ```powershell
 sqlcmd -S "<server>" -d DataWarehouse -E -b -i tests/runtime_contract.sql
+sqlcmd -S "<server>" -d DataWarehouse -E -b -i tests/runtime_silver_coverage.sql
 sqlcmd -S "<server>" -d DataWarehouse -E -b -i tests/runtime_fail_closed.sql
 sqlcmd -S "<server>" -d DataWarehouse -E -b -i tests/runtime_idempotency.sql `
   -v TestBasePath="C:\data\SQL-Data-Warehouse\datasets" `
      ConfirmRuntimeTests="RUN_RUNTIME_TESTS_ON_DISPOSABLE_DATABASE"
-sqlcmd -S "<server>" -d DataWarehouse -E -b -i tests/runtime_silver_coverage.sql
 sqlcmd -S "<server>" -d DataWarehouse -E -b -i tests/runtime_atomicity.sql `
   -v TestBasePath="C:\data\SQL-Data-Warehouse\datasets" `
      ConfirmRuntimeTests="RUN_RUNTIME_TESTS_ON_DISPOSABLE_DATABASE"
 ```
 
-The idempotency/restart and atomicity tests replace published test data and
-therefore require the exact disposable-database confirmation token. The Silver
-coverage test inspects the latest successful synthetic runtime batch and should
-run immediately after idempotency or another verified synthetic load. Reset
-refusal and concurrent-lock behavior require shell/two-session tests; they
-cannot be proved by a single success-only SQLCMD script.
+The Silver coverage test must run immediately after the canonical full synthetic
+load and before `runtime_idempotency.sql`: the idempotency test creates a newer
+core-scope batch and replaces Silver batch identifiers. The
+idempotency/restart and atomicity tests replace published test data and therefore
+require the exact disposable-database confirmation token. Reset refusal and
+concurrent-lock behavior require shell/two-session tests; they cannot be proved
+by a single success-only SQLCMD script. The authoritative complete order,
+including downstream restart and model tests, is encoded in
+`scripts/ci/run_ci_checks.sh`.
 
 ## Known limitations
 
 - This is full-snapshot CSV publication, not row-level CDC.
 - Snapshot identity and watermark are operator supplied; there is no built-in
   cryptographic manifest or file-arrival protocol.
+- `SnapshotAsOf` is also operator supplied and not persisted in the batch
+  ledger, so retry-date equality is an external governance responsibility.
+- Inventory has no independent source-version/watermark contract and no durable
+  row-level reject history; it is coupled to the seven-file full delivery.
 - `BULK INSERT` depends on SQL Server host filesystem and ACL behavior.
 - SQL Server on Linux does not accept the Windows `CODEPAGE` option for
   explicit UTF-8 decoding. The supplied synthetic files are compatible with

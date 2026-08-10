@@ -9,7 +9,7 @@
 
 ## Release update template
 
-> Reference version `<version>` is available at commit `<hash>`. Repository source checks: `<status>`. Power BI Desktop validation: `<status>`. Data source: synthetic CRM/ERP samples. KPI changes: `<summary>`. Known limitations: `<items>`. Decision requested: `<review/accept/hold>`. This update does not represent a production deployment.
+> Reference version `<version>` is available at commit `<hash>`. Repository source checks: `<status>`. Power BI Desktop validation: `<status>`. Data source: synthetic CRM/ERP and Inventory samples. Sales evidence: `<counts/totals>`. Inventory evidence: `<source/accepted/rejected/Gold counts and quantity/value totals>`. RLS evidence for Sales and Inventory: `<status/link>`. Global DQ and refresh evidence: `<status/link>`. KPI changes: `<summary>`. Known limitations: `<items>`. Decision requested: `<review/accept/hold>`. This update does not represent a production deployment.
 
 ## KPI revision template
 
@@ -21,4 +21,4 @@
 
 ## Review cadence
 
-For each reference release, review KPI definitions, source/quality evidence, Desktop validation, RLS evidence, accessibility screenshots, known limitations, and the requested decision. Avoid status language such as live, production ready, deployed, or adopted unless separately evidenced in the target environment.
+For each reference release, review KPI definitions, CRM/ERP and Inventory source/quality evidence, Desktop validation, Sales and Inventory RLS evidence, global-versus-protected scope labels, accessibility screenshots, known limitations, and the requested decision. Avoid status language such as live, production ready, deployed, or adopted unless separately evidenced in the target environment.

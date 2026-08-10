@@ -4,7 +4,7 @@ A production-oriented Microsoft SQL Server and Power BI reference implementation
 
 ## What the repository demonstrates
 
-- Audited Bronze/Silver loading for six CRM and ERP extracts with transactions, application locks, restart linkage, immutable source versions, watermarks, durable step metrics, quarantine evidence, and fail-closed error propagation.
+- Audited Bronze/Silver loading for six CRM and ERP extracts with layer-scoped transactions, application locks, restart linkage, immutable source versions, Silver-publication watermarks, durable step metrics, quarantine evidence, and fail-closed error propagation.
 - A physical Gold star schema with surrogate keys, Unknown members, SCD2 product resolution, a conformed date dimension, primary/foreign/check constraints, stable reruns, and workload indexes.
 - A complete new-source onboarding example for Inventory: source contract, Bronze loader, Silver parsing/mapping/quarantine, Gold views, idempotency tests, data-quality gates, and Power BI integration.
 - A source-controlled Power BI Project (PBIP/PBIR/TMDL) with explicit DAX measures, KPI catalog, report pages, responsive layouts, refresh parameters, RLS reference logic, accessibility metadata, and automated source validation.
@@ -96,7 +96,9 @@ sqlcmd -S localhost -d master -E -b -i scripts/run_pipeline.sql `
      RestartOfBatchId="0"
 ```
 
-`SourceVersion` identifies an immutable delivery. Reusing a successfully published version is audited as `SKIPPED`; a restart must reference a compatible failed batch. Lower `MaxRejectRows` to exercise fail-closed rejection policy.
+`SourceVersion` identifies an immutable delivery. Reusing a version from a previously `SUCCEEDED` end-to-end batch is audited as `SKIPPED`; a restart must reference a failed batch with the same pipeline, source version, and source watermark. `SourceWatermark` is the monotonic delivery watermark committed for all six CRM/ERP sources together with a successful Silver publication. It can therefore advance even when the same batch later fails in Gold or Inventory and remains eligible for a linked restart.
+
+`SnapshotAsOf` is the ISO business date used by the Gold SCD2 load when a product disappears from the current source snapshot. It provides a deterministic retirement boundary; when it is not later than the product's `effective_from`, the loader uses `effective_from + 1 day` to preserve a valid interval. The control tables do not persist this value, so operators must retain it externally and reuse the identical value for a linked retry. Lower `MaxRejectRows` to exercise the fail-closed rejection policy.
 
 The Python wrapper calls the same SQLCMD file:
 
@@ -146,9 +148,10 @@ Before treating a build as publishable, complete the Desktop gate in `docs/power
 
 - `control.pipeline_batch` records the overall outcome and restart relationship.
 - `control.pipeline_step` records source/target metrics, attempts, watermarks, and failures.
-- `control.load_watermark` records the last successful source delivery per source.
+- `control.load_watermark` records the most recent successfully published CRM/ERP Silver delivery per source; it is not an end-to-end success marker.
 - `control.load_reject` records rule, source file, row reference, business key, raw evidence, and remediation message.
-- Bronze and Silver publication are transactional; a late failure preserves the previously published state.
+- CRM/ERP Bronze and Silver publish in separate transactions. A Silver failure preserves the prior Silver state but does not roll back an already committed Bronze publication.
+- Gold plus Inventory and the final batch-status transition commit in one downstream transaction. A downstream failure rolls those changes back and marks the batch `FAILED`, while the already committed Bronze, Silver, Silver watermarks, and their audit evidence remain published.
 - Gold reconciliation is bidirectional and rejects ambiguous product-version matches.
 
 See `docs/operations/runtime-runbook.md` for execution, monitoring, triage, restart, rollback, and recovery guidance.
@@ -171,4 +174,4 @@ All committed CRM, ERP, Inventory, users, and email identities are synthetic ref
 
 ## License and attribution
 
-Licensed under the MIT License. See `License.txt`, `NOTICE.md`, and `docs/project/attribution.md` for the upstream tutorial attribution and the repository's extension boundary.
+Repository code and documentation carry the MIT license and preserved notices in `License.txt`. The six bundled CRM/ERP fixtures are derived from the cited upstream project: four are byte-identical and two were renamed and normalized only with a final line feed. Separate course-page terms create an unresolved rights ambiguity for those fixtures, so the repository license must not be treated as confirmation of unrestricted commercial dataset reuse. See `NOTICE.md` and `docs/project/attribution.md` for provenance, hashes, the repository-specific Inventory fixture, and the extension boundary.

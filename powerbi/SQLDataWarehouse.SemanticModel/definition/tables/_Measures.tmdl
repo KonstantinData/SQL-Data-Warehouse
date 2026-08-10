@@ -109,12 +109,36 @@ table _Measures
 		formatString: #,0
 		displayFolder: Data Quality
 
+	measure 'DQ Failed Error Checks' = COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = TRUE() && 'Data Quality Checks'[Severity] = "Error" && 'Data Quality Checks'[FailedRows] > 0))
+		formatString: #,0
+		displayFolder: Data Quality
+
+	measure 'DQ Failed Warning Checks' = COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = TRUE() && 'Data Quality Checks'[Severity] = "Warning" && 'Data Quality Checks'[FailedRows] > 0))
+		formatString: #,0
+		displayFolder: Data Quality
+
 	measure 'DQ Pass Rate' = AVERAGEX(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = TRUE()), 'Data Quality Checks'[PassRate])
 		formatString: 0.0%
 		displayFolder: Data Quality
 
 	measure 'DQ Not Evaluated Checks' = COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = FALSE()))
 		formatString: #,0
+		displayFolder: Data Quality
+
+	measure 'Overall DQ Status' =
+			VAR EvaluatedChecks =
+				COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = TRUE()))
+			VAR NotEvaluatedChecks = [DQ Not Evaluated Checks]
+			VAR ErrorFailures = [DQ Failed Error Checks]
+			VAR WarningFailures = [DQ Failed Warning Checks]
+			RETURN
+				SWITCH(
+					TRUE(),
+					ErrorFailures > 0, "Failed",
+					EvaluatedChecks = 0 || NotEvaluatedChecks > 0, "Not run",
+					WarningFailures > 0, "Passed with warnings",
+					"Passed"
+				)
 		displayFolder: Data Quality
 
 	measure 'Last Dataset Refresh UTC' = MAX('Refresh Metadata'[RefreshedAtUtc])

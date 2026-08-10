@@ -17,7 +17,7 @@
 ### CR-LIC-004 — Core dataset reuse rights
 
 - **State:** owner/legal clarification required.
-- **Problem:** upstream repository MIT and a separate course usage notice may create ambiguity for commercial reuse of the six inherited fixtures.
+- **Problem:** the upstream repository carries MIT while a separate course usage notice may create ambiguity for commercial reuse or redistribution of the six upstream-derived fixtures. Four are byte-identical and two contain only the documented rename/final-LF normalization; the repository-specific Inventory fixture is outside this open decision.
 - **Decision options:** obtain written clarification or replace them with independently generated fixtures.
 - **Acceptance:** recorded rights basis, provenance, hashes, mapping/catalog updates, and equivalent passing runtime/model/Power BI tests.
 

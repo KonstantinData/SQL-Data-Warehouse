@@ -6,7 +6,7 @@
     "visualType": "lineChart",
     "visualContainerObjects": {
       "title": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "text": {"expr": {"Literal": {"Value": "'Estimated gross profit trend'"}}}}}],
-      "general": [{"properties": {"altText": {"expr": {"Literal": {"Value": "'Monthly estimated gross profit based on current product master cost.'"}}}}}],
+      "general": [{"properties": {"altText": {"expr": {"Literal": {"Value": "'Monthly estimated gross profit using the effective-dated product cost persisted through each Sales row's product_key.'"}}}}}],
       "background": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#FFFFFF'"}}}}}, "transparency": {"expr": {"Literal": {"Value": "0D"}}}}}],
       "border": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#D0D5DD'"}}}}}, "radius": {"expr": {"Literal": {"Value": "8L"}}}, "width": {"expr": {"Literal": {"Value": "1L"}}}}}]
     },

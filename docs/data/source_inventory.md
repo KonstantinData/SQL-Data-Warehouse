@@ -8,7 +8,7 @@ The source represents full inventory snapshots exported by a fictional warehouse
 
 ## Source analysis and contract
 
-The authoritative machine-readable contract is `datasets/source_inventory/source_contract.json`; the deterministic fixture is `datasets/source_inventory/inventory_snapshots.csv`.
+The authoritative machine-readable contract is `datasets/source_inventory/source_contract.json` (contract version 1.1.0); the deterministic fixture is `datasets/source_inventory/inventory_snapshots.csv`.
 
 | Property | Contract |
 |---|---|
@@ -24,7 +24,7 @@ The authoritative machine-readable contract is `datasets/source_inventory/source
 
 Text is trimmed. `source_system`, warehouse code, product number, and currency are uppercased. Only `SYNTHETIC_WMS` and `EUR` are accepted. Quantities and unit cost must be non-negative, and reserved quantity cannot exceed on-hand quantity.
 
-Product mapping uses `product_id` plus `product_number` and requires `snapshot_date` to fall within the Gold product version's effective interval. This prevents both product-number fan-out and assignment to the wrong SCD2 version. Warehouse mapping is explicit in `silver.inventory_warehouse_map` and never inferred from a display name.
+Product mapping follows the structured `mapping.product_rule`: the `product_id` and normalized `product_number` business key must match exactly, `snapshot_date` must satisfy the half-open Gold effective interval, and cardinality must be exactly one non-Unknown Product version. This prevents product-number fan-out and assignment to the wrong SCD2 version. Warehouse mapping is explicit in `silver.inventory_warehouse_map` and never inferred from a display name.
 
 ### Deterministic fixture outcomes
 

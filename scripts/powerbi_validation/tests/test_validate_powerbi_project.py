@@ -12,7 +12,7 @@ SCRIPT_DIR = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = SCRIPT_DIR.parents[1]
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from validate_powerbi_project import validate_project  # noqa: E402
+from validate_powerbi_project import validate_git_scope, validate_project  # noqa: E402
 
 
 class PowerBIProjectValidatorTests(unittest.TestCase):
@@ -47,6 +47,75 @@ class PowerBIProjectValidatorTests(unittest.TestCase):
             path.write_text(json.dumps(data, indent=2), encoding="utf-8")
             errors = validate_project(root, check_git=False)
             self.assertTrue(any("Duplicate KPI ID" in error for error in errors), errors)
+
+    def test_uncataloged_tmdl_measure_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "docs/kpi/kpi-catalog.json"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data["kpis"] = [entry for entry in data["kpis"] if entry["measure"] != "Total Sales"]
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("TMDL measures missing from KPI catalog" in error for error in errors), errors)
+
+    def test_kpi_format_drift_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "docs/kpi/kpi-catalog.json"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            next(entry for entry in data["kpis"] if entry["measure"] == "Total Sales")["format"] = "0"
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("KPI format differs from TMDL for Total Sales" in error for error in errors), errors)
+
+    def test_blueprint_title_drift_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/report-blueprint.json"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data["pages"][0]["visuals"][0]["title"] = "Drifted title"
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("Blueprint/PBIR title mismatch" in error for error in errors), errors)
+
+    def test_missing_overall_dq_status_visual_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            visual_paths = sorted((root / "powerbi/SQLDataWarehouse.Report/definition/pages/DataQuality/visuals").glob("*/visual.json"))
+            for path in visual_paths:
+                text = path.read_text(encoding="utf-8")
+                if "_Measures.Overall DQ Status" in text:
+                    path.write_text(text.replace("_Measures.Overall DQ Status", "_Measures.DQ Pass Rate"), encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("visual bound to _Measures.Overall DQ Status" in error for error in errors), errors)
+
+    def test_incomplete_rls_validation_matrix_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "docs/powerbi/validation.md"
+            text = path.read_text(encoding="utf-8")
+            text = "\n".join(line for line in text.splitlines() if not line.startswith("| Expired |")) + "\n"
+            path.write_text(text, encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("RLS validation matrix identity cases differ" in error for error in errors), errors)
+
+    def test_data_through_scope_misclassification_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "docs/powerbi/data-quality-reporting.md"
+            text = path.read_text(encoding="utf-8").replace(
+                "| Data-through date | Protected selected Sales scope through the active Customers-to-Sales relationship |",
+                "| Data-through date | Global refresh scope |",
+            )
+            path.write_text(text, encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("scope matrix is missing or incorrect for data-through date" in error for error in errors), errors)
 
     def test_transient_power_bi_state_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -111,6 +180,14 @@ class PowerBIProjectValidatorTests(unittest.TestCase):
             path.write_text(json.dumps(data, indent=2), encoding="utf-8")
             errors = validate_project(root, check_git=False)
             self.assertTrue(any("title or alt text is missing" in error for error in errors), errors)
+
+    def test_git_scope_handles_space_in_unquoted_porcelain_z_path(self) -> None:
+        errors: list[str] = []
+        validate_git_scope(REPOSITORY_ROOT, errors)
+        self.assertFalse(
+            any("Data Quality Checks.tmdl" in error for error in errors),
+            errors,
+        )
 
 
 if __name__ == "__main__":

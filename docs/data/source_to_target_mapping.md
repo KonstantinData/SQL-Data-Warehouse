@@ -42,7 +42,7 @@ The Gold model preserves all accepted product versions and enforces at most one 
 | --- | --- | --- |
 | order/product/customer keys | required and reconciled; duplicate source grain rejected | `order_number`, `sales_order_line_number`, customer/product surrogate keys |
 | order/ship/due integers | validate `yyyymmdd` and chronological sequence | typed dates plus conformed date keys |
-| sales/quantity/price | require typed positive measures and validated equation | decimal amount/price, quantity, `measure_quality_code` |
+| sales/quantity/price | require positive quantity; normalize price to a positive value (derive it from amount/quantity when source price is zero or missing); recalculate sales as quantity times normalized price; reject invalid/nonpositive/overflow results | normalized decimal amount/price, positive quantity, `measure_quality_code` |
 
 Accepted Silver sales are reconciled bidirectionally to `gold.fact_sales`. Unknown dimension members preserve explicitly unresolved references; no inner join silently removes an accepted fact.
 
@@ -55,7 +55,7 @@ Accepted Silver sales are reconciled bidirectionally to `gold.fact_sales`. Unkno
 | warehouse code/name | normalize code; require active `silver.inventory_warehouse_map`; expose `gold.dim_inventory_locations` |
 | product ID/number | require an exact pair against the `gold.dim_products` version effective on `snapshot_date`; expose `product_key` |
 | quantities | nonnegative; reserved cannot exceed on-hand; derive available quantity and status |
-| unit cost/currency | nonnegative decimal and EUR; derive inventory value |
+| unit cost/currency | nonnegative snapshot unit cost and EUR; derive inventory value as `on_hand_qty * unit_cost` (not available quantity and not Product master cost) |
 
 ## Reconciliation and validation
 

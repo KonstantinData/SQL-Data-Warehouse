@@ -46,12 +46,26 @@ The analysis tool is static and its limitations must remain visible.
 
 ## Verification
 
-Run the checks appropriate to the change:
+Run the source checks appropriate to the change. The first block mirrors the
+current GitHub Actions gates and must remain synchronized with
+`.github/workflows/ci.yml`:
+
+```powershell
+python scripts/ci/check_ci_contract.py
+python -m unittest discover -s tests
+python -m unittest discover -s tests/source_inventory
+python -m unittest discover -s scripts/analysis/tests
+python scripts/analysis/validate_documentation.py
+python -m unittest discover -s scripts/powerbi_validation/tests
+python scripts/powerbi_validation/validate_powerbi_project.py --root .
+```
+
+Also run repository-generation and whitespace checks when their inputs or
+generated documentation can change:
 
 ```powershell
 python scripts/analysis/repository_analysis.py --check --format json
-python scripts/analysis/validate_documentation.py
-python -m compileall -q scripts/analysis
+python scripts/analysis/validate_documentation.py --render-mermaid
 git diff --check
 ```
 
@@ -61,9 +75,14 @@ Warehouse behavior requires SQL Server verification as well:
 scripts/ci/run_ci_checks.sh
 ```
 
-The Docker/SQLCMD check recreates `DataWarehouse`; use only a disposable local
-or CI instance. Static checks cannot validate T-SQL execution, permissions,
-dynamic SQL, or external consumers.
+The Docker/SQLCMD check starts a new isolated SQL Server container, creates and
+mutates `DataWarehouse` inside that disposable runtime, and removes the
+container on exit. It verifies CI wiring, the canonical pipeline, runtime and
+restart behavior, layer atomicity, positive and targeted negative quality
+contracts, model schema/data/reproducibility/sentinel/decimal/SCD2 contracts,
+and Inventory integration. Static checks cannot validate T-SQL execution,
+permissions, dynamic SQL, Power BI Desktop rendering/refresh/RLS, or external
+consumers.
 
 ## Change-request template
 

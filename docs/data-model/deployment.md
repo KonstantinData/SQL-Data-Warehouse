@@ -14,7 +14,7 @@ The legacy-named `scripts/gold_layer/create_gold_views.sql` remains the compatib
 4. Seed key-`0` Unknown members.
 5. Acquire a transaction-owned application lock and start the atomic Gold load.
 6. Upsert customers without regenerating retained keys.
-7. derive and upsert nonoverlapping product versions.
+7. Derive and upsert nonoverlapping product versions.
 8. Populate the contiguous date dimension.
 9. resolve and synchronize facts, including strict as-of product matching.
 10. Create workload-backed indexes.
@@ -31,15 +31,25 @@ sqlcmd -b -d DataWarehouse -i .\scripts\gold_layer\create_gold_views.sql
 sqlcmd -b -d DataWarehouse -i .\tests\model_schema_contract.sql
 sqlcmd -b -d DataWarehouse -i .\tests\model_data_quality.sql
 sqlcmd -b -d DataWarehouse -i .\tests\model_reproducibility.sql
+sqlcmd -b -d DataWarehouse -i .\tests\model_sentinel_contract.sql
+sqlcmd -b -d DataWarehouse -i .\tests\model_decimal_arithmetic.sql
+sqlcmd -b -d DataWarehouse -i .\tests\model_scd2_reconciliation.sql
 ```
 
 `scripts/gold_layer/deploy_gold_layer.sql` is an explicit alias for the same compatibility entry point.
+
+The standalone compatibility entry point invokes `gold.usp_load_gold` without
+`@snapshot_as_of`; disappearance handling therefore falls back to the current
+UTC date. It is suitable only when that fallback is the governed snapshot date
+or when product disappearance cannot occur. The canonical full-pipeline runner
+requires and passes an explicit `SnapshotAsOf` and is the preferred operational
+path.
 
 The `-b` flag is required so SQL errors and test `THROW` statements produce a failing process exit code.
 
 ## Integrated execution
 
-The canonical SQLCMD, Python, and CI paths now call the complete audited Silver runtime before this Gold entrypoint. CI executes schema, data-quality, reproducibility, negative, and Inventory gates. The historical CI-only Silver substitute has been removed.
+The canonical SQLCMD, Python, and CI paths call the complete audited Silver runtime before Gold. CI executes schema, data-quality, reproducibility, sentinel, decimal-arithmetic, SCD2, negative, and Inventory gates. The historical CI-only Silver substitute has been removed.
 
 The optional million-row performance fixture must never be added to the standard pipeline or per-commit CI path. It is an isolated benchmark workflow.
 
@@ -48,7 +58,7 @@ The optional million-row performance fixture must never be added to the standard
 - Re-running Gold in a retained database preserves keys for unchanged customer, product-version, date, and sales-line identities.
 - A failed load rolls back the complete Gold data mutation.
 - The DDL scripts do not drop materialized Gold tables on repeat execution.
-- The repository's destructive database initialization resets identity keys; restoring key continuity across that operation requires an external key-map or database backup and is outside this reference scope.
+- The repository's `scripts/init.database.sql` bootstrap is non-destructive. The explicitly guarded `scripts/operations/reset_development.sql`, or any external database replacement, resets identity keys; restoring key continuity across such an operation requires an external key-map or database backup and is outside this reference scope.
 - Rollback of the schema change should use a database backup or a forward migration. Converting populated physical tables back to views is destructive and is not automated.
 
 ## Integration handoff checklist
@@ -56,7 +66,7 @@ The optional million-row performance fixture must never be added to the standard
 - Populate all required Silver inputs before Gold.
 - Invoke the compatibility entry point from the repository root in SQLCMD mode.
 - Propagate SQLCMD failures with `-b` or equivalent.
-- Run schema, data-quality, and reproducibility tests in that order.
+- Run schema, data-quality, reproducibility, sentinel, decimal-arithmetic, and SCD2 reconciliation tests in that order.
 - Keep the performance suite opt-in.
 - Keep README, orchestration, Power BI partitions, and quality contracts synchronized with the physical Gold tables.
 - Do not claim a production deployment; the committed data is synthetic.

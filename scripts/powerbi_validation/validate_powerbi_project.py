@@ -66,6 +66,8 @@ def iter_json_like(root: Path) -> list[Path]:
 class ModelInventory:
     columns: dict[str, set[str]] = field(default_factory=dict)
     measures: dict[str, set[str]] = field(default_factory=dict)
+    measure_formats: dict[str, str | None] = field(default_factory=dict)
+    measure_expressions: dict[str, str] = field(default_factory=dict)
 
     @property
     def all_measures(self) -> set[str]:
@@ -90,13 +92,28 @@ def parse_model(definition: Path, errors: list[str]) -> ModelInventory:
             errors.append(f"Duplicate TMDL table: {table}")
             continue
         columns = {unquote(match.group("name").strip()) for match in COLUMN_RE.finditer(text)}
-        measures = {unquote(match.group("name").strip()) for match in MEASURE_RE.finditer(text)}
+        measure_matches = list(MEASURE_RE.finditer(text))
+        measures = {unquote(match.group("name").strip()) for match in measure_matches}
         if len(columns) != len(list(COLUMN_RE.finditer(text))):
             errors.append(f"Duplicate column in table {table}")
-        if len(measures) != len(list(MEASURE_RE.finditer(text))):
+        if len(measures) != len(measure_matches):
             errors.append(f"Duplicate measure in table {table}")
         inventory.columns[table] = columns
         inventory.measures[table] = measures
+        for match in measure_matches:
+            measure = unquote(match.group("name").strip())
+            remainder = text[match.end() :]
+            next_sibling = re.search(r"^\t(?!\t)(?:measure|column|partition|hierarchy)\s+", remainder, re.MULTILINE)
+            block = remainder[: next_sibling.start()] if next_sibling else remainder
+            format_match = re.search(r"^\t\tformatString:\s*(.+?)\s*$", block, re.MULTILINE)
+            inventory.measure_formats[measure] = format_match.group(1).strip() if format_match else None
+            first_property = re.search(
+                r"^\t\t(?:formatString|displayFolder|description|isHidden|lineageTag):",
+                block,
+                re.MULTILINE,
+            )
+            expression = block[: first_property.start()] if first_property else block
+            inventory.measure_expressions[measure] = " ".join(expression.split())
 
     required_tables = {
         "Customers",
@@ -112,6 +129,108 @@ def parse_model(definition: Path, errors: list[str]) -> ModelInventory:
     if missing:
         errors.append(f"Required TMDL tables missing: {sorted(missing)}")
     return inventory
+
+
+def pbir_literal(value: Any) -> str | None:
+    """Return a PBIR Literal.Value as user-facing text without TMDL quoting."""
+
+    current = value
+    for key in ("expr", "Literal", "Value"):
+        if not isinstance(current, dict) or key not in current:
+            return None
+        current = current[key]
+    if not isinstance(current, str):
+        return None
+    return unquote(current)
+
+
+def normalized_text(value: str | None) -> str:
+    return " ".join((value or "").split())
+
+
+def markdown_table(text: str, heading: str) -> list[dict[str, str]]:
+    """Parse the first Markdown table below an exact level-two heading."""
+
+    section_match = re.search(
+        rf"^##\s+{re.escape(heading)}\s*$\n(?P<body>.*?)(?=^##\s+|\Z)",
+        text,
+        re.IGNORECASE | re.MULTILINE | re.DOTALL,
+    )
+    if not section_match:
+        return []
+    lines = [line.strip() for line in section_match.group("body").splitlines() if line.strip().startswith("|")]
+    if len(lines) < 3:
+        return []
+
+    def cells(line: str) -> list[str]:
+        return [cell.strip() for cell in line.strip("|").split("|")]
+
+    headers = cells(lines[0])
+    separator = cells(lines[1])
+    if len(headers) != len(separator) or not all(re.fullmatch(r":?-{3,}:?", cell) for cell in separator):
+        return []
+    rows: list[dict[str, str]] = []
+    for line in lines[2:]:
+        values = cells(line)
+        if len(values) == len(headers):
+            rows.append({header: value for header, value in zip(headers, values)})
+    return rows
+
+
+def validate_rls_documentation(root: Path, errors: list[str]) -> None:
+    security_path = root / "docs" / "powerbi" / "security-and-refresh.md"
+    validation_path = root / "docs" / "powerbi" / "validation.md"
+    quality_path = root / "docs" / "powerbi" / "data-quality-reporting.md"
+    missing = [path for path in (security_path, validation_path, quality_path) if not path.is_file()]
+    if missing:
+        errors.extend(f"Required RLS documentation is missing: {path}" for path in missing)
+        return
+    security_text = security_path.read_text(encoding="utf-8")
+    validation_text = validation_path.read_text(encoding="utf-8")
+    quality_text = quality_path.read_text(encoding="utf-8")
+
+    protection_rows = markdown_table(security_text, "RLS protection matrix")
+    expected_boundaries = {
+        "Customers": "Protected",
+        "Sales": "Protected",
+        "Inventory Locations": "Protected",
+        "Inventory Snapshots": "Protected",
+        "Products": "Global",
+        "Date": "Global",
+        "Data Quality Checks": "Global",
+        "Refresh Metadata": "Global",
+    }
+    actual_boundaries = {
+        row.get("Semantic table", ""): row.get("RLS boundary", "") for row in protection_rows
+    }
+    if actual_boundaries != expected_boundaries:
+        errors.append(
+            "RLS protection matrix must classify every required semantic table as Protected or Global"
+        )
+
+    validation_rows = markdown_table(validation_text, "RLS validation matrix")
+    actual_cases = {row.get("Identity case", "").lower(): row for row in validation_rows}
+    required_cases = {"allowed", "multiple", "inactive", "expired", "unknown", "blank"}
+    if set(actual_cases) != required_cases:
+        errors.append(f"RLS validation matrix identity cases differ: {sorted(actual_cases)}")
+    for identity_case, row in actual_cases.items():
+        if not row.get("Expected Sales") or not row.get("Expected Inventory") or not row.get("Required evidence"):
+            errors.append(f"RLS validation matrix lacks Sales, Inventory, or evidence for {identity_case}")
+
+    evidence_rows = markdown_table(quality_text, "Global and selected-scope evidence")
+    evidence_scope = {
+        row.get("Evidence", "").lower(): row.get("Scope under `CountrySalesViewer`", "").lower()
+        for row in evidence_rows
+    }
+    expected_scope_tokens = {
+        "future customer records": ("protected", "customer"),
+        "nonpositive product cost records": ("global", "product"),
+        "data-through date": ("protected", "sales"),
+    }
+    for evidence, tokens in expected_scope_tokens.items():
+        scope = evidence_scope.get(evidence, "")
+        if any(token not in scope for token in tokens):
+            errors.append(f"Data Quality scope matrix is missing or incorrect for {evidence}")
 
 
 def validate_relationships(definition: Path, inventory: ModelInventory, errors: list[str]) -> None:
@@ -193,6 +312,49 @@ def validate_measure_expressions(definition: Path, inventory: ModelInventory, er
         visit(measure)
 
 
+def validate_dq_status_contract(inventory: ModelInventory, errors: list[str]) -> None:
+    required = {"DQ Failed Error Checks", "DQ Failed Warning Checks", "Overall DQ Status"}
+    missing = required - inventory.all_measures
+    if missing:
+        errors.append(f"Required DQ status measures missing: {sorted(missing)}")
+        return
+
+    error_expression = inventory.measure_expressions["DQ Failed Error Checks"]
+    warning_expression = inventory.measure_expressions["DQ Failed Warning Checks"]
+    overall_expression = inventory.measure_expressions["Overall DQ Status"]
+    for label, expression, severity in (
+        ("DQ Failed Error Checks", error_expression, '"Error"'),
+        ("DQ Failed Warning Checks", warning_expression, '"Warning"'),
+    ):
+        required_tokens = ("Data Quality Checks", "IsEvaluated", "Severity", severity)
+        if any(token not in expression for token in required_tokens):
+            errors.append(f"{label} must count evaluated failed checks for Severity={severity}")
+        status_based = "Status" in expression and '"Failed"' in expression
+        row_based = "FailedRows" in expression and re.search(r"FailedRows\]\s*>\s*0", expression)
+        if not status_based and not row_based:
+            errors.append(f"{label} must identify failed checks through Status or FailedRows")
+    for token in (
+        "[DQ Failed Error Checks]",
+        "[DQ Failed Warning Checks]",
+        "[DQ Not Evaluated Checks]",
+        '"Not run"',
+        '"Failed"',
+        '"Passed with warnings"',
+        '"Passed"',
+    ):
+        if token not in overall_expression:
+            errors.append(f"Overall DQ Status expression lacks required state contract token: {token}")
+    scope_sources = {
+        "Future Customer Records": "Customers",
+        "Nonpositive Product Cost Records": "Products",
+        "Data Through Date": "Sales",
+    }
+    for measure, source_table in scope_sources.items():
+        expression = inventory.measure_expressions.get(measure, "")
+        if source_table not in expression:
+            errors.append(f"{measure} must derive from {source_table} to preserve its documented RLS scope")
+
+
 def validate_visual_reference(reference: str, inventory: ModelInventory, errors: list[str], path: Path) -> None:
     table, separator, property_name = reference.rpartition(".")
     if not separator:
@@ -226,6 +388,7 @@ def validate_report(report_dir: Path, inventory: ModelInventory, errors: list[st
         errors.append("activePageName is not present in pageOrder")
 
     seen_visual_ids: set[str] = set()
+    visual_metadata: dict[str, tuple[str, str, str, set[str]]] = {}
     for page_name in page_order:
         page_dir = pages_path.parent / page_name
         page_data = load_json(page_dir / "page.json", errors)
@@ -268,10 +431,20 @@ def validate_report(report_dir: Path, inventory: ModelInventory, errors: list[st
             for query_ref in re.findall(r'"queryRef"\s*:\s*"([^"]+)"', json.dumps(data)):
                 validate_visual_reference(query_ref, inventory, errors, visual_path)
             objects = data.get("visual", {}).get("visualContainerObjects", {})
-            title_text = objects.get("title", [{}])[0].get("properties", {}).get("text") if objects.get("title") else None
-            alt_text = objects.get("general", [{}])[0].get("properties", {}).get("altText") if objects.get("general") else None
+            title_value = objects.get("title", [{}])[0].get("properties", {}).get("text") if objects.get("title") else None
+            alt_value = objects.get("general", [{}])[0].get("properties", {}).get("altText") if objects.get("general") else None
+            title_text = pbir_literal(title_value)
+            alt_text = pbir_literal(alt_value)
             if not title_text or not alt_text:
                 errors.append(f"PBIR title or alt text is missing: {visual_path}")
+            if isinstance(visual_id, str):
+                query_refs = set(re.findall(r'"queryRef"\s*:\s*"([^"]+)"', json.dumps(data)))
+                visual_metadata[visual_id] = (
+                    str(page_name),
+                    normalized_text(title_text),
+                    normalized_text(alt_text),
+                    query_refs,
+                )
             mobile_path = visual_path.parent / "mobile.json"
             if mobile_path.is_file():
                 mobile = load_json(mobile_path, errors)
@@ -308,10 +481,33 @@ def validate_report(report_dir: Path, inventory: ModelInventory, errors: list[st
             visual_dir = pages_path.parent / str(page_name) / "visuals" / str(visual_id)
             if not (visual_dir / "visual.json").is_file():
                 errors.append(f"Blueprint visual is missing from PBIR: {page_name}/{visual_id}")
+            elif visual_id in visual_metadata:
+                actual_page, actual_title, actual_alt_text, _ = visual_metadata[visual_id]
+                expected_title = normalized_text(str(visual.get("title", "")))
+                expected_alt_text = normalized_text(str(visual.get("altText", "")))
+                if actual_page != str(page_name):
+                    errors.append(f"Blueprint/PBIR page mismatch for visual {visual_id}")
+                if actual_title != expected_title:
+                    errors.append(
+                        f"Blueprint/PBIR title mismatch for visual {visual_id}: "
+                        f"blueprint={expected_title!r}, PBIR={actual_title!r}"
+                    )
+                if actual_alt_text != expected_alt_text:
+                    errors.append(
+                        f"Blueprint/PBIR alt text mismatch for visual {visual_id}: "
+                        f"blueprint={expected_alt_text!r}, PBIR={actual_alt_text!r}"
+                    )
             if visual.get("mobilePriority") is not None and not (visual_dir / "mobile.json").is_file():
                 errors.append(f"Prioritized mobile visual lacks mobile.json: {page_name}/{visual_id}")
     if blueprint_ids != seen_visual_ids:
         errors.append("PBIR visuals and report-blueprint visual inventory differ")
+    dq_status_visuals = [
+        visual_id
+        for visual_id, (page, _, _, query_refs) in visual_metadata.items()
+        if page == "DataQuality" and "_Measures.Overall DQ Status" in query_refs
+    ]
+    if not dq_status_visuals:
+        errors.append("Data Quality page must contain a visual bound to _Measures.Overall DQ Status")
     viewports = blueprint.get("responsiveAcceptance", {}).get("viewports", [])
     if viewports != [320, 390, 768, 1280, 1440]:
         errors.append("Responsive acceptance viewports are incomplete")
@@ -328,6 +524,7 @@ def validate_kpi_catalog(root: Path, inventory: ModelInventory, errors: list[str
         return
     ids: set[str] = set()
     measures: set[str] = set()
+    excluded_measures: set[str] = set()
     required_fields = {
         "id",
         "measure",
@@ -360,10 +557,46 @@ def validate_kpi_catalog(root: Path, inventory: ModelInventory, errors: list[str
         measures.add(measure)
         if measure not in inventory.all_measures:
             errors.append(f"KPI references unknown TMDL measure: {measure}")
+        expected_format = inventory.measure_formats.get(measure)
+        documented_format = entry.get("format")
+        if measure in inventory.all_measures:
+            normalized_expected = expected_format if expected_format is not None else "Text"
+            if documented_format != normalized_expected:
+                errors.append(
+                    f"KPI format differs from TMDL for {measure}: "
+                    f"catalog={documented_format!r}, TMDL={normalized_expected!r}"
+                )
         for source_ref in entry.get("sourceColumns", []):
             table, separator, column = str(source_ref).rpartition(".")
             if not separator or table not in inventory.columns or column not in inventory.columns[table]:
                 errors.append(f"KPI {kpi_id} references unknown source column: {source_ref}")
+
+    exclusions = catalog.get("measureExclusions", [])
+    if not isinstance(exclusions, list):
+        errors.append("KPI catalog measureExclusions must be a list")
+        exclusions = []
+    for exclusion in exclusions:
+        if not isinstance(exclusion, dict):
+            errors.append("KPI measure exclusion is not an object")
+            continue
+        measure = exclusion.get("measure")
+        rationale = exclusion.get("rationale")
+        if not isinstance(measure, str) or not measure.strip():
+            errors.append("KPI measure exclusion lacks a measure")
+            continue
+        if measure in excluded_measures:
+            errors.append(f"Duplicate KPI measure exclusion: {measure}")
+        excluded_measures.add(measure)
+        if measure in measures:
+            errors.append(f"Measure is both cataloged and excluded: {measure}")
+        if measure not in inventory.all_measures:
+            errors.append(f"KPI exclusion references unknown TMDL measure: {measure}")
+        if not isinstance(rationale, str) or len(rationale.strip()) < 30:
+            errors.append(f"KPI exclusion requires a meaningful rationale: {measure}")
+
+    undocumented = inventory.all_measures - measures - excluded_measures
+    if undocumented:
+        errors.append(f"TMDL measures missing from KPI catalog: {sorted(undocumented)}")
 
 
 def validate_files(root: Path, errors: list[str]) -> None:
@@ -407,18 +640,24 @@ def validate_files(root: Path, errors: list[str]) -> None:
 def validate_git_scope(root: Path, errors: list[str]) -> None:
     try:
         result = subprocess.run(
-            ["git", "status", "--porcelain"],
+            ["git", "status", "--porcelain=v1", "-z"],
             cwd=root,
             check=True,
             capture_output=True,
-            text=True,
         )
     except (OSError, subprocess.CalledProcessError):
         return
-    for line in result.stdout.splitlines():
-        path = line[3:].replace("\\", "/")
-        if " -> " in path:
-            path = path.split(" -> ", 1)[1]
+    records = result.stdout.split(b"\0")
+    index = 0
+    while index < len(records):
+        record = records[index]
+        index += 1
+        if not record:
+            continue
+        status = record[:2]
+        path = record[3:].decode("utf-8", errors="surrogateescape").replace("\\", "/")
+        if b"R" in status or b"C" in status:
+            index += 1  # Porcelain -z emits the second rename/copy path as a separate record.
         if path and not path.startswith(ALLOWED_PREFIXES):
             errors.append(f"Working-tree change is outside the owned slice: {path}")
 
@@ -479,6 +718,7 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
     inventory = parse_model(definition, errors)
     validate_relationships(definition, inventory, errors)
     validate_measure_expressions(definition, inventory, errors)
+    validate_dq_status_contract(inventory, errors)
 
     model_text = (definition / "model.tmdl").read_text(encoding="utf-8")
     indented_refs = re.findall(r"^[ \t]+ref\s+(?:table|role)\s+", model_text, re.MULTILINE)
@@ -546,6 +786,7 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
 
     validate_report(report_dir, inventory, errors)
     validate_kpi_catalog(root, inventory, errors)
+    validate_rls_documentation(root, errors)
 
     validation_doc = (root / "docs" / "powerbi" / "validation.md").read_text(encoding="utf-8")
     architecture_doc = (root / "docs" / "powerbi" / "architecture.md").read_text(encoding="utf-8")

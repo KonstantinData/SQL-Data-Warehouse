@@ -16,11 +16,26 @@ Incremental refresh is intentionally absent. Add it only with reviewed range par
 
 `CountrySalesViewer` filters both `Customers[country_code]` and `Inventory Locations[country_code]` through `Security User Country` and `USERPRINCIPALNAME()`. The dimension relationships propagate the filter to the protected Sales and Inventory Snapshot facts. Missing, inactive, blank, or unmatched entitlement returns zero protected fact rows. Shared Product, Date, refresh, and global data-quality metadata are intentionally outside this reference role; production owners must approve that boundary or isolate those surfaces. Checked-in identities use the reserved `.invalid` domain.
 
+## RLS protection matrix
+
+| Semantic table | RLS boundary | Filter path and expected exposure |
+|---|---|---|
+| Customers | Protected | Direct `CountrySalesViewer` predicate on `country_code`; only entitled countries are visible. |
+| Sales | Protected | Filter propagates from Customers; missing or invalid entitlement returns zero Sales rows. |
+| Inventory Locations | Protected | Direct `CountrySalesViewer` predicate on `country_code`; only entitled location countries are visible. |
+| Inventory Snapshots | Protected | Filter propagates from Inventory Locations; missing or invalid entitlement returns zero Inventory Snapshot rows. |
+| Products | Global | Intentionally not filtered by this reference role. Product rows and product-only measures are not evidence of the user's country scope. |
+| Date | Global | Shared calendar remains visible and must not be presented as an entitlement result. |
+| Data Quality Checks | Global | Disconnected refresh-time control evidence remains global so RLS cannot create a false release status. |
+| Refresh Metadata | Global | Dataset refresh evidence remains global and contains no country entitlement. |
+
+`Security User Country` is the entitlement input used by the role. Report labels and release evidence must distinguish **protected selected-scope facts** from **global model metadata**. In particular, `Nonpositive Product Cost Records` is global because Products is global, while sales, customer, Inventory, and data-through measures follow the protected fact paths described above.
+
 Before publication:
 
 1. replace inline entitlements with a governed source;
 2. confirm normalization for every supported country;
-3. test allowed, multiple, inactive, expired, unknown, and blank identities;
+3. test allowed, multiple, inactive, expired, unknown, and blank identities against both Sales and Inventory;
 4. verify additive role membership cannot broaden restricted users;
 5. verify that country entitlement is the correct Inventory boundary or replace it with a dedicated warehouse entitlement model.
 
