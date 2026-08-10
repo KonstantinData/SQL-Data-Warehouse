@@ -3,7 +3,8 @@
 Atomic Silver full-snapshot loader
 ================================================================================
 Loads CRM customer/product/sales and all three ERP entities as one transaction.
-Products are deduplicated by their full business key to prevent Sales fan-out.
+Validated Product versions are preserved. Gold resolves each Sale to the
+effective Product version and prevents fact fan-out with a surrogate key.
 Silver publication, six watermarks, and batch completion commit together.
 ================================================================================
 */
@@ -31,6 +32,7 @@ BEGIN
     DECLARE @rows_read BIGINT;
     DECLARE @rows_published BIGINT;
     DECLARE @rows_rejected BIGINT;
+    DECLARE @total_reject_rows BIGINT;
     DECLARE @batch_time_utc DATETIME2(3) = SYSUTCDATETIME();
     DECLARE @error_number INT;
     DECLARE @error_severity INT;
@@ -110,28 +112,18 @@ BEGIN
         FROM ranked
         WHERE rn = 1;
 
-        WITH ranked AS (
-            SELECT b.*,
-                   ROW_NUMBER() OVER (
-                       PARTITION BY TRIM(prd_key)
-                       ORDER BY prd_start_dt DESC, prd_id DESC, source_row_number DESC
-                   ) AS rn
-            FROM bronze.crm_prd_info b
-            WHERE load_batch_id = @batch_id
-              AND NULLIF(TRIM(prd_key), N'') IS NOT NULL
-        )
-        SELECT * INTO #current_product FROM ranked WHERE rn = 1;
-
         INSERT control.load_reject (
             batch_id, step_id, source_name, source_file, source_row_number,
             business_key, column_name, rule_code, raw_value, raw_payload, error_message
         )
         SELECT @batch_id, @step_id, N'crm_prd_info', source_file, source_row_number,
-               TRIM(prd_key), N'prd_cost', N'MISSING_PRODUCT_COST', NULL,
+               TRIM(prd_key), N'prd_cost', N'NEGATIVE_PRODUCT_COST', CONVERT(NVARCHAR(100), prd_cost),
                CONCAT_WS(N'|', prd_id, prd_key, prd_nm, prd_line, prd_start_dt),
-               N'Current product has no cost and is excluded from the published Silver snapshot.'
-        FROM #current_product
-        WHERE prd_cost IS NULL OR prd_cost < 0;
+               N'Product version has a negative cost and is excluded from the published Silver history.'
+        FROM bronze.crm_prd_info
+        WHERE load_batch_id = @batch_id
+          AND NULLIF(TRIM(prd_key), N'') IS NOT NULL
+          AND prd_cost < 0;
 
         SELECT prd_id, TRIM(prd_key) AS prd_key, TRIM(prd_nm) AS prd_nm,
                prd_cost,
@@ -142,16 +134,11 @@ BEGIN
                prd_start_dt,
                CASE WHEN prd_end_dt < prd_start_dt THEN NULL ELSE prd_end_dt END AS prd_end_dt
         INTO #silver_prd
-        FROM #current_product
-        WHERE prd_cost IS NOT NULL AND prd_cost >= 0;
-
-        IF EXISTS (
-            SELECT SUBSTRING(prd_key, 7, LEN(prd_key))
-            FROM #silver_prd
-            GROUP BY SUBSTRING(prd_key, 7, LEN(prd_key))
-            HAVING COUNT(*) > 1
-        )
-            THROW 51206, 'Current products are ambiguous on the Sales/Gold product join key.', 1;
+        FROM bronze.crm_prd_info
+        WHERE load_batch_id = @batch_id
+          AND prd_id IS NOT NULL
+          AND NULLIF(TRIM(prd_key), N'') IS NOT NULL
+          AND (prd_cost IS NULL OR prd_cost >= 0);
 
         SELECT b.*,
                TRY_CONVERT(DATE, CONVERT(CHAR(8), NULLIF(b.sls_order_dt, 0)), 112) AS parsed_order_date,
@@ -306,14 +293,20 @@ BEGIN
             FROM control.load_reject WHERE batch_id = @batch_id AND step_id = @step_id
         ) rejected_rows;
 
-        IF (
-            SELECT COUNT_BIG(*)
-            FROM (
-                SELECT DISTINCT source_name, source_file, source_row_number
-                FROM control.load_reject WHERE batch_id = @batch_id
-            ) rejected_rows
-        ) > @max_reject_rows
-            THROW 51203, 'Reject count exceeds max_reject_rows; Silver and watermarks were not published.', 1;
+        SELECT @total_reject_rows = COUNT_BIG(*)
+        FROM (
+            SELECT DISTINCT source_name, source_file, source_row_number
+            FROM control.load_reject WHERE batch_id = @batch_id
+        ) rejected_rows;
+
+        IF @total_reject_rows > @max_reject_rows
+        BEGIN
+            DECLARE @reject_limit_message NVARCHAR(2048) = CONCAT(
+                N'Reject count ', @total_reject_rows, N' exceeds max_reject_rows ',
+                @max_reject_rows, N'; Silver and watermarks were not published.'
+            );
+            THROW 51203, @reject_limit_message, 1;
+        END;
 
         BEGIN TRANSACTION;
 
@@ -327,24 +320,33 @@ BEGIN
         INSERT silver.crm_cust_info (
             cust_id, cust_key, cust_firstname, cust_lastname, cust_marital_status,
             cust_gender, cust_create_date, cust_is_future, dwh_batch_id
-        ) SELECT *, @batch_id FROM #silver_cust;
+        )
+        SELECT cust_id, cust_key, cust_firstname, cust_lastname, cust_marital_status,
+               cust_gender, cust_create_date, cust_is_future, @batch_id
+        FROM #silver_cust;
 
         INSERT silver.crm_prd_info (
             prd_id, prd_key, prd_nm, prd_cost, prd_line, prd_start_dt, prd_end_dt, dwh_batch_id
-        ) SELECT *, @batch_id FROM #silver_prd;
+        )
+        SELECT prd_id, prd_key, prd_nm, prd_cost, prd_line, prd_start_dt, prd_end_dt, @batch_id
+        FROM #silver_prd;
 
         INSERT silver.crm_sales_details (
             sls_ord_num, sls_prd_key, sls_cust_id, sls_order_dt, sls_ship_dt,
             sls_due_dt, sls_sales, sls_quantity, sls_price,
             order_date, ship_date, due_date, dwh_batch_id
-        ) SELECT *, @batch_id FROM #silver_sales;
+        )
+        SELECT sls_ord_num, sls_prd_key, sls_cust_id, sls_order_dt, sls_ship_dt,
+               sls_due_dt, sls_sales, sls_quantity, sls_price,
+               order_date, ship_date, due_date, @batch_id
+        FROM #silver_sales;
 
         INSERT silver.erp_cust_az12 (cid, bdate, gen, dwh_batch_id)
-            SELECT *, @batch_id FROM #silver_erp_cust;
+            SELECT cid, bdate, gen, @batch_id FROM #silver_erp_cust;
         INSERT silver.erp_loc_a101 (cid, cntry, dwh_batch_id)
-            SELECT *, @batch_id FROM #silver_erp_loc;
+            SELECT cid, cntry, @batch_id FROM #silver_erp_loc;
         INSERT silver.erp_px_cat_g1v2 (id, cat, subcat, maintenance, dwh_batch_id)
-            SELECT *, @batch_id FROM #silver_erp_cat;
+            SELECT id, cat, subcat, maintenance, @batch_id FROM #silver_erp_cat;
 
         UPDATE w
         SET watermark_value = @source_watermark,

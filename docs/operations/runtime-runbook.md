@@ -50,10 +50,11 @@ legacy Python integration starts each file in a new SQL connection.
   for changed files.
 - `SourceWatermark` is a positive, monotonically increasing delivery sequence.
 - `MaxRejectRows` is an explicit operator decision. `0` is strictest. The
-  current repository synthetic snapshot produces 24 quarantined source rows
-  under SQL Server 2022 verification: 3 missing customer IDs, 2 current
-  products with missing cost, 18 invalid sales order dates, and 1 invalid Sales
-  date sequence. Its documented demo value is therefore `24`.
+  current repository synthetic snapshot produces 23 quarantined source rows
+  under SQL Server 2022 verification: 4 missing required customer keys, 18
+  invalid sales order dates, and 1 invalid Sales date sequence. Two missing
+  Product costs remain visible as DQ warnings while their valid identities are
+  preserved. The documented demo ceiling is therefore `23`.
 - Use integrated authentication where possible. Never place passwords in the
   repository, command history, audit metadata, or documentation.
 
@@ -65,7 +66,7 @@ sqlcmd -S "<server>" -d DataWarehouse -E -b `
   -v BasePath="C:\data\SQL-Data-Warehouse\datasets" `
      SourceVersion="synthetic-2026-08-10-v1" `
      SourceWatermark="2026081001" `
-     MaxRejectRows="24" `
+     MaxRejectRows="23" `
      RestartOfBatchId="0"
 ```
 
@@ -85,7 +86,7 @@ sqlcmd -S "<server>" -d DataWarehouse -E -b `
   -v BasePath="C:\data\SQL-Data-Warehouse\datasets" `
      SourceVersion="synthetic-2026-08-10-v1" `
      SourceWatermark="2026081001" `
-     MaxRejectRows="24" `
+     MaxRejectRows="23" `
      RestartOfBatchId="<failed_batch_id>"
 ```
 
@@ -104,7 +105,8 @@ watermark instead. Replaying an already successful version is audited as
 - Bronze validation evidence is durable before its quality gate.
 - All six Bronze tables publish in one transaction.
 - Silver cleanses CRM customer, product, and sales data plus all three ERP
-  entities. Product versions are deduplicated by full product business key.
+  entities. Valid Product versions are preserved; Gold resolves Sales to the
+  effective version by order date and persists the resulting surrogate key.
 - All six Silver tables, six watermarks, the Silver step, and final batch status
   publish in one transaction.
 - Every `CATCH` rolls back an active transaction, records full SQL error
@@ -251,7 +253,7 @@ The integration task must:
 
 1. Add `:ON ERROR EXIT` and align `scripts/run_pipeline.sql` with safe init,
    control bootstrap, Bronze DDL/procedure, Silver DDL/procedure, operational
-   invocation, and Gold views. Never include development reset.
+   invocation, physical Gold model, and Inventory publication. Never include development reset.
 2. Align `scripts/orchestrate_pipeline.py` to the same order, set its working
    directory to the repository root, preserve `sqlcmd -b`, expose BasePath,
    SourceVersion, SourceWatermark, MaxRejectRows, and RestartOfBatchId, and

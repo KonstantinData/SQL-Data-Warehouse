@@ -37,15 +37,9 @@ sqlcmd -b -d DataWarehouse -i .\tests\model_reproducibility.sql
 
 The `-b` flag is required so SQL errors and test `THROW` statements produce a failing process exit code.
 
-## Existing upstream integration limitation
+## Integrated execution
 
-The current reserved standard runners are not a complete CRM/ERP Silver path:
-
-- `scripts/run_pipeline.sql` loads Silver customer and product cleansing but does not populate Silver sales or the three ERP tables;
-- `scripts/orchestrate_pipeline.py` also omits Gold and continues to require integration-owned database-routing corrections;
-- the existing CI-specific Silver loader does populate the reference inputs used by Gold, but its product-version join multiplies identical sales lines. Gold restores the validated `(order_number, product_number)` source grain and rejects conflicting duplicates.
-
-This Gold subtask does not write into Silver and does not modify those reserved runners. The integration owner must add a production-style Silver sales/ERP route and add the new model tests to automation. Until then, the manual Gold commands require a separately completed Silver load, and the standard quick start may produce an empty fact table with missing ERP enrichment.
+The canonical SQLCMD, Python, and CI paths now call the complete audited Silver runtime before this Gold entrypoint. CI executes schema, data-quality, reproducibility, negative, and Inventory gates. The historical CI-only Silver substitute has been removed.
 
 The optional million-row performance fixture must never be added to the standard pipeline or per-commit CI path. It is an isolated benchmark workflow.
 
@@ -64,5 +58,5 @@ The optional million-row performance fixture must never be added to the standard
 - Propagate SQLCMD failures with `-b` or equivalent.
 - Run schema, data-quality, and reproducibility tests in that order.
 - Keep the performance suite opt-in.
-- Update integration-owned README and orchestration wording from Gold views to physical tables.
+- Keep README, orchestration, Power BI partitions, and quality contracts synchronized with the physical Gold tables.
 - Do not claim a production deployment; the committed data is synthetic.

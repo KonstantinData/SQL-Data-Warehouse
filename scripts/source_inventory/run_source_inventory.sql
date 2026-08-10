@@ -11,7 +11,7 @@ GO
 SET XACT_ABORT ON;
 BEGIN TRY
     BEGIN TRANSACTION;
-    EXEC bronze.load_inventory_snapshot @base_path = N'datasets';
+    EXEC bronze.load_inventory_snapshot @base_path = N'$(BasePath)';
     EXEC silver.load_inventory_snapshot;
     COMMIT TRANSACTION;
 END TRY

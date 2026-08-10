@@ -12,7 +12,7 @@ This is a production-oriented reference implementation using synthetic data. It 
 
 | Field | Value |
 | --- | --- |
-| Committed source Gold fact rows | 60,398 expected after a complete Silver load |
+| Measurement source Gold fact rows | 60,398 in the pre-runtime-convergence measurement snapshot; current accepted runtime baseline is 60,379 |
 | Benchmark target rows | 1,000,000 |
 | Cache policy | warm cache |
 | Warm-up runs per query/phase | 1 |
@@ -21,7 +21,7 @@ This is a production-oriented reference implementation using synthetic data. It 
 | Baseline statistics | FULLSCAN |
 | Result validation | bidirectional `EXCEPT` plus SHA-256 summary fingerprint |
 
-The current committed source profile also establishes 2012 as a selective date range (3,397 of 60,398 source facts) and avoids presenting the highly concentrated 2013 data as a selective filter.
+The recorded measurement snapshot established 2012 as a selective date range (3,397 of 60,398 source facts) and avoided presenting the highly concentrated 2013 data as a selective filter. Re-run the benchmark before using that selectivity statement for the integrated 60,379-row runtime baseline.
 
 ## Environment record
 
@@ -34,7 +34,7 @@ Complete this section for every measured run.
 | SQL Server version | 16.0.4265.3 |
 | SQL Server edition | Express Edition (64-bit) |
 | Database compatibility level | 160 |
-| Gold row count | 60,398 |
+| Gold row count | 60,398 in the recorded pre-convergence measurement snapshot |
 | Benchmark row count | 1,000,000 |
 | Scale factor | 16.556840 |
 | Fixture fingerprint | `D08C6A934E82AEFA4E956DE814E46CD53943B8E5FCC51291D244EC20CBCB23F7` |

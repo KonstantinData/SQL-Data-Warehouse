@@ -20,7 +20,7 @@ EXEC control.run_pipeline
     @base_path = @base_path,
     @source_version = @version,
     @source_watermark = @watermark,
-    @max_reject_rows = 24,
+    @max_reject_rows = 23,
     @batch_id = @first_batch OUTPUT;
 
 IF NOT EXISTS (SELECT 1 FROM control.pipeline_batch WHERE batch_id = @first_batch AND status = 'SUCCEEDED')
@@ -45,7 +45,7 @@ EXEC control.run_pipeline
     @base_path = @base_path,
     @source_version = @version,
     @source_watermark = @watermark,
-    @max_reject_rows = 24,
+    @max_reject_rows = 23,
     @batch_id = @second_batch OUTPUT;
 
 IF NOT EXISTS (
@@ -93,7 +93,7 @@ IF EXISTS (SELECT * FROM control.load_watermark EXCEPT SELECT * FROM #watermarks
 BEGIN TRY
     SET @mismatched_watermark = @watermark + 1;
     EXEC control.run_pipeline @base_path=@base_path, @source_version=@version,
-        @source_watermark=@mismatched_watermark, @max_reject_rows=24, @batch_id=@second_batch OUTPUT;
+        @source_watermark=@mismatched_watermark, @max_reject_rows=23, @batch_id=@second_batch OUTPUT;
 END TRY
 BEGIN CATCH
     SET @caught_number = ERROR_NUMBER();
@@ -117,13 +117,13 @@ IF @caught_number IS NULL OR NOT EXISTS (SELECT 1 FROM control.pipeline_batch WH
 SET @caught_number = NULL;
 BEGIN TRY
     EXEC control.run_pipeline @base_path=@base_path, @source_version=@failed_version,
-        @source_watermark=@failed_watermark, @max_reject_rows=24, @batch_id=@second_batch OUTPUT;
+        @source_watermark=@failed_watermark, @max_reject_rows=23, @batch_id=@second_batch OUTPUT;
 END TRY
 BEGIN CATCH SET @caught_number = ERROR_NUMBER(); END CATCH;
 IF @caught_number <> 51006 THROW 52209, 'Unlinked retry of a failed version did not fail closed.', 1;
 
 EXEC control.run_pipeline @base_path=@base_path, @source_version=@failed_version,
-    @source_watermark=@failed_watermark, @max_reject_rows=24,
+    @source_watermark=@failed_watermark, @max_reject_rows=23,
     @restart_of_batch_id=@failed_batch, @batch_id=@second_batch OUTPUT;
 IF NOT EXISTS (
     SELECT 1 FROM control.pipeline_batch

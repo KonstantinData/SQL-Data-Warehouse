@@ -17,7 +17,7 @@
       "format": "#,0.00",
       "audience": ["Executive", "Commercial analyst"],
       "pageUsage": ["ExecutiveOverview", "SalesPerformance"],
-      "limitations": "Currency is not defined. The semantic safety projection avoids the current Gold product-version multiplication, but values remain synthetic reference results."
+      "limitations": "Currency is not defined. Values are synthetic reference results."
     },
     {
       "id": "sales.distinct_orders",
@@ -82,22 +82,22 @@
     {
       "id": "profit.estimated_cogs",
       "measure": "Estimated COGS",
-      "businessQuestion": "What current-master-cost amount is associated with sold units?",
-      "definition": "Quantity multiplied by the latest selected product master cost, summed across lines.",
+      "businessQuestion": "What effective-dated master-cost amount is associated with sold units?",
+      "definition": "Quantity multiplied by the Product master cost effective on the order date, summed across lines.",
       "formula": "SUMX(Sales, Sales[quantity] * RELATED(Products[product_cost]))",
       "grain": "Sales line",
       "dateContext": "Order date",
-      "filtersAndExclusions": "Uses the latest product version selected by start date and product ID.",
+      "filtersAndExclusions": "Uses the Gold Product surrogate key resolved from order date and Product validity interval.",
       "sourceColumns": ["Sales.quantity", "Products.product_cost"],
       "format": "#,0.00",
       "audience": ["Executive", "Commercial analyst"],
       "pageUsage": ["ExecutiveOverview", "SalesPerformance"],
-      "limitations": "Estimate only: cost is not transaction-dated and excludes freight, discounts, returns, tax, and allocations."
+      "limitations": "Estimate only: effective-dated master cost is not an accounting posting and excludes freight, discounts, returns, tax, and allocations."
     },
     {
       "id": "profit.estimated_gross_profit",
       "measure": "Estimated Gross Profit",
-      "businessQuestion": "What sales value remains after current-master-cost estimate?",
+      "businessQuestion": "What sales value remains after effective-dated master-cost estimate?",
       "definition": "Total Sales minus Estimated COGS.",
       "formula": "[Total Sales] - [Estimated COGS]",
       "grain": "Selected scope",
@@ -112,7 +112,7 @@
     {
       "id": "profit.estimated_gross_margin_pct",
       "measure": "Estimated Gross Margin %",
-      "businessQuestion": "What share of sales remains after current-master-cost estimate?",
+      "businessQuestion": "What share of sales remains after effective-dated master-cost estimate?",
       "definition": "Estimated Gross Profit divided by Total Sales.",
       "formula": "DIVIDE([Estimated Gross Profit], [Total Sales])",
       "grain": "Selected scope",
@@ -122,7 +122,7 @@
       "format": "0.0%",
       "audience": ["Executive", "Commercial analyst"],
       "pageUsage": ["ExecutiveOverview", "SalesPerformance"],
-      "limitations": "Not accounting margin; current product costs can be missing or nonpositive."
+      "limitations": "Not accounting margin; missing Product costs are represented as zero and must remain visible in DQ reporting."
     },
     {
       "id": "time.sales_previous_year",
@@ -213,6 +213,51 @@
       "audience": ["BI maintainer", "Release reviewer"],
       "pageUsage": ["DataQuality"],
       "limitations": "A zero evaluated count returns blank, never 100%."
+    },
+    {
+      "id": "inventory.available_quantity",
+      "measure": "Available Inventory Quantity",
+      "businessQuestion": "How many units are available in the selected inventory snapshot scope?",
+      "definition": "Sum of on-hand quantity less reserved quantity at snapshot, warehouse, and Product-version grain.",
+      "formula": "SUM('Inventory Snapshots'[available_qty])",
+      "grain": "Inventory snapshot line",
+      "dateContext": "Snapshot date",
+      "filtersAndExclusions": "Must be filtered to an intentional snapshot date or period; summing multiple snapshots is not an ending balance.",
+      "sourceColumns": ["Inventory Snapshots.available_qty"],
+      "format": "#,0",
+      "audience": ["Operations analyst"],
+      "pageUsage": ["Semantic model"],
+      "limitations": "Semi-additive over time and based on synthetic reference snapshots."
+    },
+    {
+      "id": "inventory.value",
+      "measure": "Inventory Value",
+      "businessQuestion": "What effective-dated master-cost value is associated with the selected inventory snapshot scope?",
+      "definition": "Sum of available quantity multiplied by mapped Product cost at snapshot line grain.",
+      "formula": "SUM('Inventory Snapshots'[inventory_value])",
+      "grain": "Inventory snapshot line",
+      "dateContext": "Snapshot date",
+      "filtersAndExclusions": "Must be filtered to an intentional snapshot date or period; uses the mapped curated Product cost.",
+      "sourceColumns": ["Inventory Snapshots.inventory_value"],
+      "format": "#,0.00",
+      "audience": ["Operations analyst"],
+      "pageUsage": ["Semantic model"],
+      "limitations": "Not an accounting inventory valuation and semi-additive over time."
+    },
+    {
+      "id": "inventory.below_reorder_lines",
+      "measure": "Below Reorder Snapshot Lines",
+      "businessQuestion": "How many snapshot lines are at or below their reorder point?",
+      "definition": "Count of Inventory snapshot lines whose available quantity is less than or equal to the recorded reorder point.",
+      "formula": "COUNTROWS(FILTER('Inventory Snapshots', 'Inventory Snapshots'[available_qty] <= 'Inventory Snapshots'[reorder_point_qty]))",
+      "grain": "Inventory snapshot line",
+      "dateContext": "Snapshot date",
+      "filtersAndExclusions": "Counts lines, not distinct Products; respects Product, warehouse, and snapshot filters.",
+      "sourceColumns": ["Inventory Snapshots.available_qty", "Inventory Snapshots.reorder_point_qty"],
+      "format": "#,0",
+      "audience": ["Operations analyst"],
+      "pageUsage": ["Semantic model"],
+      "limitations": "A repeated Product across warehouses or snapshot dates can contribute multiple lines."
     }
   ]
 }

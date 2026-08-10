@@ -20,32 +20,37 @@ DECLARE @version NVARCHAR(255) = CONCAT(N'runtime-atomicity-', CONVERT(NVARCHAR(
 DECLARE @watermark BIGINT = ISNULL((SELECT MAX(watermark_value) FROM control.load_watermark), 0) + 1;
 DECLARE @batch_id BIGINT;
 DECLARE @caught_number INT;
+DECLARE @caught_message NVARCHAR(4000);
 
-EXEC(N'CREATE OR ALTER TRIGGER silver.runtime_atomicity_failure
-ON silver.erp_px_cat_g1v2
-INSTEAD OF INSERT
-AS
-BEGIN
-    THROW 52410, ''Injected late Silver publication failure.'', 1;
-END;');
+ALTER TABLE silver.erp_px_cat_g1v2 WITH NOCHECK
+ADD CONSTRAINT CK_runtime_atomicity_failure CHECK (dwh_batch_id = -1);
 
 BEGIN TRY
     EXEC control.run_pipeline
         @base_path=N'$(TestBasePath)', @source_version=@version,
-        @source_watermark=@watermark, @max_reject_rows=24,
+        @source_watermark=@watermark, @max_reject_rows=23,
         @batch_id=@batch_id OUTPUT;
 END TRY
 BEGIN CATCH
     SET @caught_number = ERROR_NUMBER();
+    SET @caught_message = ERROR_MESSAGE();
 END CATCH;
 
-DROP TRIGGER IF EXISTS silver.runtime_atomicity_failure;
+ALTER TABLE silver.erp_px_cat_g1v2 DROP CONSTRAINT CK_runtime_atomicity_failure;
 SELECT @batch_id = batch_id FROM control.pipeline_batch WHERE source_version=@version;
 
-IF @caught_number <> 52410 THROW 52401, 'Injected Silver failure did not reach the caller.', 1;
+IF @caught_number <> 547 OR @caught_message NOT LIKE N'%CK_runtime_atomicity_failure%'
+BEGIN
+    DECLARE @unexpected_error NVARCHAR(2048) = CONCAT(
+        N'Injected Silver failure did not reach the caller. Actual error ',
+        COALESCE(CONVERT(NVARCHAR(20), @caught_number), N'NULL'), N': ',
+        COALESCE(@caught_message, N'<no message>')
+    );
+    THROW 52401, @unexpected_error, 1;
+END;
 IF NOT EXISTS (
     SELECT 1 FROM control.pipeline_batch
-    WHERE batch_id=@batch_id AND status='FAILED' AND error_number=52410
+    WHERE batch_id=@batch_id AND status='FAILED' AND error_number=547
 )
     THROW 52402, 'Injected Silver failure was not durably audited.', 1;
 

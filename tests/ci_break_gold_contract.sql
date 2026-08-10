@@ -1,22 +1,17 @@
+USE DataWarehouse;
+GO
 SET NOCOUNT ON;
 
-IF NOT EXISTS (
-    SELECT 1
-    FROM silver.erp_px_cat_g1v2 AS category
-    WHERE EXISTS (
-        SELECT 1
-        FROM silver.crm_prd_info AS product
-        WHERE REPLACE(SUBSTRING(product.prd_key, 1, 5), '-', '_') = category.id
-    )
-)
-    THROW 51000, 'Cannot create Gold negative fixture because no category joins a product.', 1;
+DECLARE @product_key INT = (
+    SELECT TOP (1) product_key
+    FROM gold.dim_products
+    WHERE product_key <> 0 AND is_current = 1
+    ORDER BY product_key
+);
+IF @product_key IS NULL
+    THROW 51000, 'Cannot create Gold negative fixture because no current product exists.', 1;
 
-INSERT INTO silver.erp_px_cat_g1v2 (id, cat, subcat, maintenance, dwh_create_date)
-SELECT TOP (1) id, cat, subcat, maintenance, dwh_create_date
-FROM silver.erp_px_cat_g1v2 AS category
-WHERE EXISTS (
-    SELECT 1
-    FROM silver.crm_prd_info AS product
-    WHERE REPLACE(SUBSTRING(product.prd_key, 1, 5), '-', '_') = category.id
-)
-ORDER BY id;
+UPDATE gold.dim_products SET is_current = 0 WHERE product_key = @product_key;
+IF @@ROWCOUNT <> 1
+    THROW 51001, 'Gold negative fixture did not mutate exactly one product.', 1;
+GO

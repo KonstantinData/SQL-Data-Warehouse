@@ -22,8 +22,8 @@ Source validation checks JSON parsing, PBIP/PBIR paths and versions, TMDL invent
 3. Fully close Desktop, open `powerbi/SQLDataWarehouse.pbip`, and capture the Desktop version.
 4. Resolve every blocking, non-blocking, or auto-fix warning. Inspect any upgrade diff before saving.
 5. Set non-secret parameters and bind credentials outside source control.
-6. Refresh all tables and compare the checked synthetic baseline: 60,398 sales lines, 27,659 distinct orders, 60,423 units, and 29,355,502 source sales value. Treat any difference as a hold until explained.
-7. Confirm the three active dimension relationships and the two inactive date relationships.
+6. Refresh all tables and reconcile 60,379 accepted Gold sales lines plus the Inventory `14/10/4/10` source/accepted/rejected/Gold evidence to the SQL gates. Derive order, quantity, and value totals from the same verified run; treat any difference as a hold until explained.
+7. Confirm the six active customer/product/order-date/Inventory relationships and the two inactive Sales date relationships.
 8. Evaluate every explicit DAX measure, including blank and zero denominator behaviour.
 9. Test `CountrySalesViewer` with allowed, inactive, and unknown synthetic identities; test service memberships separately.
 10. Inspect every visual for binding errors, empty frames, slicers, cross-filtering, tooltips, reset behaviour, and any implemented navigation/drillthrough.

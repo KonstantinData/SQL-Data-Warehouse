@@ -23,11 +23,11 @@ SCHEMA_VERSION = "1.0"
 SQL_GLOBS = ("scripts/**/*.sql", "tests/**/*.sql")
 EXPECTED_COUNTS = {
     "database": 1,
-    "schema": 3,
-    "table": 12,
-    "procedure": 1,
-    "view": 3,
-    "csv_source": 6,
+    "schema": 0,
+    "table": 34,
+    "procedure": 7,
+    "view": 2,
+    "csv_source": 7,
 }
 
 DEFINITION_RE = re.compile(

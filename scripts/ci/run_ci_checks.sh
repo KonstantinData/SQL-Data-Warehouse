@@ -128,6 +128,8 @@ sqlcmd_variables=(
   -v "EXPECTED_BRONZE_ERP_CUST_AZ12=${expected_bronze_erp_cust_az12}"
   -v "EXPECTED_BRONZE_ERP_LOC_A101=${expected_bronze_erp_loc_a101}"
   -v "EXPECTED_BRONZE_ERP_PX_CAT_G1V2=${expected_bronze_erp_px_cat_g1v2}"
+  -v "TestBasePath=/datasets"
+  -v "ConfirmRuntimeTests=RUN_RUNTIME_TESTS_ON_DISPOSABLE_DATABASE"
 )
 
 parse_sql_file() {
@@ -136,13 +138,13 @@ parse_sql_file() {
   {
     printf 'SET PARSEONLY ON;\n'
     cat "$sql_file"
-  } | docker exec --interactive --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
+  } | docker exec --interactive --workdir /workspace --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
     "$SQLCMD" -S localhost -U sa -C -b -l 15 -t 60 \
     "${sqlcmd_variables[@]}" -d master
 }
 
 for attempt in {1..60}; do
-  if docker exec --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
+  if docker exec --workdir /workspace --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
       "$SQLCMD" -S localhost -U sa -C -b -l 5 -t 5 \
       -Q "SET NOCOUNT ON; SELECT 1;" >"$readiness_log" 2>&1; then
     break
@@ -155,16 +157,12 @@ for attempt in {1..60}; do
   sleep 2
 done
 
-for sql_file in tests/ci_*.sql tests/quality_checks_*.sql; do
-  parse_sql_file "$sql_file"
-done
-
 run_sql() {
   local database=$1
   local sql_file=$2
   echo "Running ${sql_file}"
-  docker exec --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
-    "$SQLCMD" -S localhost -U sa -C -b -l 15 -t 120 \
+  docker exec --workdir /workspace --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
+    "$SQLCMD" -S localhost -U sa -C -b -l 15 -t 600 \
     "${sqlcmd_variables[@]}" \
     -d "$database" -i "/workspace/${sql_file}"
 }
@@ -174,7 +172,7 @@ expect_sql_failure() {
   local sql_file=$2
   local label=$3
   local expected_marker=$4
-  if docker exec --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
+  if docker exec --workdir /workspace --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
       "$SQLCMD" -S localhost -U sa -C -b -l 15 -t 120 \
       "${sqlcmd_variables[@]}" \
       -d "$database" -i "/workspace/${sql_file}" >"$negative_log" 2>&1; then
@@ -206,9 +204,17 @@ warning_count() {
 }
 
 run_sql master scripts/ci/run_ci_pipeline.sql
+for sql_file in tests/ci_*.sql tests/quality_checks_*.sql tests/runtime_*.sql tests/model_*.sql; do
+  parse_sql_file "$sql_file"
+done
 run_sql DataWarehouse tests/ci_pipeline_contract.sql
+run_sql DataWarehouse tests/runtime_contract.sql
+run_sql DataWarehouse tests/runtime_silver_coverage.sql
+run_sql DataWarehouse tests/runtime_fail_closed.sql
+run_sql DataWarehouse tests/runtime_idempotency.sql
+run_sql DataWarehouse tests/runtime_atomicity.sql
 
-docker exec --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
+docker exec --workdir /workspace --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
   "$SQLCMD" -S localhost -U sa -C -b -l 15 -t 120 \
   "${sqlcmd_variables[@]}" \
   -d DataWarehouse -i /workspace/tests/quality_checks_bronze.sql | tee "$bronze_log"
@@ -217,7 +223,7 @@ run_sql DataWarehouse tests/quality_checks_silver.sql
 run_sql DataWarehouse tests/quality_checks_gold.sql
 
 run_sql DataWarehouse tests/ci_break_bronze_diagnostic.sql
-docker exec --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
+docker exec --workdir /workspace --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
   "$SQLCMD" -S localhost -U sa -C -b -l 15 -t 120 \
   "${sqlcmd_variables[@]}" \
   -d DataWarehouse -i /workspace/tests/quality_checks_bronze.sql | tee "$bronze_log"
@@ -237,10 +243,14 @@ run_sql DataWarehouse tests/quality_checks_silver.sql
 
 run_sql DataWarehouse tests/ci_break_gold_contract.sql
 expect_sql_failure DataWarehouse tests/quality_checks_gold.sql \
-  "Gold category fan-out" \
-  "ERROR (Gold): product dimension row count does not preserve Silver grain."
+  "Gold missing current product" \
+  "ERROR (Gold): every known product number must have exactly one current row."
 run_sql DataWarehouse tests/ci_restore_gold_contract.sql
 run_sql DataWarehouse tests/quality_checks_gold.sql
 
+run_sql DataWarehouse tests/model_schema_contract.sql
+run_sql DataWarehouse tests/model_data_quality.sql
+run_sql DataWarehouse tests/model_reproducibility.sql
+run_sql DataWarehouse tests/source_inventory/run_tests_ci.sql
 run_sql DataWarehouse tests/quality_checks_ci.sql
-echo "CI pipeline, quality contracts, and negative self-tests passed."
+echo "CI runtime, pipeline, model, Inventory, quality contracts, and negative self-tests passed."

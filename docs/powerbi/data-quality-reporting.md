@@ -1,43 +1,27 @@
-# Data Quality Reporting
+# Data quality reporting
 
 ## Objective
 
-The Data Quality page communicates whether the synthetic reference model is suitable for review. Quality outcomes are materialized globally at model refresh into a disconnected table, so country RLS does not turn a scoped row count into a false release status. Selected-scope exception cards remain explicitly scope-relative. This does not claim production monitoring.
+The Data Quality page communicates whether the synthetic reference model is suitable for review. Checks materialize globally at refresh in a disconnected table so country RLS cannot turn a scoped row count into a false release status. This is reference evidence, not production monitoring.
 
-## Status model
+## Implemented checks
 
-- `Not run`: the required check has no current execution evidence.
-- `Passed`: an evaluated check has zero failed rows.
-- `Passed with warnings`: no Error check failed, but one or more Warning checks failed.
-- `Failed`: at least one Error check failed.
-- `Not applicable`: the check does not apply to the selected scope.
+- Unknown/invalid order-date coverage in Gold;
+- sales amount versus quantity multiplied by price;
+- missing customer country;
+- customer records flagged as future;
+- nonpositive effective-dated product cost;
+- sales-line variance against the accepted synthetic Gold baseline of 60,379;
+- uniqueness of current product business keys;
+- customer/product Unknown-member coverage in `gold.fact_sales`.
 
-An unevaluated check is never counted as passed. A zero evaluated-check denominator returns blank, never 100%.
+The source-to-Bronze-to-Silver-to-Gold reconciliation is independently enforced in SQL CI. Inventory has its own `14 = 10 accepted + 4 rejected` reconciliation and double-run equality gate.
 
-## Implemented semantic checks
+## Status and release rule
 
-- invalid or blank order date;
-- sales amount differs from quantity times price;
-- missing or unrecognized customer country;
-- customer creation date flagged as future;
-- nonpositive latest product cost;
-- synthetic sales-line count differs from the checked 60,398-line baseline;
-- semantic product business key is not unique.
+- `Not run`: no current execution evidence; never treated as passed.
+- `Passed`: evaluated with zero failed rows.
+- `Passed with warnings`: no Error check failed, but a Warning check did.
+- `Failed`: at least one Error check failed and blocks reference release.
 
-`gold_source_orphan_coverage` is explicitly unevaluated. The current Gold fact uses inner joins, so Power BI cannot detect source rows that Gold already removed. SQL-level source/Silver/Gold reconciliation remains an upstream requirement.
-
-The 60,398 baseline is a smoke assertion for the checked-in synthetic fixture, not a production threshold. Any dataset replacement must revise or remove it through the KPI/change-control process.
-
-## Warehouse quality evidence
-
-Existing Bronze checks are diagnostic. Silver and Gold CI checks can block the CI pipeline, while the analyst-oriented Gold query file itself is not a pass/fail harness. File existence is not evidence that a check ran or passed.
-
-## Stakeholder alert contract
-
-Use this factual form:
-
-> Validation status: `<failed/passed with warnings>`. Layer/check: `<layer>/<check>`. Evidence time: `<timestamp and timezone>`. Impact: `<affected model/KPIs/pages>`. Release decision: `<hold/continue with warning>`. Owner and next action: `<owner/action>`. This alert concerns synthetic reference data and is not evidence about production data.
-
-## Release rule
-
-Any Error failure blocks the `Reference ready` decision. Warning failures require a recorded rationale. Unevaluated source-completeness coverage must remain visible until an auditable upstream result table exists.
+Any fixture replacement must update baselines through KPI/change control. Alerts must name evidence time/zone, layer/check, impact, release decision, owner/next action, and the synthetic-data boundary.

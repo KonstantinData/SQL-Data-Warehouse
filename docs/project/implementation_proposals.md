@@ -1,80 +1,37 @@
-# Communication-ready implementation proposals
+# Implementation proposals and decisions
 
-These proposals translate current findings into bounded delivery slices. They
-are recommendations, not claims of completed functionality or authorization to
-change integration-owned files.
+## Completed in the reference implementation
 
-## Proposal A — One authoritative, fully populated pipeline
+### A — One authoritative pipeline
 
-**Executive message:** The object model is complete, but execution profiles are
-not equivalent. Consolidating the four missing standard Silver flows and using
-them from local, Python, and CI runners would turn the current CI-specific happy
-path into one reviewable contract.
+Completed: canonical full CRM/ERP Silver logic, shared SQLCMD/Python/CI entry path, audited errors/restarts/watermarks/quarantine, Gold and Inventory integration, and layer/model reconciliation.
 
-**Implementation sequence:**
+### B — Stable analytical contracts
 
-1. Specify Silver sales and ERP transformations from the mapping document.
-2. Add reusable loaders with explicit truncate/idempotency behavior.
-3. Replace the CI-only semantic fork with calls to canonical logic.
-4. Define one ordered manifest and explicit `DataWarehouse` context.
-5. Add source-to-layer row reconciliation, join-coverage, and non-empty Gold
-   checks.
-6. Update all execution documentation and retire divergent logic only after
-   parity evidence.
+Completed: persisted surrogate keys, physical customer/product/date/sales objects, SCD2 product intervals, Unknown members, trusted constraints, workload indexes, and two-run key stability tests.
 
-**Definition of done:** clean bootstrap from an empty disposable SQL Server;
-identical object/row contracts across supported runners; failures propagate;
-static and runtime checks pass.
+### E — Source-controlled reporting
 
-## Proposal B — Stable analytical contracts
+Completed at source level: PBIP/PBIR/TMDL, curated Gold queries, Inventory integration, explicit measures/KPI catalog, RLS/refresh design, report/mobile/accessibility metadata, and automated validators. Power BI Desktop validation remains an external release gate.
 
-**Executive message:** Current Gold objects are useful analytical views, but
-their `ROW_NUMBER()` keys are temporary calculations rather than persisted
-surrogates. Stabilize the contract before external BI consumers depend on those
-values.
+## Open proposals
 
-**Implementation sequence:** choose snapshot-stable natural/composite keys or
-persisted dimensions; declare logical/physical constraints; make
-`cust_is_future` canonical; verify rerun determinism and fan-out; publish a
-consumer migration note.
+### C — Independently generated core fixture pack
 
-**Definition of done:** key type and lifecycle documented, duplicate/null rules
-enforced, fact-to-dimension coverage asserted, repeat runs preserve the stated
-contract.
+Replace the six inherited course fixtures with deterministically generated repository-owned equivalents after owner/legal review. Acceptance requires scenario parity, new provenance and hashes, all runtime/model/Power BI gates, and explicit licensing.
 
-## Proposal C — Rights-clear synthetic fixture pack
+### D — Versioned production migrations
 
-**Executive message:** Replacing byte-identical course datasets with generated,
-repository-owned synthetic fixtures removes ambiguity while retaining the
-educational warehouse shape.
+Introduce migration IDs/checksums, supported upgrade paths, permission preservation, backup/rollback evidence, and clean-install-versus-upgrade catalog equality before claiming upgrade support.
 
-**Implementation sequence:** define a fixture schema and deterministic seed;
-generate edge cases for every cleansing rule; record provenance/license; update
-hashes and expected counts; validate semantic equivalence; remove inherited data
-only after approval.
+### F — Environment operations
 
-**Definition of done:** independent rights basis, deterministic regeneration,
-documented scenario coverage, and a complete passing pipeline without inherited
-CSV bytes.
+Add a scheduler/orchestrator, monitoring/alerts, secret manager, backup/restore tests, retention, SLOs, ownership, Power BI gateway/deployment pipeline, and audited approvals. None of these should be inferred from local CI.
 
-## Proposal D — Safe object lifecycle and migrations
+### G — Incremental CRM/ERP and Inventory processing
 
-**Executive message:** Full database recreation is appropriate for the current
-synthetic reference environment but is not a production migration strategy.
-Introduce versioned, fail-closed migrations before claiming upgrade support.
+Replace full snapshots only after source change semantics, late-arrival/delete policy, durable modification watermark, partition strategy, reconciliation, and performance evidence are specified.
 
-**Implementation sequence:** baseline the current catalog; add migration IDs and
-checksums; use `CREATE OR ALTER` where compatible; capture permissions and
-rollback data; test upgrade and clean-install paths; apply the deprecation gates
-in [`deprecation_and_removal.md`](../legacy/deprecation_and_removal.md).
+## Priority
 
-**Definition of done:** clean install and supported upgrade yield the same
-catalog, failed migrations stop execution, rollback evidence exists, and no
-destructive action is inferred from a documentation candidate.
-
-## Priority recommendation
-
-Deliver Proposal A first. It closes the largest truth gap: the strongest path is
-currently CI-specific. Proposal B follows because consumers should not adopt
-unstable keys. Proposal C resolves reuse risk independently. Proposal D becomes
-necessary before any real upgradeable environment is contemplated.
+Resolve the rights-clear fixture decision first for external/commercial reuse. For a real deployment, deliver versioned migrations and environment operations before incremental processing or scale claims.

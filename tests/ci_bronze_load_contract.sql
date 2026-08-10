@@ -1,102 +1,83 @@
-/* Operational contract: Bronze availability is enforced even though Bronze
-   content anomalies are diagnostic. This compensates for the current loader
-   procedure printing caught errors without rethrowing them. */
+/* Reconcile every source row to either published Bronze or durable quarantine. */
 
+USE DataWarehouse;
+GO
 SET NOCOUNT ON;
 
 DECLARE @violations INT = 0;
+DECLARE @batch_id BIGINT = (
+    SELECT TOP (1) batch_id
+    FROM control.pipeline_batch
+    WHERE pipeline_name = N'sql-data-warehouse-full-snapshot'
+      AND status = 'SUCCEEDED'
+    ORDER BY batch_id DESC
+);
+DECLARE @bronze_step_id BIGINT = (
+    SELECT step_id
+    FROM control.pipeline_step
+    WHERE batch_id = @batch_id AND step_name = N'bronze.full_snapshot'
+);
 
-IF OBJECT_ID('bronze.crm_cust_info', 'U') IS NULL
-BEGIN
-    SET @violations += 1;
-    PRINT 'ERROR (Pipeline): missing bronze.crm_cust_info.';
-END;
-IF OBJECT_ID('bronze.crm_prd_info', 'U') IS NULL
-BEGIN
-    SET @violations += 1;
-    PRINT 'ERROR (Pipeline): missing bronze.crm_prd_info.';
-END;
-IF OBJECT_ID('bronze.crm_sales_details', 'U') IS NULL
-BEGIN
-    SET @violations += 1;
-    PRINT 'ERROR (Pipeline): missing bronze.crm_sales_details.';
-END;
-IF OBJECT_ID('bronze.erp_cust_az12', 'U') IS NULL
-BEGIN
-    SET @violations += 1;
-    PRINT 'ERROR (Pipeline): missing bronze.erp_cust_az12.';
-END;
-IF OBJECT_ID('bronze.erp_loc_a101', 'U') IS NULL
-BEGIN
-    SET @violations += 1;
-    PRINT 'ERROR (Pipeline): missing bronze.erp_loc_a101.';
-END;
-IF OBJECT_ID('bronze.erp_px_cat_g1v2', 'U') IS NULL
-BEGIN
-    SET @violations += 1;
-    PRINT 'ERROR (Pipeline): missing bronze.erp_px_cat_g1v2.';
-END;
+IF @batch_id IS NULL
+    THROW 51000, 'Bronze reconciliation requires a successful operational batch.', 1;
 
-IF OBJECT_ID('bronze.crm_cust_info', 'U') IS NOT NULL
-   AND NOT EXISTS (SELECT 1 FROM bronze.crm_cust_info)
+DECLARE @expected TABLE (source_name NVARCHAR(128), expected_rows BIGINT);
+INSERT @expected VALUES
+    (N'crm_cust_info', $(EXPECTED_BRONZE_CRM_CUST_INFO)),
+    (N'crm_prd_info', $(EXPECTED_BRONZE_CRM_PRD_INFO)),
+    (N'crm_sales_details', $(EXPECTED_BRONZE_CRM_SALES_DETAILS)),
+    (N'erp_cust_az12', $(EXPECTED_BRONZE_ERP_CUST_AZ12)),
+    (N'erp_loc_a101', $(EXPECTED_BRONZE_ERP_LOC_A101)),
+    (N'erp_px_cat_g1v2', $(EXPECTED_BRONZE_ERP_PX_CAT_G1V2));
+
+DECLARE @actual TABLE (source_name NVARCHAR(128), published_rows BIGINT);
+INSERT @actual VALUES
+    (N'crm_cust_info', (SELECT COUNT_BIG(*) FROM bronze.crm_cust_info WHERE load_batch_id = @batch_id)),
+    (N'crm_prd_info', (SELECT COUNT_BIG(*) FROM bronze.crm_prd_info WHERE load_batch_id = @batch_id)),
+    (N'crm_sales_details', (SELECT COUNT_BIG(*) FROM bronze.crm_sales_details WHERE load_batch_id = @batch_id)),
+    (N'erp_cust_az12', (SELECT COUNT_BIG(*) FROM bronze.erp_cust_az12 WHERE load_batch_id = @batch_id)),
+    (N'erp_loc_a101', (SELECT COUNT_BIG(*) FROM bronze.erp_loc_a101 WHERE load_batch_id = @batch_id)),
+    (N'erp_px_cat_g1v2', (SELECT COUNT_BIG(*) FROM bronze.erp_px_cat_g1v2 WHERE load_batch_id = @batch_id));
+
+IF EXISTS (
+    SELECT 1
+    FROM @expected AS expected
+    INNER JOIN @actual AS actual ON actual.source_name = expected.source_name
+    OUTER APPLY (
+        SELECT COUNT_BIG(DISTINCT reject.source_row_number) AS rejected_rows
+        FROM control.load_reject AS reject
+        WHERE reject.batch_id = @batch_id
+          AND reject.step_id = @bronze_step_id
+          AND reject.source_name = expected.source_name
+    ) AS rejects
+    WHERE actual.published_rows + rejects.rejected_rows <> expected.expected_rows
+)
 BEGIN
     SET @violations += 1;
-    PRINT 'ERROR (Pipeline): bronze.crm_cust_info is empty.';
-END;
-IF OBJECT_ID('bronze.crm_prd_info', 'U') IS NOT NULL
-   AND NOT EXISTS (SELECT 1 FROM bronze.crm_prd_info)
-BEGIN
-    SET @violations += 1;
-    PRINT 'ERROR (Pipeline): bronze.crm_prd_info is empty.';
-END;
-IF OBJECT_ID('bronze.crm_sales_details', 'U') IS NOT NULL
-   AND NOT EXISTS (SELECT 1 FROM bronze.crm_sales_details)
-BEGIN
-    SET @violations += 1;
-    PRINT 'ERROR (Pipeline): bronze.crm_sales_details is empty.';
-END;
-IF OBJECT_ID('bronze.erp_cust_az12', 'U') IS NOT NULL
-   AND NOT EXISTS (SELECT 1 FROM bronze.erp_cust_az12)
-BEGIN
-    SET @violations += 1;
-    PRINT 'ERROR (Pipeline): bronze.erp_cust_az12 is empty.';
-END;
-IF OBJECT_ID('bronze.erp_loc_a101', 'U') IS NOT NULL
-   AND NOT EXISTS (SELECT 1 FROM bronze.erp_loc_a101)
-BEGIN
-    SET @violations += 1;
-    PRINT 'ERROR (Pipeline): bronze.erp_loc_a101 is empty.';
-END;
-IF OBJECT_ID('bronze.erp_px_cat_g1v2', 'U') IS NOT NULL
-   AND NOT EXISTS (SELECT 1 FROM bronze.erp_px_cat_g1v2)
-BEGIN
-    SET @violations += 1;
-    PRINT 'ERROR (Pipeline): bronze.erp_px_cat_g1v2 is empty.';
+    PRINT 'ERROR (Pipeline): published plus quarantined Bronze rows do not reconcile to a source CSV.';
 END;
 
-IF OBJECT_ID('bronze.crm_cust_info', 'U') IS NOT NULL
-   AND (SELECT COUNT_BIG(*) FROM bronze.crm_cust_info) <> $(EXPECTED_BRONZE_CRM_CUST_INFO)
-BEGIN SET @violations += 1; PRINT 'ERROR (Pipeline): bronze.crm_cust_info row count differs from its CSV fixture.'; END;
-IF OBJECT_ID('bronze.crm_prd_info', 'U') IS NOT NULL
-   AND (SELECT COUNT_BIG(*) FROM bronze.crm_prd_info) <> $(EXPECTED_BRONZE_CRM_PRD_INFO)
-BEGIN SET @violations += 1; PRINT 'ERROR (Pipeline): bronze.crm_prd_info row count differs from its CSV fixture.'; END;
-IF OBJECT_ID('bronze.crm_sales_details', 'U') IS NOT NULL
-   AND (SELECT COUNT_BIG(*) FROM bronze.crm_sales_details) <> $(EXPECTED_BRONZE_CRM_SALES_DETAILS)
-BEGIN SET @violations += 1; PRINT 'ERROR (Pipeline): bronze.crm_sales_details row count differs from its CSV fixture.'; END;
-IF OBJECT_ID('bronze.erp_cust_az12', 'U') IS NOT NULL
-   AND (SELECT COUNT_BIG(*) FROM bronze.erp_cust_az12) <> $(EXPECTED_BRONZE_ERP_CUST_AZ12)
-BEGIN SET @violations += 1; PRINT 'ERROR (Pipeline): bronze.erp_cust_az12 row count differs from its CSV fixture.'; END;
-IF OBJECT_ID('bronze.erp_loc_a101', 'U') IS NOT NULL
-   AND (SELECT COUNT_BIG(*) FROM bronze.erp_loc_a101) <> $(EXPECTED_BRONZE_ERP_LOC_A101)
-BEGIN SET @violations += 1; PRINT 'ERROR (Pipeline): bronze.erp_loc_a101 row count differs from its CSV fixture.'; END;
-IF OBJECT_ID('bronze.erp_px_cat_g1v2', 'U') IS NOT NULL
-   AND (SELECT COUNT_BIG(*) FROM bronze.erp_px_cat_g1v2) <> $(EXPECTED_BRONZE_ERP_PX_CAT_G1V2)
-BEGIN SET @violations += 1; PRINT 'ERROR (Pipeline): bronze.erp_px_cat_g1v2 row count differs from its CSV fixture.'; END;
+IF EXISTS (
+    SELECT 1 FROM @actual WHERE published_rows = 0
+)
+BEGIN
+    SET @violations += 1;
+    PRINT 'ERROR (Pipeline): a required Bronze source published no rows.';
+END;
+
+IF EXISTS (
+    SELECT 1
+    FROM control.load_reject
+    WHERE batch_id = @batch_id
+      AND (source_file IS NULL OR rule_code IS NULL OR error_message IS NULL)
+)
+BEGIN
+    SET @violations += 1;
+    PRINT 'ERROR (Pipeline): quarantine evidence is incomplete.';
+END;
 
 IF @violations > 0
-BEGIN
-    RAISERROR('Bronze load contract failed. Violations: %d', 16, 1, @violations);
-    RETURN;
-END;
+    THROW 51001, 'Bronze load reconciliation failed.', 1;
 
-PRINT 'Bronze load contract passed: all six source tables are present and non-empty.';
+PRINT 'Bronze load contract passed: every source row is published or quarantined.';
+GO

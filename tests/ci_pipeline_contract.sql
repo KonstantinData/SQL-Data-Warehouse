@@ -1,7 +1,7 @@
 /* End-to-end execution and transformation contract for the synthetic fixtures.
 
-   This contract intentionally fails when the authoritative runtime/model is
-   incomplete. CI must not repair or substitute missing transformations. */
+   CI must compare the published data with the authoritative repository
+   transformations and must not repair or substitute them. */
 
 SET NOCOUNT ON;
 
@@ -25,12 +25,13 @@ BEGIN
     PRINT 'ERROR (Pipeline): required Silver tables are missing.';
 END;
 
-IF OBJECT_ID('gold.dim_customers', 'V') IS NULL
-   OR OBJECT_ID('gold.dim_products', 'V') IS NULL
-   OR OBJECT_ID('gold.fact_sales', 'V') IS NULL
+IF OBJECT_ID('gold.dim_customers', 'U') IS NULL
+   OR OBJECT_ID('gold.dim_products', 'U') IS NULL
+   OR OBJECT_ID('gold.dim_date', 'U') IS NULL
+   OR OBJECT_ID('gold.fact_sales', 'U') IS NULL
 BEGIN
     SET @violations += 1;
-    PRINT 'ERROR (Pipeline): required Gold views are missing.';
+    PRINT 'ERROR (Pipeline): required physical Gold star-schema tables are missing.';
 END;
 
 IF OBJECT_ID('silver.crm_cust_info', 'U') IS NOT NULL
@@ -56,18 +57,18 @@ IF OBJECT_ID('silver.crm_cust_info', 'U') IS NOT NULL
 BEGIN
     SELECT
         cust_id,
-        cust_key,
+        TRIM(cust_key) AS cust_key,
         TRIM(cust_firstname) AS cust_firstname,
         TRIM(cust_lastname) AS cust_lastname,
         CASE UPPER(TRIM(cust_marital_status))
-            WHEN 'M' THEN 'Married'
-            WHEN 'S' THEN 'Single'
-            ELSE 'n/a'
+            WHEN N'M' THEN N'Married'
+            WHEN N'S' THEN N'Single'
+            ELSE N'n/a'
         END AS cust_marital_status,
         CASE UPPER(TRIM(cust_gender))
-            WHEN 'M' THEN 'Male'
-            WHEN 'F' THEN 'Female'
-            ELSE 'n/a'
+            WHEN N'M' THEN N'Male'
+            WHEN N'F' THEN N'Female'
+            ELSE N'n/a'
         END AS cust_gender,
         cust_create_date,
         CONVERT(BIT, CASE WHEN cust_create_date > GETDATE() THEN 1 ELSE 0 END) AS cust_is_future
@@ -75,10 +76,12 @@ BEGIN
     FROM (
         SELECT *,
                ROW_NUMBER() OVER (
-                   PARTITION BY cust_id ORDER BY cust_create_date DESC
+                   PARTITION BY cust_id
+                   ORDER BY cust_create_date DESC, source_row_number DESC, cust_key DESC
                ) AS latest_rank
         FROM bronze.crm_cust_info
         WHERE cust_id IS NOT NULL
+          AND NULLIF(TRIM(cust_key), N'') IS NOT NULL
     ) AS source
     WHERE latest_rank = 1;
 
@@ -128,13 +131,13 @@ BEGIN
         prd_id,
         TRIM(prd_key) AS prd_key,
         TRIM(prd_nm) AS prd_nm,
-        CASE WHEN prd_cost IS NULL OR prd_cost < 0 THEN 0 ELSE prd_cost END AS prd_cost,
+        prd_cost,
         CASE UPPER(TRIM(prd_line))
             WHEN 'M' THEN 'Mountain'
             WHEN 'R' THEN 'Road'
             WHEN 'S' THEN 'Other Sales'
             WHEN 'T' THEN 'Touring'
-            ELSE TRIM(prd_line)
+            ELSE COALESCE(NULLIF(TRIM(prd_line), N''), N'n/a')
         END AS prd_line,
         prd_start_dt,
         CASE
@@ -142,15 +145,10 @@ BEGIN
             ELSE prd_end_dt
         END AS prd_end_dt
     INTO #expected_products
-    FROM (
-        SELECT *,
-               ROW_NUMBER() OVER (
-                   PARTITION BY prd_id ORDER BY prd_start_dt DESC
-               ) AS latest_rank
-        FROM bronze.crm_prd_info
-        WHERE prd_id IS NOT NULL
-    ) AS source
-    WHERE latest_rank = 1;
+    FROM bronze.crm_prd_info AS source
+    WHERE prd_id IS NOT NULL
+      AND prd_key IS NOT NULL
+      AND (prd_cost IS NULL OR prd_cost >= 0);
 
     IF EXISTS (
         SELECT prd_id,

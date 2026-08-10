@@ -14,9 +14,9 @@ ORDER BY batch_id DESC;
 IF @batch_id IS NULL THROW 52300, 'No successful runtime batch is available for coverage checks.', 1;
 
 IF 18484 <> (SELECT COUNT_BIG(*) FROM silver.crm_cust_info WHERE dwh_batch_id = @batch_id)
-   OR 293 <> (SELECT COUNT_BIG(*) FROM silver.crm_prd_info WHERE dwh_batch_id = @batch_id)
+   OR 397 <> (SELECT COUNT_BIG(*) FROM silver.crm_prd_info WHERE dwh_batch_id = @batch_id)
    OR 60379 <> (SELECT COUNT_BIG(*) FROM silver.crm_sales_details WHERE dwh_batch_id = @batch_id)
-   OR 18483 <> (SELECT COUNT_BIG(*) FROM silver.erp_cust_az12 WHERE dwh_batch_id = @batch_id)
+   OR 18484 <> (SELECT COUNT_BIG(*) FROM silver.erp_cust_az12 WHERE dwh_batch_id = @batch_id)
    OR 18484 <> (SELECT COUNT_BIG(*) FROM silver.erp_loc_a101 WHERE dwh_batch_id = @batch_id)
    OR 37 <> (SELECT COUNT_BIG(*) FROM silver.erp_px_cat_g1v2 WHERE dwh_batch_id = @batch_id)
     THROW 52307, 'Synthetic Silver cardinalities do not match the verified reference snapshot.', 1;
@@ -64,9 +64,9 @@ IF EXISTS (
 )
     THROW 52303, 'Operational customer keys are not unique.', 1;
 IF EXISTS (
-    SELECT prd_key FROM silver.crm_prd_info WHERE dwh_batch_id = @batch_id GROUP BY prd_key HAVING COUNT(*) > 1
+    SELECT prd_id FROM silver.crm_prd_info WHERE dwh_batch_id = @batch_id GROUP BY prd_id HAVING COUNT(*) > 1
 )
-    THROW 52304, 'Operational product business keys are not unique.', 1;
+    THROW 52304, 'Operational product-version IDs are not unique.', 1;
 IF EXISTS (
     SELECT 1 FROM silver.crm_sales_details s
     WHERE s.dwh_batch_id = @batch_id
@@ -88,17 +88,16 @@ IF EXISTS (
     THROW 52306, 'Published Sales contains an orphan customer or product.', 1;
 
 IF EXISTS (
-    SELECT SUBSTRING(prd_key, 7, LEN(prd_key))
+    SELECT prd_key, prd_start_dt
     FROM silver.crm_prd_info WHERE dwh_batch_id = @batch_id
-    GROUP BY SUBSTRING(prd_key, 7, LEN(prd_key)) HAVING COUNT(*) > 1
+    GROUP BY prd_key, prd_start_dt HAVING COUNT(*) > 1
 )
-    THROW 52309, 'Published product keys are ambiguous for the Gold/Sales join.', 1;
+    THROW 52309, 'Published product versions have duplicate effective starts.', 1;
 
 IF EXISTS (
     SELECT 1
     FROM (VALUES
-        (N'crm_cust_info', N'MISSING_REQUIRED_KEY', 3),
-        (N'crm_prd_info', N'MISSING_PRODUCT_COST', 2),
+        (N'crm_cust_info', N'MISSING_REQUIRED_KEY', 4),
         (N'crm_sales_details', N'INVALID_ORDER_DATE', 18),
         (N'crm_sales_details', N'INVALID_DATE_SEQUENCE', 1)
     ) expected(source_name, rule_code, expected_count)
@@ -111,9 +110,9 @@ IF EXISTS (
     ) actual
     WHERE actual.actual_count <> expected.expected_count
 )
-    THROW 52310, 'Synthetic reject evidence does not match the verified 24-row rule distribution.', 1;
-IF 24 <> (SELECT COUNT(*) FROM control.load_reject WHERE batch_id = @batch_id)
-    THROW 52311, 'Synthetic batch must contain exactly 24 reject records.', 1;
+    THROW 52310, 'Synthetic reject evidence does not match the verified 23-row rule distribution.', 1;
+IF 23 <> (SELECT COUNT(*) FROM control.load_reject WHERE batch_id = @batch_id)
+    THROW 52311, 'Synthetic batch must contain exactly 23 reject records.', 1;
 IF EXISTS (
     SELECT 1 FROM control.load_reject
     WHERE batch_id = @batch_id
@@ -124,21 +123,21 @@ IF EXISTS (
 IF NOT EXISTS (
     SELECT 1 FROM control.pipeline_step
     WHERE batch_id=@batch_id AND step_name=N'bronze.full_snapshot' AND status='SUCCEEDED'
-      AND completed_at_utc IS NOT NULL AND rows_read=116292 AND rows_rejected=3 AND rows_published=116289
+      AND completed_at_utc IS NOT NULL AND rows_read=116294 AND rows_rejected=4 AND rows_published=116290
 )
    OR NOT EXISTS (
     SELECT 1 FROM control.pipeline_step
     WHERE batch_id=@batch_id AND step_name=N'silver.full_snapshot' AND status='SUCCEEDED'
-      AND completed_at_utc IS NOT NULL AND rows_read=116289 AND rows_rejected=21
-      AND rows_superseded=108 AND rows_published=116160
+      AND completed_at_utc IS NOT NULL AND rows_read=116290 AND rows_rejected=19
+      AND rows_superseded=6 AND rows_published=116265
 )
     THROW 52313, 'Batch step reconciliation does not match the synthetic snapshot.', 1;
 
-IF OBJECT_ID(N'gold.dim_customers', N'V') IS NOT NULL
-   AND (18484 <> (SELECT COUNT_BIG(*) FROM gold.dim_customers)
-        OR 293 <> (SELECT COUNT_BIG(*) FROM gold.dim_products)
+IF OBJECT_ID(N'gold.dim_customers', N'U') IS NOT NULL
+   AND (18485 <> (SELECT COUNT_BIG(*) FROM gold.dim_customers)
+        OR 398 <> (SELECT COUNT_BIG(*) FROM gold.dim_products)
         OR 60379 <> (SELECT COUNT_BIG(*) FROM gold.fact_sales))
-    THROW 52314, 'Installed Gold views are incompatible with the runtime snapshot.', 1;
+    THROW 52314, 'Installed physical Gold model is incompatible with the runtime snapshot.', 1;
 
 PRINT 'Silver six-source coverage checks passed.';
 GO

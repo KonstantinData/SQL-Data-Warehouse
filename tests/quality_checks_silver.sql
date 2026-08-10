@@ -59,8 +59,8 @@ IF EXISTS (
 BEGIN SET @violations += 1; PRINT 'ERROR (Silver): product IDs must be non-null and unique.'; END;
 
 IF (SELECT COUNT_BIG(*) FROM silver.crm_prd_info)
-   <> (SELECT COUNT_BIG(DISTINCT prd_id) FROM bronze.crm_prd_info WHERE prd_id IS NOT NULL)
-BEGIN SET @violations += 1; PRINT 'ERROR (Silver): product lineage count does not match deduplicated Bronze.'; END;
+   <> (SELECT COUNT_BIG(*) FROM bronze.crm_prd_info WHERE prd_id IS NOT NULL AND (prd_cost IS NULL OR prd_cost >= 0))
+BEGIN SET @violations += 1; PRINT 'ERROR (Silver): product-version lineage count does not match accepted Bronze.'; END;
 
 IF EXISTS (
     SELECT 1 FROM silver.crm_prd_info
@@ -68,7 +68,6 @@ IF EXISTS (
        OR DATALENGTH(prd_key) <> DATALENGTH(TRIM(prd_key))
        OR prd_nm IS NULL
        OR DATALENGTH(prd_nm) <> DATALENGTH(TRIM(prd_nm))
-       OR prd_cost IS NULL
        OR prd_cost < 0
        OR (prd_end_dt IS NOT NULL AND prd_end_dt < prd_start_dt)
 )
@@ -110,15 +109,12 @@ BEGIN SET @violations += 1; PRINT 'ERROR (Silver): sales must resolve to a custo
 IF EXISTS (
     SELECT 1
     FROM silver.crm_sales_details AS sales
-    LEFT JOIN (
-        SELECT SUBSTRING(prd_key, 7, LEN(prd_key)) AS product_number,
-               COUNT_BIG(*) AS match_count
-        FROM silver.crm_prd_info
-        GROUP BY SUBSTRING(prd_key, 7, LEN(prd_key))
-    ) AS products ON products.product_number = sales.sls_prd_key
-    WHERE ISNULL(products.match_count, 0) <> 1
+    WHERE NOT EXISTS (
+        SELECT 1 FROM silver.crm_prd_info AS product
+        WHERE SUBSTRING(product.prd_key, 7, LEN(product.prd_key)) = sales.sls_prd_key
+    )
 )
-BEGIN SET @violations += 1; PRINT 'ERROR (Silver): every sale must resolve to exactly one product.'; END;
+BEGIN SET @violations += 1; PRINT 'ERROR (Silver): every sale must reference a known product history.'; END;
 
 IF EXISTS (
     SELECT 1 FROM silver.erp_cust_az12

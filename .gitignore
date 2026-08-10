@@ -5,3 +5,9 @@ venv/
 
 # Environment variables
 .env
+
+# Generated runtime and notebook artifacts
+logs/*.log
+**/__pycache__/
+*.py[cod]
+.ipynb_checkpoints/

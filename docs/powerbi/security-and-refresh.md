@@ -1,44 +1,34 @@
-# Security and Refresh Design
+# Security and refresh design
 
 ## Refresh contract
 
 Mode: **Import with full refresh**.
 
-Parameters:
+Parameters: `SqlServerName`, `SqlDatabaseName`, `EnvironmentName`, and `CommandTimeoutMinutes`. Credentials are never stored in PBIP/TMDL; Desktop, Power BI Service, or a gateway must bind them through managed connection stores.
 
-- `SqlServerName`: required server endpoint; no credential.
-- `SqlDatabaseName`: database name, default `DataWarehouse`.
-- `EnvironmentName`: descriptive deployment parameter.
-- `CommandTimeoutMinutes`: query timeout.
+The core semantic model needs least-privilege `SELECT` on curated Gold core tables and Inventory views. The disconnected data-quality table additionally reads the named Gold quality sources. Refresh starts only after the canonical pipeline and enforced quality/model/Inventory gates succeed.
 
-Credentials are never stored in PBIP/TMDL. Desktop, the Power BI service, and any gateway must bind credentials through their managed connection stores.
+Core CRM/ERP publication is non-destructive and layer-atomic. Gold and Inventory reruns are transactional/idempotent. A deployment still needs an orchestration gate so Power BI never refreshes between layer publications.
 
-The temporary semantic safety projection requires read access to the named Silver tables. This is broader than the preferred production boundary. The target state is a least-privilege principal with `CONNECT` plus `SELECT` on corrected curated Gold views only.
-
-Refresh must run after the warehouse pipeline and enforced quality checks succeed. The current database drop/recreate process is not safe for concurrent refresh; a real deployment needs an atomic publish/staging contract or an explicit orchestration gate.
-
-Incremental refresh is intentionally absent. Enable it only after stable persistent keys, non-destructive loads, an indexed order date, a durable modification watermark, late-arrival/delete rules, and query-folding evidence exist.
-
-`Last Dataset Refresh UTC` is the semantic-model refresh time, not the warehouse pipeline completion time. `Data Through Date` is historical synthetic data coverage within the current access scope and must not be labelled global coverage or operational staleness.
+Incremental refresh is intentionally absent. Add it only with reviewed range parameters, query-folding evidence, indexed change dates, late-arrival/delete rules, partition tests, retention policy, and an environment-specific capacity assessment.
 
 ## RLS design
 
-`CountrySalesViewer` filters normalized `Customers[country_code]` using `USERPRINCIPALNAME()` and an entitlement table. Missing, inactive, blank, or unmatched entitlement returns zero rows (fail closed). The Customer-to-Sales relationship propagates the filter.
+`CountrySalesViewer` filters `Customers[country_code]` through `Security User Country` and `USERPRINCIPALNAME()`. Missing, inactive, blank, or unmatched entitlement returns zero rows. Checked-in identities use the reserved `.invalid` domain.
 
-The checked-in entitlement rows use the reserved `.invalid` domain and exist only to demonstrate the contract. Before any real publication:
+Before publication:
 
-1. replace the inline table with a governed entitlement source;
-2. normalize all supported country values;
-3. test allowed, multi-country, inactive, expired, unknown, and blank identities;
-4. assign service role memberships;
-5. verify that broad and restricted roles are mutually exclusive because Power BI role memberships are additive.
+1. replace inline entitlements with a governed source;
+2. confirm normalization for every supported country;
+3. test allowed, multiple, inactive, expired, unknown, and blank identities;
+4. verify additive role membership cannot broaden restricted users;
+5. decide whether Inventory requires a separate warehouse/country entitlement path.
 
-RLS is not a boundary against semantic-model editors or administrators. Hidden columns are not security. The current customer source includes direct and linkable personal attributes; default report surfaces intentionally avoid names, customer numbers, birth dates, and hashes. Real data requires minimization and privacy review, restricted Build permission, and potentially curated Gold/OLS.
+RLS does not restrict semantic-model editors or administrators. Hidden columns are not security. Real customer data requires minimization, privacy review, restricted Build permission, database authorization, and potentially object-level security.
 
 ## Gateway and deployment
 
-- SQL privacy level: Organizational.
-- Require TLS and least-privilege per-environment credentials.
-- Do not combine this source with Public sources without a reviewed privacy design.
-- Use deployment rules to replace endpoint parameters across Development, Test, and Production.
-- Service membership, gateway binding, refresh schedules, and credentials are operational state, not source-controlled PBIP evidence.
+- Require TLS and per-environment least-privilege credentials.
+- Treat privacy level as Organizational and review any source combination.
+- Replace endpoints through deployment rules.
+- Keep gateway binding, refresh schedules, credentials, capacity, role membership, and approvals as audited environment state.

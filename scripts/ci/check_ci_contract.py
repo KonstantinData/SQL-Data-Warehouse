@@ -16,11 +16,11 @@ REQUIRED_PIPELINE_INCLUDES = [
     "scripts/init.database.sql",
     "scripts/bronze_layer/create_table_bronze_layer.sql",
     "scripts/bronze_layer/bulk_insert_crm_cust_info.sql",
-    "tests/ci_bronze_load_contract.sql",
     "scripts/silver_layer/create_silver_table_structure.sql",
-    "scripts/silver_layer/cleansing_crm_cust_info.sql",
-    "scripts/silver_layer/cleansing_crm_prd_info.sql",
+    "scripts/silver_layer/load_silver.sql",
+    "tests/ci_bronze_load_contract.sql",
     "scripts/gold_layer/create_gold_views.sql",
+    "scripts/source_inventory/run_source_inventory_ci.sql",
 ]
 
 
@@ -47,6 +47,28 @@ def main() -> int:
 
     if re.search(r"\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE)\s+(?:DataWarehouse\.)?silver\.", pipeline_text, re.IGNORECASE):
         fail("CI pipeline contains substitute Silver transformation logic")
+
+    required_runtime_calls = (
+        "EXEC control.run_pipeline",
+        "@max_reject_rows = 23",
+        "status IN ('SUCCEEDED', 'SKIPPED')",
+    )
+    for marker in required_runtime_calls:
+        if marker not in pipeline_text:
+            fail(f"canonical runtime marker is missing: {marker}")
+
+    required_runner_tests = (
+        "tests/runtime_contract.sql",
+        "tests/runtime_silver_coverage.sql",
+        "tests/runtime_fail_closed.sql",
+        "tests/runtime_idempotency.sql",
+        "tests/runtime_atomicity.sql",
+        "tests/model_reproducibility.sql",
+        "tests/source_inventory/run_tests_ci.sql",
+    )
+    for marker in required_runner_tests:
+        if marker not in runner_text:
+            fail(f"required end-to-end test is missing from the CI runner: {marker}")
 
     combined = "\n".join((workflow_text, runner_text, pipeline_text))
     forbidden_patterns = {

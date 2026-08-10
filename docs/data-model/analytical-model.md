@@ -17,10 +17,10 @@ The model consumes the existing Silver CRM and ERP tables.
 
 Measured committed-fixture profile:
 
-- 60,398 sales lines in 27,659 orders;
+- 60,398 raw sales lines, of which the canonical runtime accepts 60,379 after 19 documented date rejects;
 - 18,484 customers after the existing Silver latest-record rule;
-- 397 CRM product versions but only 295 product numbers;
-- 19 invalid or zero order dates;
+- 397 raw and accepted CRM product versions across 295 product numbers; two missing costs are retained as explicit zero-cost DQ warnings in Gold;
+- 19 rejected sales date issues (18 invalid order dates and one invalid sequence);
 - 35 positive sales values that differ from `quantity * price`, plus additional null or nonpositive source measures.
 
 These are reproducible fixture observations, not production-volume claims.
@@ -48,7 +48,7 @@ Every dimension has a key-`0` Unknown member. Unknown members preserve fact grai
 
 `effective_from` comes from `prd_start_dt`. `effective_to` is the next version's `effective_from` for the same `product_number`; the final version has no end. This derived boundary prevents overlap even where the raw source end date is inconsistent. The raw cleaned end date remains available as `source_end_date` for lineage.
 
-A sales line resolves to a product only when its valid order date falls in exactly one interval. Missing, malformed, pre-history, post-history, or ambiguous matches use `product_key = 0`. The current fixture produces zero ambiguous matches but 18,429 Unknown product facts: 19 have invalid order dates and 18,410 predate the available product history. Falling back to an earliest or latest product version would leak unsupported attributes into historical facts, so the load deliberately does not do that.
+A sales line resolves to a product only when its valid order date falls in exactly one interval. Missing, pre-history, post-history, or ambiguous matches use `product_key = 0`. The runtime/model quality gates report Unknown coverage for every verified run. Falling back to an unsupported earliest or latest product version would leak attributes into historical facts, so the load deliberately does not do that.
 
 ## Customer and privacy handling
 

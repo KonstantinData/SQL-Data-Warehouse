@@ -2,7 +2,7 @@
 ================================================================================
 Idempotent Silver table bootstrap
 ================================================================================
-Preserves the legacy columns consumed by the Gold views. Operational metadata
+Preserves the source-facing columns consumed by the physical Gold model. Operational metadata
 is nullable so the isolated legacy CI fixture loader remains insert-compatible.
 ================================================================================
 */
@@ -122,8 +122,22 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'silver.crm_cust_info') AND name = N'UX_silver_cust_operational')
     CREATE UNIQUE INDEX UX_silver_cust_operational ON silver.crm_cust_info(dwh_batch_id, cust_id) WHERE dwh_batch_id IS NOT NULL;
+IF EXISTS (
+    SELECT 1
+    FROM sys.indexes i
+    WHERE i.object_id = OBJECT_ID(N'silver.crm_prd_info')
+      AND i.name = N'UX_silver_prd_operational'
+      AND NOT EXISTS (
+          SELECT 1
+          FROM sys.index_columns ic
+          JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+          WHERE ic.object_id = i.object_id AND ic.index_id = i.index_id
+            AND ic.key_ordinal = 2 AND c.name = N'prd_id'
+      )
+)
+    DROP INDEX UX_silver_prd_operational ON silver.crm_prd_info;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'silver.crm_prd_info') AND name = N'UX_silver_prd_operational')
-    CREATE UNIQUE INDEX UX_silver_prd_operational ON silver.crm_prd_info(dwh_batch_id, prd_key) WHERE dwh_batch_id IS NOT NULL;
+    CREATE UNIQUE INDEX UX_silver_prd_operational ON silver.crm_prd_info(dwh_batch_id, prd_id) WHERE dwh_batch_id IS NOT NULL;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'silver.crm_sales_details') AND name = N'UX_silver_sales_operational')
     CREATE UNIQUE INDEX UX_silver_sales_operational ON silver.crm_sales_details(dwh_batch_id, sls_ord_num, sls_prd_key) WHERE dwh_batch_id IS NOT NULL;
 GO

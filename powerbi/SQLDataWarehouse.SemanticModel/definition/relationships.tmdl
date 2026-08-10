@@ -3,8 +3,8 @@ relationship 403e46e0-3fa2-492c-8477-616099526691
 	toColumn: Customers.customer_id
 
 relationship 191ea79f-ecc2-459a-9921-0bd282308fed
-	fromColumn: Sales.product_number
-	toColumn: Products.product_number
+	fromColumn: Sales.product_key
+	toColumn: Products.product_key
 
 relationship c13da8ce-22f7-49ea-8a88-a1774c82af47
 	fromColumn: Sales.order_date
@@ -19,3 +19,15 @@ relationship 24d07612-1ead-4134-b73f-e2e79dd1d4c2
 	fromColumn: Sales.due_date
 	toColumn: Date.Date
 	isActive: false
+
+relationship 8a71c400-b9ac-47d3-99df-194f5176a82f
+	fromColumn: 'Inventory Snapshots'.product_key
+	toColumn: Products.product_key
+
+relationship 039731bb-91c3-4a7a-98f7-6425b26d3f45
+	fromColumn: 'Inventory Snapshots'.warehouse_key
+	toColumn: 'Inventory Locations'.warehouse_key
+
+relationship a24ee413-e873-48fe-8d18-778179d41a7c
+	fromColumn: 'Inventory Snapshots'.snapshot_date
+	toColumn: Date.Date

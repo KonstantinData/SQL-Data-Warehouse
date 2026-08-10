@@ -24,7 +24,7 @@ propagate the non-zero status.
 | Bronze availability | Enforced | All six source tables must exist and match their synthetic CSV record counts. |
 | Bronze data content | Diagnostic | Source anomalies are reported as aggregate warnings and do not fail CI. |
 | Silver contracts | Enforced | Cleansed tables must satisfy structural, grain, domain, date, measure, lineage, and relationship rules. |
-| Gold contracts | Enforced | Analytical views must preserve declared dimension and fact grains without dropped or multiplied facts. |
+| Gold contracts | Enforced | Physical dimensions and facts must preserve declared grains without dropped or multiplied facts. |
 | Contract self-tests | Enforced | Deliberate Bronze, Silver, and Gold mutations must produce the expected pass/fail behavior. |
 
 “Bronze is diagnostic” applies only to source-data imperfections. It does not
@@ -38,8 +38,8 @@ counts, empty tables, missing objects, or SQL errors non-blocking.
 1. validates CI wiring statically;
 2. starts one isolated, disposable SQL Server container;
 3. runs `scripts/ci/run_ci_pipeline.sql` with fail-on-error SQLCMD settings;
-4. executes the pipeline, Bronze diagnostics, Silver contract, Gold contract,
-   and end-to-end semantic contract;
+4. executes runtime, Bronze diagnostics, Silver, physical Gold, Inventory,
+   reproducibility, and end-to-end semantic contracts;
 5. proves expected failure behavior with disposable negative fixtures; and
 6. removes its container and credential file on normal and trappable exit paths.
 
@@ -60,16 +60,16 @@ not print customer, product, or transaction rows.
 The Silver gate covers:
 
 - all six required non-empty Silver tables;
-- customer and product deduplication and Bronze-to-Silver lineage;
+- customer deduplication, Product-version preservation, and Bronze-to-Silver lineage;
 - normalized customer domains and future-date flag behavior;
-- trimmed product attributes, non-null non-negative cost, and valid ranges;
+- trimmed product attributes, no negative cost, explicit missing-cost handling, and valid ranges;
 - valid and unique sales grain, dates, amounts, quantities, and prices;
-- customer resolution and exactly-one product resolution for every sale; and
+- customer resolution and the existence of Product history for every sale; and
 - unique normalized ERP join keys.
 
 The Gold gate covers:
 
-- required non-empty dimension and fact views;
+- required non-empty physical dimension and fact tables plus stable Inventory views;
 - non-null, unique surrogate and business keys;
 - dimension row-count preservation from Silver;
 - fact row-count preservation from Silver, detecting both dropped and multiplied
@@ -77,10 +77,11 @@ The Gold gate covers:
 - valid fact grain, dimension references, dates, and measures; and
 - hashed rather than raw customer last names.
 
-Product cost `0` is currently valid because the authoritative Product
-transformation uses it as the remediation value for missing or negative source
-cost. The quality contract must change in the same integration commit if that
-business rule changes.
+Missing Product costs preserve the Product identity and are materialized as zero
+in Gold so dependent sources remain mappable; Bronze and Power BI expose them as
+DQ warnings. Negative costs are quarantined. Sales resolve to the Product version
+that was effective on the order date; the resulting Gold surrogate key prevents
+version multiplication and lets Power BI use transaction-dated master cost.
 
 ## Credential and log hygiene
 
@@ -106,50 +107,20 @@ its Docker bind mounts. Invoke it directly:
 & 'C:\Program Files\Git\bin\bash.exe' scripts/ci/run_ci_checks.sh
 ```
 
-## Current integration blockers
+## Integrated runtime/model contract
 
-The CI hardening deliberately does not hide gaps in the current runtime/model:
+The user-facing SQLCMD and Python entry points and the CI entry point call the
+same fail-closed runtime procedure before publishing physical Gold and the
+Inventory extension. The runtime records batch, step, source-file, watermark,
+row-count, error, restart, and quarantine evidence. A source file is reconciled
+as published Bronze rows plus distinct durable rejects. The two fixtures whose
+empty final field previously exposed a Linux `BULK INSERT` edge case now carry a
+final LF; their source attribution records both the current and upstream hashes.
 
-- authoritative Silver transformations for Sales and the three ERP tables are
-  not yet present in the executable repository pipeline;
-- the current Bronze loader drops the final record from `cst_info.csv` and
-  `CST_AZ12.csv` because those files end without a row terminator while their
-  final field is empty; the exact fixture-count gate exposes both lost rows;
-- the Bronze procedure catches and prints errors without rethrowing them, so the
-  CI Bronze availability contract is a required compensating control; and
-- the current derived Product business key is non-unique and can multiply Gold
-  facts. The Silver contract requires exactly one Product match, and the Gold
-  contract requires exact fact-row preservation rather than accepting this
-  fan-out.
-
-Consequently, this isolated commit is expected to fail the full database gate
-until the runtime/model work is reconciled. A green static wiring check alone is
-not end-to-end verification.
-
-## Runtime/model reconciliation hooks
-
-The integration task owns `scripts/run_pipeline.sql` and
-`scripts/orchestrate_pipeline.py`. When the runtime/model commits arrive:
-
-1. add only the authoritative Sales and ERP Silver scripts at
-   `CI_RUNTIME_MODEL_INTEGRATION_HOOK` in
-   `scripts/ci/run_ci_pipeline.sql`;
-2. update `REQUIRED_PIPELINE_INCLUDES` in
-   `scripts/ci/check_ci_contract.py` to the identical reviewed order;
-3. update `scripts/run_pipeline.sql` and `scripts/orchestrate_pipeline.py` to
-   the same complete authoritative order, and add or extend a static parity
-   check so CI cannot become green while a user-facing entry point is stale;
-4. keep Customer and Product rules aligned with the Silver contracts;
-5. resolve Product business-key uniqueness or implement a documented
-   effective-date join so Gold preserves Sales grain;
-6. reconcile Sales date data types and ERP key normalization with Gold joins;
-7. define and assert explicit Bronze-to-Silver lineage rules for Sales and all
-   ERP tables, including any intentional rejection counts;
-8. preserve the final record of every CSV by reconciling fixture row terminators
-   and the Bronze `BULK INSERT` contract;
-9. make the Bronze loader rethrow errors when implementation ownership permits;
-   and
-10. rerun the complete local CI command after combining all commits.
+CI additionally proves deliberate Bronze, Silver, and Gold contract failures,
+runtime idempotency, rollback after injected failure, model reproducibility, and
+Inventory double-run idempotency. Static checks ensure that CI does not contain
+an alternative transformation implementation.
 
 ## Limitations
 
@@ -157,5 +128,5 @@ Synthetic fixture CI does not establish production throughput, concurrency,
 backup/recovery, high availability, privacy controls, authorization, retention,
 Power BI refresh behavior, or correctness for rules not encoded in the tests.
 The optional Python dependencies in `requirements.txt` are outside this SQL CI
-job and remain unpinned. Pinned action and container dependencies also require
+job and use compatible-version ranges. Pinned action and container dependencies require
 periodic reviewed updates; reproducibility does not replace maintenance.

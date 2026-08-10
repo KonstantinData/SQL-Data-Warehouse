@@ -13,6 +13,8 @@ model Model
 ref table Customers
 ref table Products
 ref table Sales
+ref table 'Inventory Snapshots'
+ref table 'Inventory Locations'
 ref table Date
 ref table 'Data Quality Checks'
 ref table 'Refresh Metadata'

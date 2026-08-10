@@ -1,34 +1,19 @@
-# Integration Handoff
+# Integration handoff
 
-## Delivered ownership slice
+## Integrated state
 
-- `powerbi/**`
-- `docs/kpi/**`
-- `docs/powerbi/**`
-- `scripts/powerbi_validation/**`
+The Power BI model now reads the curated physical Gold sales model and the Inventory Gold views. The canonical SQLCMD and Python entry points populate both source domains; CI validates runtime, model, Inventory, negative contracts, and Power BI source structure.
 
-The implementation intentionally does not modify `README.md`, `scripts/run_pipeline.sql`, `scripts/orchestrate_pipeline.py`, SQL pipeline files, datasets, or CI. The integration task owns those connections.
+## Remaining Desktop gate
 
-## Integration steps
+1. Open `powerbi/SQLDataWarehouse.pbip` in the supported Power BI Desktop version.
+2. Bind a least-privilege development connection and refresh all tables.
+3. Compare sales/model counts and Inventory `14/10/4/10` source/accepted/rejected/Gold evidence with SQL gates.
+4. Validate measures, relationships, sort order, inactive date relationships, interactions, tooltips, responsive and phone layouts.
+5. Execute CountrySalesViewer allowed/denied role cases and decide Inventory authorization behavior.
+6. Inspect titles, alternative text, tab order, keyboard flow, contrast, and screen-reader names.
+7. Record screenshots and the Desktop version; do not commit credentials or transient `.pbi` state.
 
-1. Cherry-pick the local Power BI reference commit.
-2. Review the semantic safety projection against any concurrent Gold fixes. If Gold now guarantees one product row per business key, safe date conversion, and row reconciliation, replace the Silver partitions with curated Gold and re-run the baseline comparison.
-3. Link the project and validation commands from integration-owned documentation.
-4. Ensure the pipeline produces populated analytical sources before refresh. The checked-in Python runner currently stops before Gold creation, while the normal SQL runner does not load every Silver source.
-5. Run both source-validation commands.
-6. Complete and record the full Desktop gate in `validation.md`.
-7. Do not publish until credentials, gateway, RLS memberships, privacy review, and screenshot evidence are environment-specific and approved.
+No publication is authorized until gateway, credentials, role membership, privacy review, refresh schedule, capacity, release owner, and evidence are environment-specific and approved.
 
-## Expected source prerequisites
-
-The reference queries require populated `silver.crm_cust_info`, `silver.crm_prd_info`, `silver.crm_sales_details`, `silver.erp_loc_a101`, and `silver.erp_px_cat_g1v2` objects. The SQL account must be read-only and scoped to the minimum objects required by the chosen source contract.
-
-## Acceptance checklist
-
-- Source validators pass and the worktree contains no transient `.pbi` state or credentials.
-- Desktop opens and saves the PBIP without unresolved warnings.
-- Refresh matches the checked synthetic baseline or a reviewed replacement contract.
-- Measures, relationships, RLS, pages, interactions, phone layout, accessibility, and screenshots pass.
-- Documentation still labels the result as a synthetic, source-controlled reference and lists remaining limitations.
-
-Any integration change to table names, measure names, page IDs, schema versions, source grain, or RLS contract requires updating the validators, KPI catalog, report blueprint, and affected PBIR/TMDL files together.
+Any change to table/measure/page IDs, source grain, refresh parameters, or RLS requires coordinated updates to TMDL, PBIR, KPI catalog, report blueprint, validators, and documentation.

@@ -95,8 +95,8 @@ and timestamps in the authorized change record.
 ### 9. Verify
 
 Re-run catalog/dependency census, the authoritative pipeline, Silver/Gold tests,
-row/key reconciliation, and consumer smoke tests. Assert data outcomes because
-the current Bronze loader can swallow errors without failing its caller.
+row/key reconciliation, and consumer smoke tests. Assert both caller failure
+status and data outcomes through the current fail-closed runtime contracts.
 
 ### 10. Close and monitor
 
@@ -118,19 +118,18 @@ the approved retention window expires.
 - **Rollback:** recreate captured definitions/permissions and restore reconciled
   data.
 
-## Example: Gold placeholder
+## Completed example: Gold placeholder and generated log
 
-- **State:** low-risk file proposal; not authorized in this documentation task.
-- **Candidate:** `scripts/gold_layer/placeholder`.
-- **Gate:** no repository, packaging, teaching, or integration dependency;
-  integration owner approval.
-- **Rollback:** restore exact zero-byte Git blob.
+- **State:** removed in the integrated reference change.
+- **Candidates:** `scripts/gold_layer/placeholder`, `logs/dbt.log`.
+- **Evidence:** exact path/size verification, repository reference search, real
+  Gold DDL present, no dbt project/runtime, full validation after removal.
+- **Rollback:** restore the exact Git blobs.
 
-## Example: runner retirement
+## Completed example: runner convergence
 
-- **State:** blocked until parity.
-- **Candidates:** SQLCMD or Python runner.
-- **Reason:** SQLCMD creates Gold; Python does not and has a per-process context
-  gap. Neither can replace the other today.
-- **Unblock condition:** one execution manifest, equivalent phase coverage,
-  identical validation outcome, CI adoption, and tested rollback command.
+- **State:** converged without retiring the user-facing surfaces.
+- **Outcome:** SQLCMD is the single executable manifest; Python invokes it and
+  CI adapts the same runtime/model order. Passwords are not passed in argv.
+- **Future retirement gate:** external usage, parity, owner approval, and rollback
+  remain required before removing either convenience surface.

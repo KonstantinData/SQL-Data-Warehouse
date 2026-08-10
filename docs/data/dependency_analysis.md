@@ -1,108 +1,47 @@
 # Dependency analysis
 
-## Static object inventory
+## Reproducible inventory
 
-At the current commit the repository defines one database, three schemas,
-twelve tables, one stored procedure, and three views:
+Run `python scripts/analysis/repository_analysis.py --check --format markdown` to reproduce the static inventory. At this integrated reference revision it identifies seven CSV sources, the `DataWarehouse` database, seven procedure definitions, 34 table definitions, and two Inventory view definitions. The duplicate `gold.usp_load_gold` and Gold table definitions are intentional: modular scripts and the historical self-contained compatibility entry point implement the same contract.
 
-- `DataWarehouse`; schemas `bronze`, `silver`, `gold`;
-- Bronze tables `bronze.crm_cust_info`, `bronze.crm_prd_info`,
-  `bronze.crm_sales_details`, `bronze.erp_cust_az12`,
-  `bronze.erp_loc_a101`, `bronze.erp_px_cat_g1v2`;
-- same-named six `silver.*` tables;
-- procedure `bronze.load_bronze`;
-- views `gold.dim_customers`, `gold.dim_products`, `gold.fact_sales`.
+## Direct runtime dependencies
 
-Use `python scripts/analysis/repository_analysis.py --check --format markdown`
-to reproduce the static inventory. Static success is not runtime evidence.
-
-## Direct object dependencies
-
-| Subject | Reads/references | Writes/defines | Profile |
-| --- | --- | --- | --- |
-| `bronze.load_bronze` | six CSV filenames through dynamic paths | truncates and bulk-loads six Bronze tables | all runtime profiles |
-| customer cleansing | `bronze.crm_cust_info`, `INFORMATION_SCHEMA.COLUMNS` | alters/inserts `silver.crm_cust_info` | SQLCMD, Python, CI |
-| product cleansing | `bronze.crm_prd_info` | inserts `silver.crm_prd_info` | SQLCMD and Python only |
-| CI Silver loader | Bronze product/sales/ERP plus Silver customer/product | inserts five Silver tables | CI only |
-| `gold.dim_customers` | three Silver customer/ERP tables | view result | SQLCMD and CI creation |
-| `gold.dim_products` | Silver product and ERP category | view result | SQLCMD and CI creation |
-| `gold.fact_sales` | Silver sales plus both Gold dimensions | view result | SQLCMD and CI creation |
-| CI quality gate | all three layers | error status through `RAISERROR` | CI only |
-
-## Entrypoint dependency matrix
-
-| Ordered phase | SQLCMD runner | Python runner | CI runner |
-| --- | :---: | :---: | :---: |
-| database/schemas | yes | yes, separate process | yes |
-| Bronze DDL/procedure/load | yes | yes, separate processes | yes |
-| Silver DDL | yes | yes, separate process | yes |
-| customer transform | yes | yes | yes |
-| standard product transform | yes | yes | no |
-| Silver sales | no | no | CI-only |
-| three Silver ERP tables | no | no | CI-only |
-| Gold views | yes | no | yes |
-| enforced quality gate | no | no | yes |
-
-The Python runner reuses one `-d` argument but starts a new `sqlcmd` process for
-every file. Its default `master` context means the `USE DataWarehouse` statement
-from bootstrap does not carry into Bronze DDL. Selecting `DataWarehouse` cannot
-bootstrap a truly absent database because the first connection must succeed
-before the script can create it. The Python surface is therefore a prototype,
-not a verified one-command bootstrap.
-
-## External and tool dependencies
-
-| Dependency | Declaration/use | Status |
+| Subject | Reads | Writes/defines |
 | --- | --- | --- |
-| SQL Server 2019+ / 2022 CI image | T-SQL runtime, CI service | required for runtime validation |
-| `sqlcmd` | SQLCMD includes, Python subprocess, CI tools image | required by all automated runtime paths |
-| Docker | local/CI container runner | required by `scripts/ci/run_ci_checks.sh` when starting or targeting containers |
-| Python 3.10+ | optional orchestrator, notebooks, static analysis | static analysis uses standard library only |
-| `sqlalchemy`, `pandas`, `pyodbc` | `requirements.txt`, notebooks | notebook-only declared dependencies |
-| `dbt-core` | `requirements.txt` and tracked log | declared but no `dbt_project.yml`; not an implemented warehouse path |
+| `control.run_pipeline` | batch/watermark state, runtime procedures | `control.pipeline_batch`, `control.pipeline_step`, `control.load_watermark` |
+| `bronze.load_bronze` | six CRM/ERP CSV files | six `bronze.*` core tables and `control.load_reject` |
+| `silver.load_silver` | six Bronze tables, reject rules | six `silver.*` core tables |
+| `gold.usp_load_gold` | six Silver tables | `gold.dim_customers`, `gold.dim_products`, `gold.dim_date`, `gold.fact_sales` |
+| `bronze.load_inventory_snapshot` | Inventory CSV | `bronze.inventory_snapshot_stage`, `bronze.inventory_snapshot_raw` |
+| `silver.load_inventory_snapshot` | Inventory raw, warehouse map, Gold product | `silver.inventory_snapshot`, `silver.inventory_snapshot_reject` |
+| Inventory Gold views | Inventory Silver and shared product dimension | `gold.dim_inventory_locations`, `gold.fact_inventory_snapshots` |
+| Power BI semantic model | curated Gold core tables and Inventory views; quality/audit queries | imported semantic tables, measures, RLS, reports |
 
-## Current dependency findings
+## Entrypoint matrix
 
-1. **Incomplete standard flow:** four Silver tables required by Gold have no
-   standard loader.
-2. **Runner drift:** Python omits Gold and quality checks; CI uses different
-   product semantics.
-3. **Context drift:** Python's per-file sessions do not preserve bootstrap
-   database context.
-4. **Hidden failure risk:** Bronze errors are printed but not rethrown.
-5. **Imperative schema dependency:** Gold requires `cust_is_future`, but Silver
-   DDL does not define it.
-6. **Test-reference defect:** the Silver sales date diagnostic reads
-   `bronze.crm_sales_details` instead of the Silver table.
-7. **Transient keys:** both dimension keys are view-calculated row numbers and
-   can change as input ordering/data changes.
-8. **No physical integrity:** keys and relationships are logical only.
+| Phase | SQLCMD | Python wrapper | CI |
+| --- | :---: | :---: | :---: |
+| non-destructive bootstrap/control | yes | same SQLCMD file | yes |
+| audited CRM/ERP Bronze + Silver | yes | yes | yes |
+| physical Gold model | yes | yes | yes |
+| Inventory onboarding | yes | yes | yes |
+| positive quality/model contracts | operator-selectable | operator-selectable | yes |
+| targeted negative self-tests | no | no | yes |
+| million-row benchmark | opt-in | opt-in | excluded from standard CI |
 
-These are findings and proposals, not proof of a live production incident.
+## External dependencies
 
-## Runtime impact query set
+| Dependency | Scope |
+| --- | --- |
+| SQL Server 2022 | reviewed runtime and CI reference |
+| SQLCMD | includes, variables, failure exit status |
+| Python 3.10+ | orchestration and standard-library validators |
+| Docker | isolated local/CI SQL Server |
+| Power BI Desktop | final open/save/refresh/render/RLS/accessibility gate |
+| `sqlalchemy`, `pandas`, `pyodbc` | optional notebooks only |
 
-Before changing or removing an object, supplement static output with SQL Server
-catalog evidence:
+## Legacy and removal impact
 
-```sql
-SELECT s.name AS schema_name, o.name, o.type_desc, o.create_date, o.modify_date
-FROM sys.objects AS o
-JOIN sys.schemas AS s ON s.schema_id = o.schema_id
-WHERE s.name IN ('bronze', 'silver', 'gold');
+The generated `logs/dbt.log` and empty Gold placeholder were removed after reference and replacement checks. The copy-named notebook remains because it contains unique content. The standalone cleansing scripts and historical file name `create_gold_views.sql` remain compatibility surfaces; removal requires reference search, runtime catalog evidence, external-consumer confirmation, observation, rollback plan, and owner approval. Follow `docs/legacy/deprecation_and_removal.md`.
 
-SELECT referencing_schema_name, referencing_entity_name,
-       referenced_schema_name, referenced_entity_name
-FROM sys.sql_expression_dependencies
-WHERE referenced_schema_name IN ('bronze', 'silver', 'gold');
-
-SELECT OBJECT_SCHEMA_NAME(object_id) AS schema_name,
-       OBJECT_NAME(object_id) AS object_name,
-       definition
-FROM sys.sql_modules
-WHERE definition LIKE '%crm_cst_info%';
-```
-
-Catalog queries still do not prove the absence of external BI, notebooks, SQL
-Agent jobs, or ad hoc consumers. Owner confirmation and an observation window
-remain deprecation gates.
+Static analysis cannot discover SQL Agent jobs, Power BI Service lineage, gateway bindings, external notebooks, permissions, or ad hoc users. Query `sys.sql_expression_dependencies`, job metadata, and consumer inventories before approving a breaking change.

@@ -65,6 +65,18 @@ table _Measures
 		formatString: 0.0%
 		displayFolder: Fulfillment
 
+	measure 'Available Inventory Quantity' = SUM('Inventory Snapshots'[available_qty])
+		formatString: #,0
+		displayFolder: Inventory
+
+	measure 'Inventory Value' = SUM('Inventory Snapshots'[inventory_value])
+		formatString: #,0.00
+		displayFolder: Inventory
+
+	measure 'Below Reorder Snapshot Lines' = COUNTROWS(FILTER('Inventory Snapshots', 'Inventory Snapshots'[available_qty] <= 'Inventory Snapshots'[reorder_point_qty]))
+		formatString: #,0
+		displayFolder: Inventory
+
 	measure 'Average Fulfillment Days' = AVERAGEX(FILTER(VALUES(Sales[order_number]), NOT ISBLANK(CALCULATE(MIN(Sales[order_date]))) && NOT ISBLANK(CALCULATE(MAX(Sales[ship_date])))), VAR Ordered = CALCULATE(MIN(Sales[order_date])) VAR Shipped = CALCULATE(MAX(Sales[ship_date])) RETURN IF(Shipped >= Ordered, DATEDIFF(Ordered, Shipped, DAY)))
 		formatString: 0.0
 		displayFolder: Fulfillment

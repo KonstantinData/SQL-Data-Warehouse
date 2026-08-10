@@ -1,6 +1,12 @@
 table Sales
 	lineageTag: b91f90d8-82f4-4118-a7df-227b35a8a51b
 
+	column product_key
+		dataType: int64
+		isHidden
+		sourceColumn: product_key
+		summarizeBy: none
+
 	column order_number
 		dataType: string
 		sourceColumn: order_number
@@ -59,7 +65,7 @@ table Sales
 		source =
 			let
 				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
-				Query = "SELECT f.sls_ord_num AS order_number, f.sls_prd_key AS product_number, f.sls_cust_id AS customer_id, TRY_CONVERT(date, CONVERT(char(8), NULLIF(f.sls_order_dt, 0))) AS order_date, TRY_CONVERT(date, CONVERT(char(8), NULLIF(f.sls_ship_dt, 0))) AS ship_date, TRY_CONVERT(date, CONVERT(char(8), NULLIF(f.sls_due_dt, 0))) AS due_date, CONVERT(decimal(19,4), f.sls_sales) AS sales_amount, f.sls_quantity AS quantity, CONVERT(decimal(19,4), f.sls_price) AS price FROM silver.crm_sales_details f",
+				Query = "SELECT f.order_number, f.product_key, f.product_number, c.customer_id, f.order_date, f.ship_date, f.due_date, CONVERT(decimal(19,4), f.sales_amount) AS sales_amount, f.quantity, CONVERT(decimal(19,4), f.price) AS price FROM gold.fact_sales f INNER JOIN gold.dim_customers c ON c.customer_key = f.customer_key",
 				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
 			in
 				Result

@@ -2,9 +2,9 @@
 
 ## Status and scope
 
-This package is a production-oriented reference implementation built with fictional synthetic data. It demonstrates a complete additional source-onboarding path without modifying the repository's existing CRM/ERP pipeline. It is not a production deployment, does not process real operational inventory, and does not claim production operating experience.
+This package is a production-oriented reference implementation built with fictional synthetic data. It demonstrates a complete additional source-onboarding path integrated after the repository's CRM/ERP Gold model. It is not a production deployment, does not process real operational inventory, and does not claim production operating experience.
 
-The source represents full inventory snapshots exported by a fictional warehouse management system. The analytical use case is stock visibility by snapshot date, warehouse, and product. Incremental ingestion, change data capture, scheduling, alerting, retention, and a deployed Power BI model are outside this package.
+The source represents full inventory snapshots exported by a fictional warehouse management system. The analytical use case is stock visibility by snapshot date, warehouse, and product. Incremental ingestion, change data capture, scheduling, alerting, retention, and Power BI Service deployment remain outside this package; the source-controlled Power BI model is implemented.
 
 ## Source analysis and contract
 
@@ -86,13 +86,13 @@ Bronze preserves all source fields as text before conversion. Silver uses `TRY_C
 
 ## Execution and verification
 
-Prerequisites are SQL Server 2019 or newer, an existing `DataWarehouse` database with the `bronze`, `silver`, and `gold` schemas, and the existing `gold.dim_products` view populated by the core pipeline. Run from the repository root in SQLCMD mode:
+Prerequisites are SQL Server 2022 or a compatible instance, an existing `DataWarehouse` database with the `bronze`, `silver`, and `gold` schemas, and the physical `gold.dim_products` table populated by the core pipeline. The canonical `scripts/run_pipeline.sql` performs these steps automatically. For an isolated Inventory rerun, pass the `BasePath` SQLCMD variable from the repository root:
 
 ```sql
-:r .\scripts\source_inventory\run_source_inventory.sql
+sqlcmd -S localhost -d DataWarehouse -E -b -i scripts/source_inventory/run_source_inventory.sql -v BasePath="D:\path\to\SQL-Data-Warehouse\datasets"
 ```
 
-Running from the repository root resolves the SQLCMD `:r` includes only. `BULK INSERT` resolves `@base_path = N'datasets'` on the SQL Server host, not on the SQLCMD client; that relative server path must point to the repository datasets and the SQL Server service account must be able to read it. Where it does not, execute the owned definition scripts and call `bronze.load_inventory_snapshot` with an absolute server-visible base path before calling `silver.load_inventory_snapshot` and creating the Gold views. The container-oriented entrypoint expects the repository at `/workspace` and copied datasets at `/datasets`.
+`BULK INSERT` resolves `BasePath` on the SQL Server host, not on the SQLCMD client. The SQL Server service account must be able to read the path. The container-oriented entrypoint uses `/workspace` and `/datasets`.
 
 Run the static contract gate without SQL Server:
 
@@ -108,25 +108,19 @@ Run the SQL runtime and idempotency gate in SQLCMD mode after the core model exi
 
 The runtime gate checks object existence, fixed fixture counts, reconciliation, exact source-row reject reasons, normalized values, unique Silver and Gold grains, warehouse/product keys, quantity/status/value invariants, deterministic totals, and bidirectionally identical Silver, reject, and Gold business rowsets after a second full refresh. In the documented container topology, use `/workspace/tests/source_inventory/run_tests_ci.sql`.
 
-## Reserved central integration hooks
+## Central integration
 
-These steps are instructions for the integration task; they are not applied by this package.
+Inventory is included after the physical Gold model by `scripts/run_pipeline.sql`, the Python wrapper, and `scripts/ci/run_ci_pipeline.sql`. CI executes the double-run Inventory rowset comparison and quality gate. The safe bootstrap is non-destructive; the separate guarded development reset removes all schemas only on explicit confirmation.
 
-1. In `scripts/run_pipeline.sql`, after `scripts/gold_layer/create_gold_views.sql`, include:
+The canonical local SQLCMD include is:
 
-   ```sql
-   :r .\scripts\source_inventory\run_source_inventory.sql
-   ```
-
-2. `scripts/orchestrate_pipeline.py` currently stops after Silver. Extend its ordered SQL file list with `scripts/gold_layer/create_gold_views.sql` first and then `scripts/source_inventory/run_source_inventory.sql`. The orchestrator must invoke SQLCMD from the repository root so nested include paths resolve correctly.
-3. In `scripts/ci/run_ci_pipeline.sql`, add `:r /workspace/scripts/source_inventory/run_source_inventory_ci.sql` after `/workspace/scripts/gold_layer/create_gold_views.sql`.
-4. In `scripts/ci/run_ci_checks.sh`, add a separate `sqlcmd -b` invocation for `/workspace/tests/source_inventory/quality_checks.sql` after the existing central quality-check invocation (or have the integration task add the equivalent include to its SQLCMD quality script).
-
-The package must run after `scripts/init.database.sql`; that script recreates the database and would erase inventory objects installed earlier.
+```sql
+:r .\scripts\source_inventory\run_source_inventory.sql
+```
 
 ## Power BI semantic-model hook
 
-No PBIX, TMDL, or deployed semantic model is present in this repository. The stable Gold views and this wiring contract are the complete in-scope hook.
+The TMDL model includes `Inventory Snapshots` and `Inventory Locations`, relates them to effective-dated Product rows by persisted surrogate key and to Date, and defines explicit Inventory quantity, value, and reorder measures. No Power BI Service deployment is present.
 
 | Object | Grain/key | Relationship | Filter direction |
 |---|---|---|---|
@@ -134,7 +128,7 @@ No PBIX, TMDL, or deployed semantic model is present in this repository. The sta
 | `gold.dim_inventory_locations` | `warehouse_key` | 1 -> many inventory fact | Single |
 | `gold.fact_inventory_snapshots` | snapshot date + warehouse key + product key | fact table | From dimensions |
 
-Recommended measures sum `on_hand_qty`, `reserved_qty`, `available_qty`, and `inventory_value`. These snapshot measures are semi-additive over time: a current-stock card must filter to one snapshot date (normally the latest) and must not sum multiple snapshots. Connect `snapshot_date` to a separately managed date dimension when one exists; this package does not introduce a competing central date model.
+Snapshot measures are semi-additive over time: a current-stock card must filter to one snapshot date (normally the latest) and must not sum multiple snapshots. `snapshot_date` uses the shared Power BI Date table.
 
 ## Limitations and productionization
 
@@ -143,5 +137,5 @@ Recommended measures sum `on_hand_qty`, `reserved_qty`, `available_qty`, and `in
 - Exact header names/order, a nonblank source warehouse label, and the fixture's trailing `Z` timestamp convention are contract/static-fixture requirements; the runtime parser is positional and canonicalizes the warehouse name from the controlled mapping.
 - Source authentication, encrypted transport, access control, operational monitoring, alerting, SLAs, backup, and disaster recovery are not implemented.
 - The small synthetic fixture does not establish production performance or scalability.
-- The Gold keys follow existing `ROW_NUMBER` view conventions and are deterministic for the current dimension contents, not durable warehouse surrogate keys across arbitrary dimension rewrites.
-- Central pipeline, CI, Python orchestration, and Power BI model integration remain owned by the separate integration task.
+- Core Gold keys are persisted surrogate keys; Inventory location keys remain deterministic view keys for the bounded reference mapping.
+- Gateway binding, RLS authorization for Inventory, scheduling, and release approval remain environment responsibilities.

@@ -121,8 +121,8 @@ def validate_relationships(definition: Path, inventory: ModelInventory, errors: 
         return
     text = path.read_text(encoding="utf-8")
     endpoints = [match.group("ref").strip() for match in RELATION_ENDPOINT_RE.finditer(text)]
-    if len(endpoints) != 10:
-        errors.append(f"Expected five relationships (ten endpoints), found {len(endpoints)} endpoints")
+    if len(endpoints) != 16:
+        errors.append(f"Expected eight relationships (sixteen endpoints), found {len(endpoints)} endpoints")
     for endpoint in endpoints:
         table_ref, separator, column_ref = endpoint.rpartition(".")
         table = unquote(table_ref)
@@ -140,10 +140,13 @@ def validate_relationships(definition: Path, inventory: ModelInventory, errors: 
             actual.add((from_match.group(1).strip(), to_match.group(1).strip(), "\tisActive: false" not in block))
     expected = {
         ("Sales.customer_id", "Customers.customer_id", True),
-        ("Sales.product_number", "Products.product_number", True),
+        ("Sales.product_key", "Products.product_key", True),
         ("Sales.order_date", "Date.Date", True),
         ("Sales.ship_date", "Date.Date", False),
         ("Sales.due_date", "Date.Date", False),
+        ("'Inventory Snapshots'.product_key", "Products.product_key", True),
+        ("'Inventory Snapshots'.warehouse_key", "'Inventory Locations'.warehouse_key", True),
+        ("'Inventory Snapshots'.snapshot_date", "Date.Date", True),
     }
     if actual != expected:
         errors.append(f"Relationship topology differs from the required star schema: {sorted(actual)}")
@@ -365,12 +368,21 @@ def validate_kpi_catalog(root: Path, inventory: ModelInventory, errors: list[str
 
 def validate_files(root: Path, errors: list[str]) -> None:
     scoped_roots = [root / "powerbi", root / "docs" / "kpi", root / "docs" / "powerbi", root / "scripts" / "powerbi_validation"]
+    try:
+        tracked_result = subprocess.run(
+            ["git", "ls-files"], cwd=root, check=True, capture_output=True, text=True
+        )
+        tracked_paths = {line.replace("\\", "/") for line in tracked_result.stdout.splitlines()}
+    except (OSError, subprocess.CalledProcessError):
+        tracked_paths = set()
     for scoped_root in scoped_roots:
         for path in scoped_root.rglob("*") if scoped_root.exists() else []:
             if not path.is_file():
                 continue
             if "__pycache__" in path.parts or path.suffix == ".pyc":
-                errors.append(f"Python cache must not be committed: {path}")
+                relative = path.relative_to(root).as_posix()
+                if relative in tracked_paths:
+                    errors.append(f"Python cache must not be committed: {path}")
                 continue
             if path.name in TRANSIENT_NAMES or ".pbi" in path.parts:
                 errors.append(f"Transient Power BI state must not be committed: {path}")
@@ -473,8 +485,8 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
     if indented_refs:
         errors.append("TMDL ref table/ref role declarations must be root-level")
     root_refs = re.findall(r"^ref\s+(?:table|role)\s+", model_text, re.MULTILINE)
-    if len(root_refs) != 9:
-        errors.append(f"Expected nine root-level TMDL table/role refs, found {len(root_refs)}")
+    if len(root_refs) != 11:
+        errors.append(f"Expected eleven root-level TMDL table/role refs, found {len(root_refs)}")
     first_ref = re.search(r"^ref\s+(?:table|role)\s+", model_text, re.MULTILINE)
     annotation = re.search(r"^\tannotation __PBI_TimeIntelligenceEnabled", model_text, re.MULTILINE)
     if not annotation or (first_ref and annotation.start() > first_ref.start()):
@@ -487,10 +499,27 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
             errors.append(f"Required refresh parameter is missing: {parameter}")
     if "Sql.Database(SqlServerName, SqlDatabaseName" not in table_text:
         errors.append("Refresh parameters are not used by Sql.Database")
-    if "TRY_CONVERT(date" not in table_text:
-        errors.append("Sales safety projection must use TRY_CONVERT for dates")
-    if "ROW_NUMBER() OVER (PARTITION BY product_number" not in table_text:
-        errors.append("Products safety projection must select one row per product_number")
+    core_source_text = "\n".join(
+        (definition / "tables" / name).read_text(encoding="utf-8")
+        for name in (
+            "Sales.tmdl",
+            "Customers.tmdl",
+            "Products.tmdl",
+            "Inventory Snapshots.tmdl",
+            "Inventory Locations.tmdl",
+        )
+    )
+    for required_gold_source in (
+        "FROM gold.fact_sales",
+        "FROM gold.dim_customers",
+        "FROM gold.dim_products",
+        "FROM gold.fact_inventory_snapshots",
+        "FROM gold.dim_inventory_locations",
+    ):
+        if required_gold_source not in core_source_text:
+            errors.append(f"Curated Gold source is missing: {required_gold_source}")
+    if re.search(r"\bFROM\s+silver\.", core_source_text, re.IGNORECASE):
+        errors.append("Core semantic tables must not bypass the curated Gold contract")
 
     role_path = definition / "roles" / "CountrySalesViewer.tmdl"
     if not role_path.is_file():
@@ -512,7 +541,7 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
     architecture_doc = (root / "docs" / "powerbi" / "architecture.md").read_text(encoding="utf-8")
     if "Power BI Desktop was not available" not in validation_doc:
         errors.append("Desktop-unavailable limitation is not documented")
-    if "synthetic CRM and ERP sample data" not in architecture_doc:
+    if "synthetic CRM, ERP, and Inventory data" not in architecture_doc:
         errors.append("Synthetic-data evidence boundary is not documented")
     prohibited_claims = ("deployed to production", "years of experience")
     lower_docs = (validation_doc + architecture_doc).lower()
