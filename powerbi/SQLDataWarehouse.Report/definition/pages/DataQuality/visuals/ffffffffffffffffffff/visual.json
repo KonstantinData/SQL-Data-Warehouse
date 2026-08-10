@@ -1,0 +1,19 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "ffffffffffffffffffff",
+  "position": {"x": 32, "y": 16, "z": 1000, "height": 56, "width": 1216, "tabOrder": 1000},
+  "visual": {
+    "visualType": "cardVisual",
+    "visualContainerObjects": {
+      "title": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "text": {"expr": {"Literal": {"Value": "'Data Quality'"}}}}}],
+      "general": [{"properties": {"altText": {"expr": {"Literal": {"Value": "'Synthetic reference data, access scope, data-through date, and refresh context.'"}}}}}],
+      "background": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#FFFFFF'"}}}}}, "transparency": {"expr": {"Literal": {"Value": "0D"}}}}}],
+      "border": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#D0D5DD'"}}}}}, "radius": {"expr": {"Literal": {"Value": "8L"}}}, "width": {"expr": {"Literal": {"Value": "1L"}}}}}]
+    },
+    "query": {"queryState": {"Data": {"projections": [
+      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Reference Data Label"}}, "queryRef": "_Measures.Reference Data Label", "nativeQueryRef": "Reference Data Label"},
+      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Access Scope Label"}}, "queryRef": "_Measures.Access Scope Label", "nativeQueryRef": "Access Scope Label"},
+      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Refresh Context Label"}}, "queryRef": "_Measures.Refresh Context Label", "nativeQueryRef": "Refresh Context Label"}
+    ]}}}
+  }
+}

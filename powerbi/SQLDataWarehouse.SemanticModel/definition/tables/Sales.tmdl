@@ -1,0 +1,65 @@
+table Sales
+	lineageTag: b91f90d8-82f4-4118-a7df-227b35a8a51b
+
+	column order_number
+		dataType: string
+		sourceColumn: order_number
+		summarizeBy: none
+
+	column product_number
+		dataType: string
+		isHidden
+		sourceColumn: product_number
+		summarizeBy: none
+
+	column customer_id
+		dataType: int64
+		isHidden
+		sourceColumn: customer_id
+		summarizeBy: none
+
+	column order_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		sourceColumn: order_date
+		summarizeBy: none
+
+	column ship_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		sourceColumn: ship_date
+		summarizeBy: none
+
+	column due_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		sourceColumn: due_date
+		summarizeBy: none
+
+	column sales_amount
+		dataType: decimal
+		formatString: #,0.00
+		sourceColumn: sales_amount
+		summarizeBy: sum
+
+	column quantity
+		dataType: int64
+		formatString: #,0
+		sourceColumn: quantity
+		summarizeBy: sum
+
+	column price
+		dataType: decimal
+		formatString: #,0.00
+		sourceColumn: price
+		summarizeBy: none
+
+	partition Sales = m
+		mode: import
+		source =
+			let
+				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
+				Query = "SELECT f.sls_ord_num AS order_number, f.sls_prd_key AS product_number, f.sls_cust_id AS customer_id, TRY_CONVERT(date, CONVERT(char(8), NULLIF(f.sls_order_dt, 0))) AS order_date, TRY_CONVERT(date, CONVERT(char(8), NULLIF(f.sls_ship_dt, 0))) AS ship_date, TRY_CONVERT(date, CONVERT(char(8), NULLIF(f.sls_due_dt, 0))) AS due_date, CONVERT(decimal(19,4), f.sls_sales) AS sales_amount, f.sls_quantity AS quantity, CONVERT(decimal(19,4), f.sls_price) AS price FROM silver.crm_sales_details f",
+				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
+			in
+				Result

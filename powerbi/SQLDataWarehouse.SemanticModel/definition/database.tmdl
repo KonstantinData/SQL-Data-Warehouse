@@ -1,0 +1,3 @@
+database SQLDataWarehouse
+	compatibilityLevel: 1702
+	compatibilityMode: powerBI

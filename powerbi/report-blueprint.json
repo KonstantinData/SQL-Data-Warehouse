@@ -1,0 +1,69 @@
+{
+  "version": "1.0.0",
+  "status": "source-authored-desktop-validation-pending",
+  "productJob": "Help a sales leader or analyst understand what changed, which drivers explain it, and whether the result is trustworthy enough to communicate.",
+  "canvas": {"width": 1280, "height": 720, "spacingUnit": 8},
+  "visualSystem": {
+    "fontFamily": "Segoe UI",
+    "pageBackground": "#F7F9FC",
+    "surface": "#FFFFFF",
+    "primary": "#146C94",
+    "text": "#1F2937",
+    "mutedText": "#52606D",
+    "border": "#D0D5DD",
+    "positive": "#16794D",
+    "warning": "#A15C00",
+    "negative": "#B42318",
+    "focus": "#005A9E"
+  },
+  "pages": [
+    {
+      "name": "ExecutiveOverview",
+      "audience": "Executive and portfolio reviewers",
+      "nextAction": "Inspect the largest contribution or open Data Quality when trust is not acceptable.",
+      "visuals": [
+        {"id": "dddddddddddddddddddd", "title": "Executive Overview context", "altText": "Synthetic-data, access-scope, data-through, and dataset-refresh context for this page.", "mobilePriority": 1},
+        {"id": "11111111111111111111", "title": "Performance summary", "altText": "Four headline measures for the selected scope; all values use synthetic reference data.", "mobilePriority": 2},
+        {"id": "22222222222222222222", "title": "Sales trend versus previous year", "altText": "Line chart comparing monthly sales with the same period in the previous year.", "mobilePriority": 3},
+        {"id": "33333333333333333333", "title": "Sales by product line", "altText": "Ranked bar chart of total sales by product line for the selected scope.", "mobilePriority": 4},
+        {"id": "44444444444444444444", "title": "Country performance", "altText": "Accessible table of country sales, year-over-year change, and on-time shipment rate.", "mobilePriority": null}
+      ]
+    },
+    {
+      "name": "SalesPerformance",
+      "audience": "Commercial analysts",
+      "nextAction": "Select a product driver and compare the time trend and detailed product table.",
+      "visuals": [
+        {"id": "eeeeeeeeeeeeeeeeeeee", "title": "Sales Performance context", "altText": "Synthetic-data, access-scope, data-through, and dataset-refresh context for this page.", "mobilePriority": 1},
+        {"id": "55555555555555555555", "title": "Sales operations summary", "altText": "Summary of units, customers, average order value, and on-time shipments.", "mobilePriority": 2},
+        {"id": "66666666666666666666", "title": "Sales by category", "altText": "Ranked bar chart of total sales by product category.", "mobilePriority": 3},
+        {"id": "77777777777777777777", "title": "Estimated gross profit trend", "altText": "Monthly estimated gross profit based on current product master cost.", "mobilePriority": 4},
+        {"id": "88888888888888888888", "title": "Product performance detail", "altText": "Accessible product table with sales and estimated profitability measures.", "mobilePriority": null}
+      ]
+    },
+    {
+      "name": "DataQuality",
+      "audience": "BI maintainers and release reviewers",
+      "nextAction": "Hold release when an Error check fails; investigate Warning checks before stakeholder communication.",
+      "visuals": [
+        {"id": "ffffffffffffffffffff", "title": "Data Quality context", "altText": "Synthetic-data, access-scope, data-through, and dataset-refresh context for this page.", "mobilePriority": 1},
+        {"id": "99999999999999999999", "title": "Quality and refresh summary", "altText": "Summary of global refresh-time check pass rate, failed and unevaluated controls, and model refresh time.", "mobilePriority": 2},
+        {"id": "aaaaaaaaaaaaaaaaaaaa", "title": "Data quality check register", "altText": "Desktop detail table of check status, severity, scope, pass rate, evaluation time, and failed rows.", "mobilePriority": null},
+        {"id": "bbbbbbbbbbbbbbbbbbbb", "title": "Selected-scope sales exceptions", "altText": "Counts of invalid dates, amount reconciliation mismatches, and missing country mappings in the current access scope.", "mobilePriority": 3},
+        {"id": "cccccccccccccccccccc", "title": "Selected-scope dimension and freshness exceptions", "altText": "Counts of future customer records, nonpositive product costs, and data-through date in the current access scope.", "mobilePriority": 4}
+      ]
+    }
+  ],
+  "responsiveAcceptance": {
+    "phoneLayout": "One independent Power BI phone layout; wide tables are omitted in favor of prioritized summaries.",
+    "viewports": [320, 390, 768, 1280, 1440],
+    "minimumTouchTarget": 44,
+    "horizontalOverflowAllowed": false
+  },
+  "interactionContract": {
+    "crossFilter": "Charts cross-filter within the active page; selection must remain visible by label or border, not color alone.",
+    "emptyState": "No rows in selected scope. Clear filters or contact your access administrator.",
+    "refreshFailure": "Refresh failed. Preserve the last successful data-through date and do not display a false green state.",
+    "rlsNoEntitlement": "Return zero rows and never reveal out-of-scope totals or entitlement lists."
+  }
+}

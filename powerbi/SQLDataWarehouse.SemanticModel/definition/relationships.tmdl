@@ -1,0 +1,21 @@
+relationship 403e46e0-3fa2-492c-8477-616099526691
+	fromColumn: Sales.customer_id
+	toColumn: Customers.customer_id
+
+relationship 191ea79f-ecc2-459a-9921-0bd282308fed
+	fromColumn: Sales.product_number
+	toColumn: Products.product_number
+
+relationship c13da8ce-22f7-49ea-8a88-a1774c82af47
+	fromColumn: Sales.order_date
+	toColumn: Date.Date
+
+relationship df87be78-d4b3-43c2-8191-e8a1c63fc183
+	fromColumn: Sales.ship_date
+	toColumn: Date.Date
+	isActive: false
+
+relationship 24d07612-1ead-4134-b73f-e2e79dd1d4c2
+	fromColumn: Sales.due_date
+	toColumn: Date.Date
+	isActive: false

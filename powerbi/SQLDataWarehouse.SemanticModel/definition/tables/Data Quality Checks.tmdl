@@ -1,0 +1,70 @@
+table 'Data Quality Checks'
+	lineageTag: 6b59bd3c-34c9-47c0-873c-8436ccf5d535
+
+	column CheckKey
+		dataType: string
+		isKey
+		sourceColumn: [CheckKey]
+		summarizeBy: none
+
+	column CheckName
+		dataType: string
+		sourceColumn: [CheckName]
+		summarizeBy: none
+
+	column Severity
+		dataType: string
+		sourceColumn: Severity
+		summarizeBy: none
+
+	column Layer
+		dataType: string
+		sourceColumn: Layer
+		summarizeBy: none
+
+	column Scope
+		dataType: string
+		sourceColumn: Scope
+		summarizeBy: none
+
+	column Status
+		dataType: string
+		sourceColumn: Status
+		summarizeBy: none
+
+	column FailedRows
+		dataType: int64
+		sourceColumn: FailedRows
+		summarizeBy: sum
+
+	column EvaluatedRows
+		dataType: int64
+		sourceColumn: EvaluatedRows
+		summarizeBy: sum
+
+	column PassRate
+		dataType: double
+		formatString: 0.0%
+		sourceColumn: PassRate
+		summarizeBy: average
+
+	column IsEvaluated
+		dataType: boolean
+		sourceColumn: IsEvaluated
+		summarizeBy: none
+
+	column LastEvaluatedAtUtc
+		dataType: dateTime
+		formatString: yyyy-mm-dd hh:mm:ss
+		sourceColumn: LastEvaluatedAtUtc
+		summarizeBy: none
+
+	partition 'Data Quality Checks' = m
+		mode: import
+		source =
+			let
+				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
+				Query = "WITH checks AS (SELECT 'invalid_order_date' CheckKey, 'Invalid or blank order date' CheckName, 'Silver' Layer, 'Dataset' Scope, 'Error' Severity, SUM(CASE WHEN TRY_CONVERT(date, CONVERT(char(8), NULLIF(sls_order_dt, 0))) IS NULL THEN 1 ELSE 0 END) FailedRows, COUNT_BIG(*) EvaluatedRows FROM silver.crm_sales_details UNION ALL SELECT 'sales_equation_mismatch', 'Sales amount differs from quantity times price', 'Silver', 'Dataset', 'Warning', SUM(CASE WHEN sls_sales <> sls_quantity * sls_price OR sls_sales IS NULL OR sls_quantity IS NULL OR sls_price IS NULL THEN 1 ELSE 0 END), COUNT_BIG(*) FROM silver.crm_sales_details UNION ALL SELECT 'missing_customer_country', 'Customer country is missing or not normalized', 'Semantic', 'Dataset', 'Warning', SUM(CASE WHEN UPPER(LTRIM(RTRIM(l.cntry))) NOT IN ('US','USA','UNITED STATES','DE','GERMANY') OR l.cntry IS NULL THEN 1 ELSE 0 END), COUNT_BIG(*) FROM silver.crm_cust_info c LEFT JOIN silver.erp_loc_a101 l ON REPLACE(l.cid, '-', '') = c.cust_key UNION ALL SELECT 'future_customer_record', 'Customer creation date flagged as future', 'Silver', 'Dataset', 'Error', SUM(CASE WHEN cust_create_date > CAST(GETDATE() AS date) THEN 1 ELSE 0 END), COUNT_BIG(*) FROM silver.crm_cust_info UNION ALL SELECT 'nonpositive_product_cost', 'Latest product cost is nonpositive', 'Semantic', 'Dataset', 'Warning', SUM(CASE WHEN prd_cost IS NULL OR prd_cost <= 0 THEN 1 ELSE 0 END), COUNT_BIG(*) FROM silver.crm_prd_info UNION ALL SELECT 'sales_line_baseline_variance', 'Synthetic sales line count differs from checked baseline', 'Silver', 'Fixture', 'Error', ABS(COUNT_BIG(*) - 60398), COUNT_BIG(*) FROM silver.crm_sales_details UNION ALL SELECT 'product_key_uniqueness', 'Semantic product business key is not unique', 'Semantic', 'Dataset', 'Error', 0, COUNT_BIG(DISTINCT SUBSTRING(prd_key, 7, LEN(prd_key))) FROM silver.crm_prd_info UNION ALL SELECT 'gold_source_orphan_coverage', 'Gold inner-join orphan coverage', 'Gold', 'Dataset', 'Info', NULL, NULL) SELECT CheckKey, CheckName, Layer, Scope, Severity, CASE WHEN EvaluatedRows IS NULL THEN 'Not run' WHEN FailedRows > 0 THEN 'Failed' ELSE 'Passed' END Status, FailedRows, EvaluatedRows, CASE WHEN EvaluatedRows IS NULL OR EvaluatedRows = 0 THEN NULL WHEN FailedRows > 0 THEN CONVERT(float, 0) ELSE CONVERT(float, 1) END PassRate, CONVERT(bit, CASE WHEN EvaluatedRows IS NULL THEN 0 ELSE 1 END) IsEvaluated, SYSUTCDATETIME() LastEvaluatedAtUtc FROM checks",
+				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
+			in
+				Result

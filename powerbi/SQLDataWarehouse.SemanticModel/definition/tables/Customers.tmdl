@@ -1,0 +1,41 @@
+table Customers
+	lineageTag: 2d2c02f0-93f9-44cc-b47b-0e8534763937
+
+	column customer_id
+		dataType: int64
+		isHidden
+		sourceColumn: customer_id
+		summarizeBy: none
+
+	column country
+		dataType: string
+		sourceColumn: country
+		dataCategory: Country
+		summarizeBy: none
+
+	column country_code
+		dataType: string
+		sourceColumn: country_code
+		summarizeBy: none
+
+	column customer_create_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		sourceColumn: customer_create_date
+		summarizeBy: none
+
+	column cust_is_future
+		dataType: boolean
+		isHidden
+		sourceColumn: cust_is_future
+		summarizeBy: none
+
+	partition Customers = m
+		mode: import
+		source =
+			let
+				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
+				Query = "WITH ranked AS (SELECT c.cust_id, c.cust_key, c.cust_create_date, c.dwh_create_date, ROW_NUMBER() OVER (PARTITION BY c.cust_id ORDER BY c.dwh_create_date DESC, c.cust_id DESC) AS rn FROM silver.crm_cust_info c WHERE c.cust_id IS NOT NULL) SELECT r.cust_id AS customer_id, l.cntry AS country, CASE WHEN UPPER(LTRIM(RTRIM(l.cntry))) IN ('US','USA','UNITED STATES') THEN 'US' WHEN UPPER(LTRIM(RTRIM(l.cntry))) IN ('DE','GERMANY') THEN 'DE' ELSE NULL END AS country_code, r.cust_create_date AS customer_create_date, CONVERT(bit, CASE WHEN r.cust_create_date > CAST(GETDATE() AS date) THEN 1 ELSE 0 END) AS cust_is_future FROM ranked r LEFT JOIN silver.erp_loc_a101 l ON REPLACE(l.cid, '-', '') = r.cust_key WHERE r.rn = 1",
+				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
+			in
+				Result

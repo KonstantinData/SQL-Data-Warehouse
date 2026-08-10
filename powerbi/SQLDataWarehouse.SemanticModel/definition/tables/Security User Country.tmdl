@@ -1,0 +1,32 @@
+table 'Security User Country'
+	isHidden
+	lineageTag: b22aee2f-1305-4747-88ab-1f87d7e7a1be
+
+	column UserPrincipalName
+		dataType: string
+		sourceColumn: [UserPrincipalName]
+		summarizeBy: none
+
+	column CountryCode
+		dataType: string
+		sourceColumn: [CountryCode]
+		summarizeBy: none
+
+	column IsActive
+		dataType: boolean
+		sourceColumn: [IsActive]
+		summarizeBy: none
+
+	column ValidFromUtc
+		dataType: dateTime
+		sourceColumn: [ValidFromUtc]
+		summarizeBy: none
+
+	column ValidToUtc
+		dataType: dateTime
+		sourceColumn: [ValidToUtc]
+		summarizeBy: none
+
+	partition 'Security User Country' = calculated
+		mode: import
+		source = DATATABLE("UserPrincipalName", STRING, "CountryCode", STRING, "IsActive", BOOLEAN, "ValidFromUtc", DATETIME, "ValidToUtc", DATETIME, {{"analyst.us@example.invalid", "US", TRUE, DATE(2020,1,1), DATE(2099,12,31)}, {"analyst.de@example.invalid", "DE", TRUE, DATE(2020,1,1), DATE(2099,12,31)}, {"inactive@example.invalid", "US", FALSE, DATE(2020,1,1), DATE(2099,12,31)}, {"expired@example.invalid", "DE", TRUE, DATE(2020,1,1), DATE(2020,12,31)}})

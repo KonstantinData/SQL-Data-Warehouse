@@ -1,0 +1,22 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-US
+	discourageImplicitMeasures
+
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+	annotation __PBI_TimeIntelligenceEnabled = 0
+
+ref table Customers
+ref table Products
+ref table Sales
+ref table Date
+ref table 'Data Quality Checks'
+ref table 'Refresh Metadata'
+ref table 'Security User Country'
+ref table _Measures
+
+ref role CountrySalesViewer

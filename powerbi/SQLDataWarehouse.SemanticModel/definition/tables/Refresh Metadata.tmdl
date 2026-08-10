@@ -1,0 +1,18 @@
+table 'Refresh Metadata'
+	isHidden
+	lineageTag: 011191f3-aac0-49fb-8b9a-0816485be6af
+
+	column RefreshedAtUtc
+		dataType: dateTime
+		formatString: yyyy-mm-dd hh:mm:ss
+		sourceColumn: [RefreshedAtUtc]
+		summarizeBy: none
+
+	column Environment
+		dataType: string
+		sourceColumn: [Environment]
+		summarizeBy: none
+
+	partition 'Refresh Metadata' = m
+		mode: import
+		source = #table(type table [RefreshedAtUtc = datetimezone, Environment = text], {{DateTimeZone.FixedUtcNow(), EnvironmentName}})

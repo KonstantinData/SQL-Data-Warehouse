@@ -1,0 +1,23 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "22222222222222222222",
+  "position": {"x": 32, "y": 208, "z": 3000, "height": 272, "width": 760, "tabOrder": 3000},
+  "visual": {
+    "visualType": "lineChart",
+    "visualContainerObjects": {
+      "title": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "text": {"expr": {"Literal": {"Value": "'Sales trend versus previous year'"}}}}}],
+      "general": [{"properties": {"altText": {"expr": {"Literal": {"Value": "'Line chart comparing monthly sales with the equivalent previous-year period.'"}}}}}],
+      "background": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#FFFFFF'"}}}}}, "transparency": {"expr": {"Literal": {"Value": "0D"}}}}}],
+      "border": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#D0D5DD'"}}}}}, "radius": {"expr": {"Literal": {"Value": "8L"}}}, "width": {"expr": {"Literal": {"Value": "1L"}}}}}]
+    },
+    "query": {
+      "queryState": {
+        "Category": {"projections": [{"field": {"Column": {"Expression": {"SourceRef": {"Entity": "Date"}}, "Property": "Month Start"}}, "queryRef": "Date.Month Start", "nativeQueryRef": "Month Start"}]},
+        "Y": {"projections": [
+          {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Total Sales"}}, "queryRef": "_Measures.Total Sales", "nativeQueryRef": "Total Sales"},
+          {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Sales Previous Year"}}, "queryRef": "_Measures.Sales Previous Year", "nativeQueryRef": "Sales Previous Year"}
+        ]}
+      }
+    }
+  }
+}

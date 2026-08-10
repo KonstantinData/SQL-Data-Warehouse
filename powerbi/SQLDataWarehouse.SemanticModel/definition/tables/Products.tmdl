@@ -1,0 +1,50 @@
+table Products
+	lineageTag: 564fd79b-39cf-46d0-953a-85ab2703f725
+
+	column product_number
+		dataType: string
+		isKey
+		sourceColumn: product_number
+		summarizeBy: none
+
+	column product_name
+		dataType: string
+		sourceColumn: product_name
+		summarizeBy: none
+
+	column product_cost
+		dataType: decimal
+		formatString: #,0.00
+		sourceColumn: product_cost
+		summarizeBy: none
+
+	column product_line
+		dataType: string
+		sourceColumn: product_line
+		summarizeBy: none
+
+	column category
+		dataType: string
+		sourceColumn: category
+		summarizeBy: none
+
+	column subcategory
+		dataType: string
+		sourceColumn: subcategory
+		summarizeBy: none
+
+	column product_start_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		sourceColumn: product_start_date
+		summarizeBy: none
+
+	partition Products = m
+		mode: import
+		source =
+			let
+				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
+				Query = "WITH prepared AS (SELECT p.*, SUBSTRING(p.prd_key, 7, LEN(p.prd_key)) AS product_number, REPLACE(SUBSTRING(p.prd_key, 1, 5), '-', '_') AS category_id FROM silver.crm_prd_info p), ranked AS (SELECT prepared.*, ROW_NUMBER() OVER (PARTITION BY product_number ORDER BY prd_start_dt DESC, prd_id DESC) AS rn FROM prepared WHERE product_number IS NOT NULL) SELECT r.product_number, LTRIM(RTRIM(r.prd_nm)) AS product_name, CONVERT(decimal(19,4), COALESCE(r.prd_cost, 0)) AS product_cost, CASE UPPER(LTRIM(RTRIM(r.prd_line))) WHEN 'M' THEN 'Mountain' WHEN 'R' THEN 'Road' WHEN 'S' THEN 'Other Sales' WHEN 'T' THEN 'Touring' ELSE LTRIM(RTRIM(r.prd_line)) END AS product_line, c.cat AS category, c.subcat AS subcategory, r.prd_start_dt AS product_start_date FROM ranked r LEFT JOIN silver.erp_px_cat_g1v2 c ON c.id = r.category_id WHERE r.rn = 1",
+				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
+			in
+				Result
