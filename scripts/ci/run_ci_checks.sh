@@ -122,6 +122,12 @@ expected_bronze_erp_loc_a101="$(awk 'END { print NR - 1 }' datasets/source_erp/L
 expected_bronze_erp_px_cat_g1v2="$(awk 'END { print NR - 1 }' datasets/source_erp/PX_CAT_G1V2.csv)"
 
 sqlcmd_variables=(
+  -v "BasePath=/datasets"
+  -v "SourceVersion=ci-reviewed-synthetic-snapshot-v1"
+  -v "SourceWatermark=1"
+  -v "MaxRejectRows=23"
+  -v "RestartOfBatchId=0"
+  -v "SnapshotAsOf=2024-12-31"
   -v "EXPECTED_BRONZE_CRM_CUST_INFO=${expected_bronze_crm_cust_info}"
   -v "EXPECTED_BRONZE_CRM_PRD_INFO=${expected_bronze_crm_prd_info}"
   -v "EXPECTED_BRONZE_CRM_SALES_DETAILS=${expected_bronze_crm_sales_details}"
@@ -160,10 +166,12 @@ done
 run_sql() {
   local database=$1
   local sql_file=$2
+  shift 2
   echo "Running ${sql_file}"
   docker exec --workdir /workspace --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
     "$SQLCMD" -S localhost -U sa -C -b -l 15 -t 600 \
     "${sqlcmd_variables[@]}" \
+    "$@" \
     -d "$database" -i "/workspace/${sql_file}"
 }
 
@@ -173,7 +181,7 @@ expect_sql_failure() {
   local label=$3
   local expected_marker=$4
   if docker exec --workdir /workspace --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
-      "$SQLCMD" -S localhost -U sa -C -b -l 15 -t 120 \
+      "$SQLCMD" -S localhost -U sa -C -b -l 15 -t 600 \
       "${sqlcmd_variables[@]}" \
       -d "$database" -i "/workspace/${sql_file}" >"$negative_log" 2>&1; then
     cat "$negative_log"
@@ -211,8 +219,24 @@ run_sql DataWarehouse tests/ci_pipeline_contract.sql
 run_sql DataWarehouse tests/runtime_contract.sql
 run_sql DataWarehouse tests/runtime_silver_coverage.sql
 run_sql DataWarehouse tests/runtime_fail_closed.sql
+run_sql DataWarehouse tests/runtime_break_downstream_contract.sql
+expect_sql_failure DataWarehouse tests/runtime_run_downstream_failure.sql \
+  "Gold downstream publication" \
+  "CK_runtime_downstream_failure"
+run_sql DataWarehouse tests/runtime_restore_downstream_contract.sql
+downstream_failed_batch_id="$(docker exec --workdir /workspace --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
+  "$SQLCMD" -S localhost -U sa -C -b -l 15 -t 60 -h -1 -W \
+  -d DataWarehouse -Q "SET NOCOUNT ON; SELECT TOP (1) batch_id FROM control.pipeline_batch WHERE source_version=N'ci-downstream-failure-v1' AND status='FAILED' ORDER BY batch_id DESC;" \
+  | tr -d '[:space:]')"
+if [[ ! "$downstream_failed_batch_id" =~ ^[0-9]+$ ]]; then
+  echo "Could not resolve the failed downstream batch for linked restart." >&2
+  exit 1
+fi
+run_sql DataWarehouse tests/runtime_restart_downstream.sql -v "RestartOfBatchId=${downstream_failed_batch_id}"
+run_sql DataWarehouse tests/runtime_verify_downstream_restart.sql
 run_sql DataWarehouse tests/runtime_idempotency.sql
 run_sql DataWarehouse tests/runtime_atomicity.sql
+run_sql DataWarehouse tests/runtime_full_success_invariant.sql
 
 docker exec --workdir /workspace --env-file "$docker_credentials_file" "$MSSQL_CONTAINER_NAME" \
   "$SQLCMD" -S localhost -U sa -C -b -l 15 -t 120 \
@@ -244,13 +268,16 @@ run_sql DataWarehouse tests/quality_checks_silver.sql
 run_sql DataWarehouse tests/ci_break_gold_contract.sql
 expect_sql_failure DataWarehouse tests/quality_checks_gold.sql \
   "Gold missing current product" \
-  "ERROR (Gold): every known product number must have exactly one current row."
+  "ERROR (Gold): product current flags or effective intervals are inconsistent."
 run_sql DataWarehouse tests/ci_restore_gold_contract.sql
 run_sql DataWarehouse tests/quality_checks_gold.sql
 
 run_sql DataWarehouse tests/model_schema_contract.sql
 run_sql DataWarehouse tests/model_data_quality.sql
 run_sql DataWarehouse tests/model_reproducibility.sql
+run_sql DataWarehouse tests/model_sentinel_contract.sql
+run_sql DataWarehouse tests/model_decimal_arithmetic.sql
+run_sql DataWarehouse tests/model_scd2_reconciliation.sql
 run_sql DataWarehouse tests/source_inventory/run_tests_ci.sql
 run_sql DataWarehouse tests/quality_checks_ci.sql
 echo "CI runtime, pipeline, model, Inventory, quality contracts, and negative self-tests passed."

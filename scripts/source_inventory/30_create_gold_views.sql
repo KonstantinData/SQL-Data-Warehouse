@@ -34,5 +34,8 @@ INNER JOIN gold.dim_inventory_locations w
     ON w.warehouse_code = s.warehouse_code
 INNER JOIN gold.dim_products p
     ON p.product_id = s.product_id
-   AND UPPER(p.product_number) = s.product_number;
+   AND p.product_key > 0
+   AND UPPER(p.product_number) = s.product_number
+   AND s.snapshot_date >= p.effective_from
+   AND (p.effective_to IS NULL OR s.snapshot_date < p.effective_to);
 GO

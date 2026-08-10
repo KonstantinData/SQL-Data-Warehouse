@@ -14,7 +14,7 @@ Incremental refresh is intentionally absent. Add it only with reviewed range par
 
 ## RLS design
 
-`CountrySalesViewer` filters `Customers[country_code]` through `Security User Country` and `USERPRINCIPALNAME()`. Missing, inactive, blank, or unmatched entitlement returns zero rows. Checked-in identities use the reserved `.invalid` domain.
+`CountrySalesViewer` filters both `Customers[country_code]` and `Inventory Locations[country_code]` through `Security User Country` and `USERPRINCIPALNAME()`. The dimension relationships propagate the filter to the protected Sales and Inventory Snapshot facts. Missing, inactive, blank, or unmatched entitlement returns zero protected fact rows. Shared Product, Date, refresh, and global data-quality metadata are intentionally outside this reference role; production owners must approve that boundary or isolate those surfaces. Checked-in identities use the reserved `.invalid` domain.
 
 Before publication:
 
@@ -22,7 +22,7 @@ Before publication:
 2. confirm normalization for every supported country;
 3. test allowed, multiple, inactive, expired, unknown, and blank identities;
 4. verify additive role membership cannot broaden restricted users;
-5. decide whether Inventory requires a separate warehouse/country entitlement path.
+5. verify that country entitlement is the correct Inventory boundary or replace it with a dedicated warehouse entitlement model.
 
 RLS does not restrict semantic-model editors or administrators. Hidden columns are not security. Real customer data requires minimization, privacy review, restricted Build permission, database authorization, and potentially object-level security.
 

@@ -139,5 +139,20 @@ IF OBJECT_ID(N'gold.dim_customers', N'U') IS NOT NULL
         OR 60379 <> (SELECT COUNT_BIG(*) FROM gold.fact_sales))
     THROW 52314, 'Installed physical Gold model is incompatible with the runtime snapshot.', 1;
 
+IF NOT EXISTS (
+    SELECT 1 FROM control.pipeline_step
+    WHERE batch_id = @batch_id AND step_name = N'gold.star_schema'
+      AND status = 'SUCCEEDED' AND completed_at_utc IS NOT NULL
+      AND rows_published = 60379
+)
+   OR NOT EXISTS (
+    SELECT 1 FROM control.pipeline_step
+    WHERE batch_id = @batch_id AND step_name = N'inventory.snapshot'
+      AND status = 'SUCCEEDED' AND completed_at_utc IS NOT NULL
+      AND rows_read = 14 AND rows_accepted = 10 AND rows_rejected = 3
+      AND rows_superseded = 1 AND rows_published = 10
+)
+    THROW 52315, 'End-to-end Gold or Inventory step evidence is incomplete.', 1;
+
 PRINT 'Silver six-source coverage checks passed.';
 GO

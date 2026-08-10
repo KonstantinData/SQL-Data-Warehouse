@@ -131,6 +131,7 @@ BEGIN
         dwh_created_at_utc DATETIME2(3) NOT NULL CONSTRAINT df_silver_inventory_created_at DEFAULT SYSUTCDATETIME(),
         CONSTRAINT pk_silver_inventory_snapshot PRIMARY KEY (snapshot_date, warehouse_code, product_id),
         CONSTRAINT uq_silver_inventory_source_row UNIQUE (source_row_id),
+        CONSTRAINT ck_silver_inventory_product_id CHECK (product_id > 0),
         CONSTRAINT ck_silver_inventory_on_hand CHECK (on_hand_qty >= 0),
         CONSTRAINT ck_silver_inventory_reserved CHECK (reserved_qty >= 0 AND reserved_qty <= on_hand_qty),
         CONSTRAINT ck_silver_inventory_reorder CHECK (reorder_point_qty >= 0),
@@ -162,4 +163,9 @@ BEGIN
         CONSTRAINT pk_inventory_snapshot_reject PRIMARY KEY (bronze_row_id)
     );
 END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID(N'silver.inventory_snapshot') AND name = N'ck_silver_inventory_product_id')
+    ALTER TABLE silver.inventory_snapshot WITH CHECK ADD CONSTRAINT ck_silver_inventory_product_id CHECK (product_id > 0);
+ALTER TABLE silver.inventory_snapshot WITH CHECK CHECK CONSTRAINT ck_silver_inventory_product_id;
 GO

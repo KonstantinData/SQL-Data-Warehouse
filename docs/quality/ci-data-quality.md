@@ -20,7 +20,7 @@ propagate the non-zero status.
 
 | Stage | Policy | Expected behavior |
 | --- | --- | --- |
-| Pipeline execution | Enforced | Any SQL, file, schema, load, or transformation failure stops CI. |
+| Pipeline execution | Enforced | Any SQL, file, schema, load, transformation, Gold publication, or Inventory publication failure stops CI and leaves no successful full-pipeline batch. |
 | Bronze availability | Enforced | All six source tables must exist and match their synthetic CSV record counts. |
 | Bronze data content | Diagnostic | Source anomalies are reported as aggregate warnings and do not fail CI. |
 | Silver contracts | Enforced | Cleansed tables must satisfy structural, grain, domain, date, measure, lineage, and relationship rules. |
@@ -117,10 +117,14 @@ as published Bronze rows plus distinct durable rejects. The two fixtures whose
 empty final field previously exposed a Linux `BULK INSERT` edge case now carry a
 final LF; their source attribution records both the current and upstream hashes.
 
-CI additionally proves deliberate Bronze, Silver, and Gold contract failures,
-runtime idempotency, rollback after injected failure, model reproducibility, and
-Inventory double-run idempotency. Static checks ensure that CI does not contain
-an alternative transformation implementation.
+CI additionally proves deliberate Bronze, Silver, Gold, and downstream
+publication failures; linked restart after a downstream failure; runtime
+idempotency and rollback; the full-success audit invariant; sentinel-key and
+decimal-arithmetic constraints; SCD2 retirement and interval reconciliation;
+model reproducibility; and Inventory double-run idempotency. Static checks
+ensure that CI does not contain an alternative transformation implementation
+and that the public, operational, and CI entrypoints delegate to the same
+end-to-end runner.
 
 ## Limitations
 

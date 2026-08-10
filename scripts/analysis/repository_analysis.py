@@ -24,8 +24,8 @@ SQL_GLOBS = ("scripts/**/*.sql", "tests/**/*.sql")
 EXPECTED_COUNTS = {
     "database": 1,
     "schema": 0,
-    "table": 34,
-    "procedure": 7,
+    "table": 30,
+    "procedure": 6,
     "view": 2,
     "csv_source": 7,
 }

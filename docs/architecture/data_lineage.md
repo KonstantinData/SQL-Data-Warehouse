@@ -45,7 +45,7 @@ sequenceDiagram
 - Customers: reject missing IDs/keys, select the latest deterministic customer record, standardize domains, enrich from ERP, flag future create dates, and hash last names in Gold.
 - Products: validate IDs/keys/cost/dates, preserve product versions, derive SCD2 effective intervals, enrich categories, and enforce one current version per product number.
 - Sales: validate required keys, dates, sequence, and measures; preserve the accepted order/product grain; resolve customer/product/date surrogate keys; use Unknown members rather than silently dropping unresolved rows.
-- Inventory: normalize source and warehouse/product identifiers, map only controlled warehouses and exact product pairs, reject invalid quantities/currency/mapping, deduplicate by extraction timestamp, and derive availability, stock status, and value.
+- Inventory: normalize source and warehouse/product identifiers, map only controlled warehouses and the product version effective on the snapshot date, reject invalid quantities/currency/mapping, deduplicate by extraction timestamp, and derive availability, stock status, and value.
 
 ## Audit lineage
 

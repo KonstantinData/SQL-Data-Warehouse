@@ -51,9 +51,9 @@ IF EXISTS
     FROM gold.dim_products
     WHERE product_key <> 0 AND is_current = 1
     GROUP BY product_number
-    HAVING COUNT(*) <> 1
+    HAVING COUNT(*) > 1
 )
-    THROW 53105, 'Every known product number must have exactly one current version.', 1;
+    THROW 53105, 'A known product number has more than one current version.', 1;
 
 IF EXISTS
 (

@@ -34,7 +34,7 @@ All seven files are synthetic reference fixtures. CRM/ERP loading uses SQL Serve
 | start/end dates | typed and validated | SCD2 `effective_from`, derived `effective_to`, `is_current` |
 | ERP category code | normalized exact lookup | category, subcategory, maintenance |
 
-The Gold model preserves all accepted product versions and enforces one current row per product number. Sales resolves the product version valid on the order date; ambiguity fails closed.
+The Gold model preserves all accepted product versions and enforces at most one current row per product number. A product retired from a later full snapshot has no current row; a previously closed version is never silently reopened. Sales resolves the product version valid on the order date; ambiguity fails closed.
 
 ## Sales mapping
 
@@ -53,7 +53,7 @@ Accepted Silver sales are reconciled bidirectionally to `gold.fact_sales`. Unkno
 | `source_row_id`, source system, timestamp | validate source system, ID, and UTC timestamp; use latest extraction for duplicate precedence |
 | snapshot date | ISO date to typed `snapshot_date` and shared Power BI Date relationship |
 | warehouse code/name | normalize code; require active `silver.inventory_warehouse_map`; expose `gold.dim_inventory_locations` |
-| product ID/number | require an exact pair against `gold.dim_products`; expose `product_key` |
+| product ID/number | require an exact pair against the `gold.dim_products` version effective on `snapshot_date`; expose `product_key` |
 | quantities | nonnegative; reserved cannot exceed on-hand; derive available quantity and status |
 | unit cost/currency | nonnegative decimal and EUR; derive inventory value |
 

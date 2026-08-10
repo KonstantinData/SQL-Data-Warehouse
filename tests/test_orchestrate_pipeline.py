@@ -29,6 +29,7 @@ def arguments(**overrides: object) -> argparse.Namespace:
         "source_watermark": 1,
         "max_reject_rows": 23,
         "restart_of_batch_id": 0,
+        "snapshot_as_of": "2024-12-31",
     }
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -43,6 +44,7 @@ class PipelineArgumentTests(unittest.TestCase):
         self.assertNotIn("-P", command)
         self.assertNotIn("secret", command)
         self.assertIn("SourceVersion=fixture-v1", command)
+        self.assertIn("SnapshotAsOf=2024-12-31", command)
 
     def test_trusted_connection_uses_integrated_authentication(self) -> None:
         args = arguments(trusted_connection=True, username=None)
@@ -67,6 +69,16 @@ class PipelineArgumentTests(unittest.TestCase):
             {"source_watermark": 0},
             {"max_reject_rows": -1},
             {"restart_of_batch_id": -1},
+        ):
+            with self.subTest(overrides=overrides):
+                with self.assertRaises(ValueError):
+                    orchestrator.validate_args(arguments(**overrides))
+
+    def test_snapshot_date_and_sqlcmd_literal_inputs_fail_closed(self) -> None:
+        for overrides in (
+            {"snapshot_as_of": "31.12.2024"},
+            {"base_path": "/datasets'; DROP DATABASE DataWarehouse;--"},
+            {"source_version": "fixture$(ESCAPE_SQUOTE(v1))"},
         ):
             with self.subTest(overrides=overrides):
                 with self.assertRaises(ValueError):

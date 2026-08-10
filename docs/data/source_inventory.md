@@ -24,7 +24,7 @@ The authoritative machine-readable contract is `datasets/source_inventory/source
 
 Text is trimmed. `source_system`, warehouse code, product number, and currency are uppercased. Only `SYNTHETIC_WMS` and `EUR` are accepted. Quantities and unit cost must be non-negative, and reserved quantity cannot exceed on-hand quantity.
 
-Product mapping intentionally uses the pair `product_id` plus `product_number` against `gold.dim_products`. The existing model contains repeated product numbers across product versions; using the pair prevents a product-number-only fan-out. Warehouse mapping is explicit in `silver.inventory_warehouse_map` and never inferred from a display name.
+Product mapping uses `product_id` plus `product_number` and requires `snapshot_date` to fall within the Gold product version's effective interval. This prevents both product-number fan-out and assignment to the wrong SCD2 version. Warehouse mapping is explicit in `silver.inventory_warehouse_map` and never inferred from a display name.
 
 ### Deterministic fixture outcomes
 
@@ -77,7 +77,7 @@ Bronze preserves all source fields as text before conversion. Silver uses `TRY_C
 | `snapshot_date` | `snapshot_date` | `TRY_CONVERT(DATE, ..., 23)` |
 | `warehouse_code` | `warehouse_code` -> `warehouse_key` | Trim, uppercase, exact active crosswalk match |
 | `warehouse_name` | canonical warehouse name | Source label is retained in Bronze; Silver uses the controlled crosswalk name |
-| `product_id`, `product_number` | `product_id` -> `product_key` | Exact pair must identify one existing Gold product |
+| `product_id`, `product_number` | `product_id` -> `product_key` | Exact pair plus `snapshot_date` must identify one effective Gold product version |
 | quantities | typed quantity measures | Parse as integer; validate ranges; derive `available_qty` |
 | `reorder_point_qty` | reorder/status fields | Derive `OUT_OF_STOCK`, `LOW_STOCK`, or `AVAILABLE` |
 | `unit_cost` | `unit_cost`, `inventory_value` | Parse decimal; derive on-hand value |

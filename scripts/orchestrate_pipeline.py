@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import os
 import subprocess
 import sys
@@ -45,6 +46,7 @@ def build_sqlcmd_args(args: argparse.Namespace, pipeline_file: Path) -> list[str
             f"SourceWatermark={args.source_watermark}",
             f"MaxRejectRows={args.max_reject_rows}",
             f"RestartOfBatchId={args.restart_of_batch_id}",
+            f"SnapshotAsOf={args.snapshot_as_of}",
         ]
     )
     return command
@@ -85,6 +87,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--max-reject-rows", type=int, default=23)
     parser.add_argument("--restart-of-batch-id", type=int, default=0)
+    parser.add_argument(
+        "--snapshot-as-of",
+        required=True,
+        help="Immutable full-snapshot business date in YYYY-MM-DD format",
+    )
     return parser.parse_args()
 
 
@@ -97,6 +104,15 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("--max-reject-rows must be zero or greater.")
     if args.restart_of_batch_id < 0:
         raise ValueError("--restart-of-batch-id must be zero or greater.")
+    try:
+        parsed_snapshot = dt.date.fromisoformat(args.snapshot_as_of)
+    except ValueError as exc:
+        raise ValueError("--snapshot-as-of must be an ISO date (YYYY-MM-DD).") from exc
+    if parsed_snapshot.isoformat() != args.snapshot_as_of:
+        raise ValueError("--snapshot-as-of must use canonical YYYY-MM-DD format.")
+    for label, value in (("--base-path", args.base_path), ("--source-version", args.source_version)):
+        if any(marker in value for marker in ("'", "\r", "\n", "$(")):
+            raise ValueError(f"{label} contains characters unsafe for SQLCMD substitution.")
 
 
 def main() -> int:

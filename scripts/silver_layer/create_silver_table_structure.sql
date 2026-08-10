@@ -61,9 +61,9 @@ BEGIN
         sls_order_dt INT NULL,
         sls_ship_dt INT NULL,
         sls_due_dt INT NULL,
-        sls_sales INT NULL,
+        sls_sales DECIMAL(18, 2) NULL,
         sls_quantity INT NULL,
-        sls_price INT NULL,
+        sls_price DECIMAL(18, 2) NULL,
         order_date DATE NULL,
         ship_date DATE NULL,
         due_date DATE NULL,
@@ -76,6 +76,20 @@ IF COL_LENGTH(N'silver.crm_sales_details', N'order_date') IS NULL ALTER TABLE si
 IF COL_LENGTH(N'silver.crm_sales_details', N'ship_date') IS NULL ALTER TABLE silver.crm_sales_details ADD ship_date DATE NULL;
 IF COL_LENGTH(N'silver.crm_sales_details', N'due_date') IS NULL ALTER TABLE silver.crm_sales_details ADD due_date DATE NULL;
 IF COL_LENGTH(N'silver.crm_sales_details', N'dwh_batch_id') IS NULL ALTER TABLE silver.crm_sales_details ADD dwh_batch_id BIGINT NULL;
+GO
+
+IF EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'silver.crm_sales_details') AND name = N'sls_sales'
+      AND (system_type_id <> TYPE_ID(N'decimal') OR precision <> 18 OR scale <> 2)
+)
+    ALTER TABLE silver.crm_sales_details ALTER COLUMN sls_sales DECIMAL(18, 2) NULL;
+IF EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'silver.crm_sales_details') AND name = N'sls_price'
+      AND (system_type_id <> TYPE_ID(N'decimal') OR precision <> 18 OR scale <> 2)
+)
+    ALTER TABLE silver.crm_sales_details ALTER COLUMN sls_price DECIMAL(18, 2) NULL;
 GO
 
 IF OBJECT_ID(N'silver.erp_cust_az12', N'U') IS NULL
@@ -140,4 +154,15 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'silver.cr
     CREATE UNIQUE INDEX UX_silver_prd_operational ON silver.crm_prd_info(dwh_batch_id, prd_id) WHERE dwh_batch_id IS NOT NULL;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'silver.crm_sales_details') AND name = N'UX_silver_sales_operational')
     CREATE UNIQUE INDEX UX_silver_sales_operational ON silver.crm_sales_details(dwh_batch_id, sls_ord_num, sls_prd_key) WHERE dwh_batch_id IS NOT NULL;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID(N'silver.crm_cust_info') AND name = N'CK_silver_cust_positive_id')
+    ALTER TABLE silver.crm_cust_info WITH CHECK ADD CONSTRAINT CK_silver_cust_positive_id CHECK (cust_id IS NULL OR cust_id > 0);
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID(N'silver.crm_prd_info') AND name = N'CK_silver_prd_positive_id')
+    ALTER TABLE silver.crm_prd_info WITH CHECK ADD CONSTRAINT CK_silver_prd_positive_id CHECK (prd_id IS NULL OR prd_id > 0);
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID(N'silver.crm_sales_details') AND name = N'CK_silver_sales_positive_customer_id')
+    ALTER TABLE silver.crm_sales_details WITH CHECK ADD CONSTRAINT CK_silver_sales_positive_customer_id CHECK (sls_cust_id IS NULL OR sls_cust_id > 0);
+ALTER TABLE silver.crm_cust_info WITH CHECK CHECK CONSTRAINT CK_silver_cust_positive_id;
+ALTER TABLE silver.crm_prd_info WITH CHECK CHECK CONSTRAINT CK_silver_prd_positive_id;
+ALTER TABLE silver.crm_sales_details WITH CHECK CHECK CONSTRAINT CK_silver_sales_positive_customer_id;
 GO

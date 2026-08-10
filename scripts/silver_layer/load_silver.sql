@@ -5,7 +5,8 @@ Atomic Silver full-snapshot loader
 Loads CRM customer/product/sales and all three ERP entities as one transaction.
 Validated Product versions are preserved. Gold resolves each Sale to the
 effective Product version and prevents fact fan-out with a surrogate key.
-Silver publication, six watermarks, and batch completion commit together.
+Silver publication, six watermarks, and the Silver step commit together. The
+coordinator finalizes the batch only after all requested downstream layers.
 ================================================================================
 */
 
@@ -88,6 +89,18 @@ BEGIN
     SELECT @rejects_before = COUNT_BIG(*) FROM control.load_reject WHERE batch_id = @batch_id;
 
     BEGIN TRY
+        INSERT control.load_reject (
+            batch_id, step_id, source_name, source_file, source_row_number,
+            business_key, column_name, rule_code, raw_value, raw_payload, error_message
+        )
+        SELECT @batch_id, @step_id, N'crm_cust_info', source_file, source_row_number,
+               CONVERT(NVARCHAR(100), cust_id), N'cust_id', N'RESERVED_CUSTOMER_KEY',
+               CONVERT(NVARCHAR(100), cust_id),
+               CONCAT_WS(N'|', cust_id, cust_key, cust_firstname, cust_lastname),
+               N'Customer identifiers must be positive; zero and negative values are reserved for warehouse members.'
+        FROM bronze.crm_cust_info
+        WHERE load_batch_id = @batch_id AND cust_id <= 0;
+
         WITH ranked AS (
             SELECT b.*,
                    ROW_NUMBER() OVER (
@@ -96,7 +109,7 @@ BEGIN
                    ) AS rn
             FROM bronze.crm_cust_info b
             WHERE load_batch_id = @batch_id
-              AND cust_id IS NOT NULL
+              AND cust_id > 0
               AND NULLIF(TRIM(cust_key), N'') IS NOT NULL
         )
         SELECT cust_id, TRIM(cust_key) AS cust_key,
@@ -125,6 +138,18 @@ BEGIN
           AND NULLIF(TRIM(prd_key), N'') IS NOT NULL
           AND prd_cost < 0;
 
+        INSERT control.load_reject (
+            batch_id, step_id, source_name, source_file, source_row_number,
+            business_key, column_name, rule_code, raw_value, raw_payload, error_message
+        )
+        SELECT @batch_id, @step_id, N'crm_prd_info', source_file, source_row_number,
+               CONVERT(NVARCHAR(100), prd_id), N'prd_id', N'RESERVED_PRODUCT_KEY',
+               CONVERT(NVARCHAR(100), prd_id),
+               CONCAT_WS(N'|', prd_id, prd_key, prd_nm, prd_line, prd_start_dt),
+               N'Product identifiers must be positive; zero and negative values are reserved for warehouse members.'
+        FROM bronze.crm_prd_info
+        WHERE load_batch_id = @batch_id AND prd_id <= 0;
+
         SELECT prd_id, TRIM(prd_key) AS prd_key, TRIM(prd_nm) AS prd_nm,
                prd_cost,
                CASE UPPER(TRIM(prd_line))
@@ -136,7 +161,7 @@ BEGIN
         INTO #silver_prd
         FROM bronze.crm_prd_info
         WHERE load_batch_id = @batch_id
-          AND prd_id IS NOT NULL
+          AND prd_id > 0
           AND NULLIF(TRIM(prd_key), N'') IS NOT NULL
           AND (prd_cost IS NULL OR prd_cost >= 0);
 
@@ -144,13 +169,21 @@ BEGIN
                TRY_CONVERT(DATE, CONVERT(CHAR(8), NULLIF(b.sls_order_dt, 0)), 112) AS parsed_order_date,
                TRY_CONVERT(DATE, CONVERT(CHAR(8), NULLIF(b.sls_ship_dt, 0)), 112) AS parsed_ship_date,
                TRY_CONVERT(DATE, CONVERT(CHAR(8), NULLIF(b.sls_due_dt, 0)), 112) AS parsed_due_date,
-               CASE
-                   WHEN b.sls_price IS NULL OR b.sls_price = 0
-                       THEN ABS(b.sls_sales) / NULLIF(ABS(b.sls_quantity), 0)
-                   ELSE ABS(b.sls_price)
-               END AS normalized_price
+               price.normalized_price,
+               TRY_CONVERT(
+                   DECIMAL(18, 2),
+                   CONVERT(DECIMAL(28, 6), b.sls_quantity) * price.normalized_price
+               ) AS normalized_sales
         INTO #sales_evaluated
         FROM bronze.crm_sales_details b
+        CROSS APPLY (
+            SELECT CONVERT(DECIMAL(18, 2), CASE
+                WHEN b.sls_price IS NULL OR b.sls_price = 0
+                    THEN ABS(CONVERT(DECIMAL(28, 6), b.sls_sales))
+                         / NULLIF(ABS(CONVERT(DECIMAL(28, 6), b.sls_quantity)), CONVERT(DECIMAL(28, 6), 0))
+                ELSE ABS(CONVERT(DECIMAL(28, 6), b.sls_price))
+            END) AS normalized_price
+        ) price
         WHERE load_batch_id = @batch_id;
 
         INSERT control.load_reject (
@@ -170,6 +203,7 @@ BEGIN
                         OR e.parsed_due_date < e.parsed_ship_date THEN N'sales_date_sequence'
                    WHEN e.sls_quantity IS NULL OR e.sls_quantity <= 0 THEN N'sls_quantity'
                    WHEN e.normalized_price IS NULL OR e.normalized_price <= 0 THEN N'sls_price'
+                   WHEN e.normalized_sales IS NULL THEN N'sls_sales'
                    WHEN NOT EXISTS (SELECT 1 FROM #silver_cust c WHERE c.cust_id = e.sls_cust_id) THEN N'sls_cust_id'
                    ELSE N'sls_prd_key'
                END,
@@ -184,6 +218,7 @@ BEGIN
                         OR e.parsed_due_date < e.parsed_ship_date THEN N'INVALID_DATE_SEQUENCE'
                    WHEN e.sls_quantity IS NULL OR e.sls_quantity <= 0 THEN N'INVALID_QUANTITY'
                    WHEN e.normalized_price IS NULL OR e.normalized_price <= 0 THEN N'INVALID_PRICE'
+                   WHEN e.normalized_sales IS NULL THEN N'AMOUNT_OVERFLOW'
                    WHEN NOT EXISTS (SELECT 1 FROM #silver_cust c WHERE c.cust_id = e.sls_cust_id) THEN N'ORPHAN_CUSTOMER'
                    ELSE N'ORPHAN_PRODUCT'
                END,
@@ -203,6 +238,7 @@ BEGIN
            OR e.parsed_due_date < e.parsed_ship_date
            OR e.sls_quantity IS NULL OR e.sls_quantity <= 0
            OR e.normalized_price IS NULL OR e.normalized_price <= 0
+           OR e.normalized_sales IS NULL
            OR NOT EXISTS (SELECT 1 FROM #silver_cust c WHERE c.cust_id = e.sls_cust_id)
            OR NOT EXISTS (
                 SELECT 1 FROM #silver_prd p
@@ -211,7 +247,7 @@ BEGIN
 
         SELECT TRIM(e.sls_ord_num) AS sls_ord_num, TRIM(e.sls_prd_key) AS sls_prd_key,
                e.sls_cust_id, e.sls_order_dt, e.sls_ship_dt, e.sls_due_dt,
-               e.sls_quantity * e.normalized_price AS sls_sales,
+               e.normalized_sales AS sls_sales,
                e.sls_quantity, e.normalized_price AS sls_price,
                e.parsed_order_date AS order_date,
                e.parsed_ship_date AS ship_date,
@@ -229,6 +265,7 @@ BEGIN
           AND (e.parsed_ship_date IS NULL OR e.parsed_due_date IS NULL OR e.parsed_due_date >= e.parsed_ship_date)
           AND e.sls_quantity > 0
           AND e.normalized_price > 0
+          AND e.normalized_sales IS NOT NULL
           AND EXISTS (SELECT 1 FROM #silver_cust c WHERE c.cust_id = e.sls_cust_id)
           AND EXISTS (
                 SELECT 1 FROM #silver_prd p
@@ -384,13 +421,6 @@ BEGIN
             watermark_after = @source_watermark,
             completed_at_utc = SYSUTCDATETIME()
         WHERE step_id = @step_id AND status = 'RUNNING';
-
-        UPDATE control.pipeline_batch
-        SET status = 'SUCCEEDED', completed_at_utc = SYSUTCDATETIME()
-        WHERE batch_id = @batch_id AND status = 'RUNNING';
-
-        IF @@ROWCOUNT <> 1
-            THROW 51204, 'Pipeline batch did not transition from RUNNING to SUCCEEDED.', 1;
 
         COMMIT TRANSACTION;
     END TRY

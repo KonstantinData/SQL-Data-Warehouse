@@ -46,7 +46,8 @@ WHERE sls_sales IS NULL
    OR sls_sales <= 0
    OR sls_quantity <= 0
    OR sls_price <= 0
-   OR sls_sales <> sls_quantity * sls_price;
+   OR CONVERT(DECIMAL(28,2), sls_sales)
+      <> CONVERT(DECIMAL(28,2), sls_quantity) * CONVERT(DECIMAL(28,2), sls_price);
 IF @count > 0
     PRINT 'WARNING (Bronze): invalid_sales_measure count=' + CONVERT(VARCHAR(30), @count);
 

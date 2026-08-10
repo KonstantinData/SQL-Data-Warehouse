@@ -27,5 +27,17 @@ jobs:
       - name: Validate CI wiring
         run: python3 scripts/ci/check_ci_contract.py
 
+      - name: Run repository and documentation contracts
+        run: |
+          python3 -m unittest discover -s tests
+          python3 -m unittest discover -s tests/source_inventory
+          python3 -m unittest discover -s scripts/analysis/tests
+          python3 scripts/analysis/validate_documentation.py
+
+      - name: Validate source-controlled Power BI project
+        run: |
+          python3 -m unittest discover -s scripts/powerbi_validation/tests
+          python3 scripts/powerbi_validation/validate_powerbi_project.py --root .
+
       - name: Run pipeline and data quality contracts
         run: bash scripts/ci/run_ci_checks.sh

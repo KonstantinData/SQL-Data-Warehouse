@@ -2,7 +2,7 @@
 
 ## Reproducible inventory
 
-Run `python scripts/analysis/repository_analysis.py --check --format markdown` to reproduce the static inventory. At this integrated reference revision it identifies seven CSV sources, the `DataWarehouse` database, seven procedure definitions, 34 table definitions, and two Inventory view definitions. The duplicate `gold.usp_load_gold` and Gold table definitions are intentional: modular scripts and the historical self-contained compatibility entry point implement the same contract.
+Run `python scripts/analysis/repository_analysis.py --check --format markdown` to reproduce the static inventory. At this integrated reference revision it identifies seven CSV sources, the `DataWarehouse` database, six procedure definitions, 30 table definitions, and two Inventory view definitions. The historical `scripts/gold_layer/create_gold_views.sql` compatibility entrypoint now delegates to the canonical modular Gold implementation, so static inventory no longer double-counts four tables and one procedure.
 
 ## Direct runtime dependencies
 

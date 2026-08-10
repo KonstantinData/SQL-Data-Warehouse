@@ -173,9 +173,9 @@ BEGIN SET @error_count += 1; PRINT 'ERROR: Gold inventory fact grain is not uniq
 
 IF OBJECT_ID('gold.fact_inventory_snapshots', 'V') IS NOT NULL
    AND (
-       (SELECT SUM(on_hand_qty) FROM gold.fact_inventory_snapshots) <> 404
-       OR (SELECT SUM(reserved_qty) FROM gold.fact_inventory_snapshots) <> 69
-       OR (SELECT SUM(available_qty) FROM gold.fact_inventory_snapshots) <> 335
+       (SELECT SUM(CONVERT(BIGINT, on_hand_qty)) FROM gold.fact_inventory_snapshots) <> 404
+       OR (SELECT SUM(CONVERT(BIGINT, reserved_qty)) FROM gold.fact_inventory_snapshots) <> 69
+       OR (SELECT SUM(CONVERT(BIGINT, available_qty)) FROM gold.fact_inventory_snapshots) <> 335
        OR (SELECT SUM(inventory_value) FROM gold.fact_inventory_snapshots) <> CONVERT(DECIMAL(19,2), 4826.00)
    )
 BEGIN SET @error_count += 1; PRINT 'ERROR: deterministic Gold fixture totals do not match the contract.'; END;

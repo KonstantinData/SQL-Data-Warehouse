@@ -93,7 +93,8 @@ IF EXISTS (
        OR sls_sales <= 0
        OR sls_quantity <= 0
        OR sls_price <= 0
-       OR CONVERT(BIGINT, sls_sales) <> CONVERT(BIGINT, sls_quantity) * CONVERT(BIGINT, sls_price)
+       OR CONVERT(DECIMAL(28,2), sls_sales)
+          <> CONVERT(DECIMAL(28,2), sls_quantity) * CONVERT(DECIMAL(28,2), sls_price)
 )
 BEGIN SET @violations += 1; PRINT 'ERROR (Silver): sales date or measure contract failed.'; END;
 

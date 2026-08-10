@@ -55,7 +55,7 @@ IF NOT EXISTS (
     THROW 52202, 'Successful replay was not audited as completed SKIPPED.', 1;
 IF EXISTS (SELECT 1 FROM control.pipeline_step WHERE batch_id = @second_batch)
     THROW 52203, 'SKIPPED replay unexpectedly created pipeline steps.', 1;
-IF 1 <> (SELECT COUNT(*) FROM control.pipeline_batch WHERE pipeline_name = N'sql-data-warehouse-full-snapshot' AND source_version = @version AND status = 'SUCCEEDED')
+IF 1 <> (SELECT COUNT(*) FROM control.pipeline_batch WHERE pipeline_name = N'sql-data-warehouse-core-snapshot' AND source_version = @version AND status = 'SUCCEEDED')
     THROW 52204, 'Replay produced more than one successful batch.', 1;
 
 IF EXISTS (SELECT * FROM bronze.crm_cust_info EXCEPT SELECT * FROM #bronze_cust)

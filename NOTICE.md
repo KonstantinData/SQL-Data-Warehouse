@@ -11,9 +11,13 @@ With Baraa's SQL Data Warehouse Project**, authored by **Baraa Khatib Salkini**.
 
 The upstream project supplies the educational project brief, synthetic CRM and
 ERP datasets, Bronze/Silver/Gold warehouse pattern, baseline T-SQL objects,
-quality-check examples, and supporting learning materials. All six CSV files in
-this repository are byte-identical to the corresponding files in the cited
-upstream snapshot; two filenames were changed locally.
+quality-check examples, and supporting learning materials. Of the six
+upstream-derived CRM/ERP CSV files, four are byte-identical to the corresponding
+files in the cited upstream snapshot. Two were renamed and normalized only with
+a final line feed so SQL Server imports their last records consistently. The
+seventh CSV is the repository-specific synthetic Inventory fixture. The precise
+current and upstream SHA-256 hashes are recorded in
+[`docs/project/attribution.md`](docs/project/attribution.md).
 
 Repository-specific work by Konstantin Milonas includes adaptations and
 extensions visible in Git history: local object and filename conventions,

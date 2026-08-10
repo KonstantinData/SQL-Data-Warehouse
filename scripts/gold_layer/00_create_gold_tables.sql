@@ -37,7 +37,12 @@ BEGIN
         customer_is_future  BIT NOT NULL CONSTRAINT DF_dim_customers_future DEFAULT (0),
         dwh_updated_at      DATETIME2(0) NOT NULL CONSTRAINT DF_dim_customers_updated DEFAULT (SYSUTCDATETIME()),
         CONSTRAINT PK_dim_customers PRIMARY KEY CLUSTERED (customer_key),
-        CONSTRAINT UQ_dim_customers_customer_id UNIQUE (customer_id)
+        CONSTRAINT UQ_dim_customers_customer_id UNIQUE (customer_id),
+        CONSTRAINT CK_dim_customers_reserved_member CHECK
+        (
+            (customer_key = 0 AND customer_id = -1 AND customer_number = N'UNKNOWN')
+            OR (customer_key > 0 AND customer_id > 0)
+        )
     );
 END;
 GO
@@ -63,9 +68,42 @@ BEGIN
         CONSTRAINT PK_dim_products PRIMARY KEY CLUSTERED (product_key),
         CONSTRAINT UQ_dim_products_product_id UNIQUE (product_id),
         CONSTRAINT UQ_dim_products_product_number_effective_from UNIQUE (product_number, effective_from),
-        CONSTRAINT CK_dim_products_effective_range CHECK (effective_to IS NULL OR effective_to > effective_from)
+        CONSTRAINT CK_dim_products_effective_range CHECK (effective_to IS NULL OR effective_to > effective_from),
+        CONSTRAINT CK_dim_products_current_interval CHECK
+        (
+            (is_current = 1 AND effective_to IS NULL)
+            OR (is_current = 0 AND effective_to IS NOT NULL)
+        ),
+        CONSTRAINT CK_dim_products_reserved_member CHECK
+        (
+            (product_key = 0 AND product_id = -1 AND product_number = N'UNKNOWN')
+            OR (product_key > 0 AND product_id > 0)
+        )
     );
 END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID(N'gold.dim_customers') AND name = N'CK_dim_customers_reserved_member')
+    ALTER TABLE gold.dim_customers WITH CHECK ADD CONSTRAINT CK_dim_customers_reserved_member CHECK
+    (
+        (customer_key = 0 AND customer_id = -1 AND customer_number = N'UNKNOWN')
+        OR (customer_key > 0 AND customer_id > 0)
+    );
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID(N'gold.dim_products') AND name = N'CK_dim_products_reserved_member')
+    ALTER TABLE gold.dim_products WITH CHECK ADD CONSTRAINT CK_dim_products_reserved_member CHECK
+    (
+        (product_key = 0 AND product_id = -1 AND product_number = N'UNKNOWN')
+        OR (product_key > 0 AND product_id > 0)
+    );
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID(N'gold.dim_products') AND name = N'CK_dim_products_current_interval')
+    ALTER TABLE gold.dim_products WITH CHECK ADD CONSTRAINT CK_dim_products_current_interval CHECK
+    (
+        (is_current = 1 AND effective_to IS NULL)
+        OR (is_current = 0 AND effective_to IS NOT NULL)
+    );
+ALTER TABLE gold.dim_customers WITH CHECK CHECK CONSTRAINT CK_dim_customers_reserved_member;
+ALTER TABLE gold.dim_products WITH CHECK CHECK CONSTRAINT CK_dim_products_reserved_member;
+ALTER TABLE gold.dim_products WITH CHECK CHECK CONSTRAINT CK_dim_products_current_interval;
 GO
 
 IF OBJECT_ID(N'gold.dim_date', N'U') IS NULL

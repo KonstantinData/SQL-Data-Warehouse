@@ -1,15 +1,9 @@
 :ON ERROR EXIT
 
 /*
-================================================================================
-Canonical end-to-end SQLCMD entry point
-================================================================================
-Run from the repository root. Required SQLCMD variables:
-  BasePath, SourceVersion, SourceWatermark, MaxRejectRows, RestartOfBatchId
-
-The script is non-destructive. Use scripts/operations/reset_development.sql only
-for an explicitly confirmed reset of a disposable development database.
-================================================================================
+Canonical non-destructive SQLCMD entry point. Run from the repository root with
+BasePath, SourceVersion, SourceWatermark, SnapshotAsOf, MaxRejectRows,
+RestartOfBatchId.
 */
 
 :r .\scripts\init.database.sql
@@ -18,18 +12,19 @@ for an explicitly confirmed reset of a disposable development database.
 :r .\scripts\silver_layer\create_silver_table_structure.sql
 :r .\scripts\silver_layer\load_silver.sql
 
-/* Audited, fail-closed CRM/ERP Bronze and Silver publication. */
-:r .\scripts\operations\run_operational_pipeline.sql
+:r .\scripts\gold_layer\00_create_gold_tables.sql
+:r .\scripts\gold_layer\10_load_gold.sql
+:r .\scripts\gold_layer\20_create_gold_indexes.sql
 
-/* Materialized star schema, SCD2 product resolution, date dimension, indexes. */
-:r .\scripts\gold_layer\create_gold_views.sql
+:r .\scripts\source_inventory\00_create_objects.sql
+:r .\scripts\source_inventory\10_load_bronze.sql
+:r .\scripts\source_inventory\20_transform_silver.sql
+:r .\scripts\source_inventory\30_create_gold_views.sql
 
-/* Independently idempotent onboarding example for a new Inventory source. */
-:r .\scripts\source_inventory\run_source_inventory.sql
+:r .\scripts\operations\run_full_pipeline.sql
 
 USE DataWarehouse;
 GO
-
 SELECT
     (SELECT COUNT_BIG(*) FROM gold.dim_customers) AS gold_customer_rows,
     (SELECT COUNT_BIG(*) FROM gold.dim_products) AS gold_product_rows,

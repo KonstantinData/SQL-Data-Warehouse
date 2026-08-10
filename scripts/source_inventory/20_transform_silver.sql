@@ -49,7 +49,10 @@ BEGIN
             (SELECT COUNT(*)
              FROM gold.dim_products dp
              WHERE dp.product_id = n.product_id_typed
-               AND UPPER(dp.product_number) = n.product_number_clean) AS product_match_count
+               AND dp.product_key > 0
+               AND UPPER(dp.product_number) = n.product_number_clean
+               AND n.snapshot_date_typed >= dp.effective_from
+               AND (dp.effective_to IS NULL OR n.snapshot_date_typed < dp.effective_to)) AS product_match_count
         FROM normalized n
         LEFT JOIN silver.inventory_warehouse_map wm
           ON wm.warehouse_code = n.warehouse_code_clean
@@ -70,6 +73,7 @@ BEGIN
             WHEN m.warehouse_name_clean IS NULL THEN N'MISSING_WAREHOUSE_NAME'
             WHEN LEN(m.warehouse_name_clean) > 100 THEN N'WAREHOUSE_NAME_TOO_LONG'
             WHEN m.product_id_typed IS NULL THEN N'INVALID_PRODUCT_ID'
+            WHEN m.product_id_typed <= 0 THEN N'RESERVED_PRODUCT_ID'
             WHEN m.product_number_clean IS NULL THEN N'MISSING_PRODUCT_NUMBER'
             WHEN LEN(m.product_number_clean) > 50 THEN N'PRODUCT_NUMBER_TOO_LONG'
             WHEN m.product_match_count = 0 THEN N'PRODUCT_MAPPING_NOT_FOUND'

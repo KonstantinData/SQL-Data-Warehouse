@@ -13,21 +13,29 @@ publication. A real deployment must separately provide backup/restore, HA/DR,
 secrets management, least-privilege service accounts, scheduling, alerting,
 capacity planning, retention, schema migration governance, and load testing.
 
+The public SQLCMD and Python entrypoints represent the **full pipeline** and do
+not report success until Gold and Inventory are published. The internal
+`control.run_pipeline` procedure is the reusable CRM/ERP Bronze/Silver core. A
+direct core-only call is audited under the distinct
+`sql-data-warehouse-core-snapshot` scope and must not be interpreted as a full
+pipeline result.
+
 ## Entrypoints
 
 | File | Classification | Contract |
 |---|---|---|
 | `scripts/init.database.sql` | Safe bootstrap | Creates missing database, schemas, and control objects without dropping data. |
-| `scripts/operations/run_operational_pipeline.sql` | Supported routine execution | Requires explicit immutable snapshot identity, monotonic watermark, host-visible path, and reject ceiling. |
+| `scripts/run_pipeline.sql` | Canonical install-and-run entrypoint | Installs all modules and keeps the batch `RUNNING` until CRM/ERP Bronze/Silver, physical Gold, and Inventory succeed. |
+| `scripts/orchestrate_pipeline.py` | Credential-safe Python wrapper | Calls the canonical SQLCMD entrypoint; SQL authentication uses `SQLCMDPASSWORD`, never a password argument. |
+| `scripts/operations/run_operational_pipeline.sql` | Installed-environment routine execution | Delegates to the same end-to-end runtime after all modules are installed. |
 | `scripts/operations/reset_development.sql` | Destructive development/test reset | Drops `DataWarehouse` only after the exact confirmation token. Never use for restart or recovery. |
-| `scripts/run_pipeline.sql` | Legacy integration entrypoint | Not operationally supported until the integration task rewires it to the new versioned runtime. |
-| `scripts/orchestrate_pipeline.py` | Legacy integration entrypoint | Not operationally supported until the integration task adds the new control/Silver modules and parameters. |
 
 Routine execution must never call the development reset.
 
 ## Runtime installation order
 
-Run these idempotent scripts from the repository root in SQLCMD mode:
+The canonical entrypoint installs the following idempotent module groups before
+execution:
 
 ```text
 scripts/init.database.sql
@@ -35,10 +43,18 @@ scripts/bronze_layer/create_table_bronze_layer.sql
 scripts/bronze_layer/bulk_insert_crm_cust_info.sql
 scripts/silver_layer/create_silver_table_structure.sql
 scripts/silver_layer/load_silver.sql
+scripts/gold_layer/00_create_gold_tables.sql
+scripts/gold_layer/10_load_gold.sql
+scripts/gold_layer/20_create_gold_indexes.sql
+scripts/source_inventory/00_create_objects.sql
+scripts/source_inventory/10_load_bronze.sql
+scripts/source_inventory/20_transform_silver.sql
+scripts/source_inventory/30_create_gold_views.sql
 ```
 
-Every post-bootstrap script explicitly selects `DataWarehouse`, because the
-legacy Python integration starts each file in a new SQL connection.
+Every post-bootstrap script explicitly selects `DataWarehouse`. The canonical
+SQLCMD execution retains one session so its session-owned application lock also
+covers Gold and Inventory publication.
 
 ## Preconditions
 
@@ -49,6 +65,8 @@ legacy Python integration starts each file in a new SQL connection.
 - `SourceVersion` identifies the exact immutable bytes/manifest. Never reuse it
   for changed files.
 - `SourceWatermark` is a positive, monotonically increasing delivery sequence.
+- `SnapshotAsOf` is the immutable ISO business date used to close product
+  versions retired by this full snapshot.
 - `MaxRejectRows` is an explicit operator decision. `0` is strictest. The
   current repository synthetic snapshot produces 23 quarantined source rows
   under SQL Server 2022 verification: 4 missing required customer keys, 18
@@ -61,11 +79,12 @@ legacy Python integration starts each file in a new SQL connection.
 ## Run a new snapshot
 
 ```powershell
-sqlcmd -S "<server>" -d DataWarehouse -E -b `
-  -i scripts/operations/run_operational_pipeline.sql `
+sqlcmd -S "<server>" -d master -E -b `
+  -i scripts/run_pipeline.sql `
   -v BasePath="C:\data\SQL-Data-Warehouse\datasets" `
      SourceVersion="synthetic-2026-08-10-v1" `
      SourceWatermark="2026081001" `
+     SnapshotAsOf="2024-12-31" `
      MaxRejectRows="23" `
      RestartOfBatchId="0"
 ```
@@ -81,11 +100,12 @@ An identical retry creates a new batch linked to the failed batch. It never
 resumes a half-committed transaction.
 
 ```powershell
-sqlcmd -S "<server>" -d DataWarehouse -E -b `
-  -i scripts/operations/run_operational_pipeline.sql `
+sqlcmd -S "<server>" -d master -E -b `
+  -i scripts/run_pipeline.sql `
   -v BasePath="C:\data\SQL-Data-Warehouse\datasets" `
      SourceVersion="synthetic-2026-08-10-v1" `
      SourceWatermark="2026081001" `
+     SnapshotAsOf="2024-12-31" `
      MaxRejectRows="23" `
      RestartOfBatchId="<failed_batch_id>"
 ```
@@ -107,8 +127,12 @@ watermark instead. Replaying an already successful version is audited as
 - Silver cleanses CRM customer, product, and sales data plus all three ERP
   entities. Valid Product versions are preserved; Gold resolves Sales to the
   effective version by order date and persists the resulting surrogate key.
-- All six Silver tables, six watermarks, the Silver step, and final batch status
-  publish in one transaction.
+- All six Silver tables, six watermarks, and the Silver step publish in one
+  transaction. The batch deliberately remains `RUNNING`.
+- The same session and application lock then publish physical Gold and
+  Inventory. Separate audited steps record both results. Only after both
+  succeed does the batch transition to `SUCCEEDED`; a downstream error records
+  the same batch and active step as `FAILED` and is rethrown.
 - Every `CATCH` rolls back an active transaction, records full SQL error
   metadata, and rethrows the original error.
 - A Silver failure can occur after Bronze committed. This is deliberate
@@ -183,6 +207,7 @@ runtime lock.
 | Application-lock failure | Let the active run finish, inspect its audit state, then retry. Never bypass the lock. |
 | Deadlock, timeout, or log-full | The failing publication transaction rolls back. Remediate capacity/contention, then run a linked retry. |
 | Silver transformation/constraint failure | Silver and watermarks remain unchanged. Bronze may contain the attempted snapshot; linked retry restages it. |
+| Gold or Inventory publication failure | The batch and downstream step are `FAILED`; the caller receives the original error. A linked retry replays the idempotent core and downstream publications. |
 | Client disconnect / stale `RUNNING` | Inspect SQL sessions, application lock, targets, and watermarks. Do not infer server failure from client loss alone. |
 | Missing runtime object | Treat as an installation/migration defect, not a data retry. Repair the idempotent deployment first. |
 
@@ -234,31 +259,19 @@ cannot be proved by a single success-only SQLCMD script.
   explicit UTF-8 decoding. The supplied synthetic files are compatible with
   the verified environment; deployments with non-ASCII source data must
   validate platform encoding or add a platform-specific import adapter.
-- Several repository fixtures do not end with a final LF byte. The verified
-  SQL Server 2022 cardinalities in the runtime tests reflect the current files;
-  an integration/data-delivery step should normalize and manifest newline
-  conventions before treating different fixture bytes as the same version.
+- The two upstream fixtures that lacked a final LF are normalized in this
+  repository; attribution records both current and upstream hashes. A real
+  delivery must still manifest exact bytes and newline conventions.
 - SQLCMD variables are textual substitutions. Scripts accept trusted operator
   inputs; apostrophes in paths/versions are unsupported, and the reset token is
   an accidental-safety guard rather than a malicious-caller boundary.
 - The runtime has no scheduler, external alert transport, automatic backfill
   planner, retention purge, backup/restore, HA/DR, vault integration, workload
   sizing, or production certification.
-- The reserved README and legacy runners are integration-owned and must be
-  updated before they can be described as the operational happy path.
 
-## Integration handoff
+## Integrated handoff contract
 
-The integration task must:
-
-1. Add `:ON ERROR EXIT` and align `scripts/run_pipeline.sql` with safe init,
-   control bootstrap, Bronze DDL/procedure, Silver DDL/procedure, operational
-   invocation, physical Gold model, and Inventory publication. Never include development reset.
-2. Align `scripts/orchestrate_pipeline.py` to the same order, set its working
-   directory to the repository root, preserve `sqlcmd -b`, expose BasePath,
-   SourceVersion, SourceWatermark, MaxRejectRows, and RestartOfBatchId, and
-   surface the returned batch ID.
-3. Update the excluded CI loader to exercise the production Silver procedure
-   and runtime tests rather than a parallel transformation path.
-4. Update README claims: initialization is now safe; reset is separate; file
-   access is server-side; the runtime is a synthetic reference implementation.
+SQLCMD, Python, and CI now converge on the same repository-owned runtime,
+physical Gold model, and Inventory publication. Changes to module order,
+parameters, success boundaries, or quality thresholds must update the three
+entrypoints, static parity checks, runtime tests, and this runbook together.

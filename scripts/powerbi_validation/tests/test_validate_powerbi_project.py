@@ -90,6 +90,17 @@ class PowerBIProjectValidatorTests(unittest.TestCase):
             errors = validate_project(root, check_git=False)
             self.assertTrue(any("Relationship topology differs" in error for error in errors), errors)
 
+    def test_missing_inventory_rls_permission_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/SQLDataWarehouse.SemanticModel/definition/roles/CountrySalesViewer.tmdl"
+            text = path.read_text(encoding="utf-8")
+            text = text.split("\n\ttablePermission 'Inventory Locations' =", 1)[0] + "\n"
+            path.write_text(text, encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("Inventory Locations" in error for error in errors), errors)
+
     def test_missing_embedded_alt_text_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

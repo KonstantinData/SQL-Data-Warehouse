@@ -91,6 +91,7 @@ sqlcmd -S localhost -d master -E -b -i scripts/run_pipeline.sql `
   -v BasePath="D:\Git-GitHub\Repositories\SQL-Data-Warehouse\datasets" `
      SourceVersion="synthetic-reference-2026-08-10" `
      SourceWatermark="2026081001" `
+     SnapshotAsOf="2024-12-31" `
      MaxRejectRows="23" `
      RestartOfBatchId="0"
 ```
@@ -105,7 +106,8 @@ python scripts/orchestrate_pipeline.py `
   --trusted-connection `
   --base-path "D:\Git-GitHub\Repositories\SQL-Data-Warehouse\datasets" `
   --source-version "synthetic-reference-2026-08-10" `
-  --source-watermark 2026081001
+  --source-watermark 2026081001 `
+  --snapshot-as-of 2024-12-31
 ```
 
 For SQL authentication, supply `--username` and set `SQLCMDPASSWORD` in the process environment. Passwords are deliberately not accepted on the command line.
@@ -124,7 +126,9 @@ Fast source-only validators:
 
 ```powershell
 python scripts/ci/check_ci_contract.py
-python scripts/powerbi_validation/validate_powerbi_project.py --root . --check-git
+python -m unittest discover -s tests
+python scripts/analysis/validate_documentation.py
+python scripts/powerbi_validation/validate_powerbi_project.py --root .
 python -m unittest discover -s scripts/powerbi_validation/tests -p "test_*.py"
 python -m unittest discover -s tests/source_inventory -p "test_*.py"
 python -m unittest discover -s scripts/analysis/tests -p "test_*.py"

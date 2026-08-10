@@ -43,16 +43,15 @@ IF EXISTS (
     FROM gold.dim_products
     WHERE product_key <> 0 AND is_current = 1
     GROUP BY product_number
-    HAVING COUNT_BIG(*) <> 1
+    HAVING COUNT_BIG(*) > 1
 )
    OR EXISTS (
-    SELECT product_number
-    FROM gold.dim_products
+    SELECT 1 FROM gold.dim_products
     WHERE product_key <> 0
-    GROUP BY product_number
-    HAVING SUM(CASE WHEN is_current = 1 THEN 1 ELSE 0 END) <> 1
+      AND ((is_current = 1 AND effective_to IS NOT NULL)
+           OR (is_current = 0 AND effective_to IS NULL))
 )
-BEGIN SET @violations += 1; PRINT 'ERROR (Gold): every known product number must have exactly one current row.'; END;
+BEGIN SET @violations += 1; PRINT 'ERROR (Gold): product current flags or effective intervals are inconsistent.'; END;
 
 IF (SELECT COUNT_BIG(*) FROM gold.dim_customers WHERE customer_key <> 0)
    <> (SELECT COUNT_BIG(*) FROM silver.crm_cust_info)

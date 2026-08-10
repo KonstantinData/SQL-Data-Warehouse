@@ -3,7 +3,8 @@ GO
 
 CREATE OR ALTER PROCEDURE gold.usp_load_gold
     @date_start DATE = NULL,
-    @date_end   DATE = NULL
+    @date_end   DATE = NULL,
+    @snapshot_as_of DATE = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -62,7 +63,7 @@ BEGIN
             WHERE REPLACE(l.cid, N'-', N'') = c.cust_key
             ORDER BY l.dwh_create_date DESC
         ) AS location
-        WHERE c.cust_id IS NOT NULL;
+        WHERE c.cust_id > 0;
 
         IF EXISTS (SELECT customer_id FROM #customer_source GROUP BY customer_id HAVING COUNT(*) > 1)
             THROW 51001, 'Customer source violates the one-row-per-customer Gold grain.', 1;
@@ -118,9 +119,9 @@ BEGIN
             FROM silver.crm_prd_info AS p
             LEFT JOIN silver.erp_px_cat_g1v2 AS category
                 ON category.id = REPLACE(SUBSTRING(p.prd_key, 1, 5), N'-', N'_')
-            WHERE p.prd_id IS NOT NULL
+            WHERE p.prd_id > 0
         ),
-        product_versioned AS
+        product_with_next AS
         (
             SELECT
                 product_id, product_number, product_name, product_cost,
@@ -129,14 +130,28 @@ BEGIN
                 (
                     PARTITION BY product_number
                     ORDER BY effective_from, product_id
+                ) AS next_effective_from,
+                source_end_date
+            FROM product_base
+        ),
+        product_versioned AS
+        (
+            SELECT
+                product_id, product_number, product_name, product_cost,
+                product_line, category, subcategory, maintenance, effective_from,
+                COALESCE(
+                    next_effective_from,
+                    CASE
+                        WHEN source_end_date IS NOT NULL AND source_end_date < CONVERT(DATE, '99991231', 112)
+                            THEN DATEADD(DAY, 1, source_end_date)
+                    END
                 ) AS effective_to,
                 source_end_date,
-                CASE WHEN LEAD(effective_from) OVER
-                (
-                    PARTITION BY product_number
-                    ORDER BY effective_from, product_id
-                ) IS NULL THEN CONVERT(BIT, 1) ELSE CONVERT(BIT, 0) END AS is_current
-            FROM product_base
+                CONVERT(BIT, CASE
+                    WHEN next_effective_from IS NULL AND source_end_date IS NULL THEN 1
+                    ELSE 0
+                END) AS is_current
+            FROM product_with_next
         )
         SELECT *
         INTO #product_source
@@ -164,9 +179,15 @@ BEGIN
             subcategory = source.subcategory,
             maintenance = source.maintenance,
             effective_from = source.effective_from,
-            effective_to = source.effective_to,
+            effective_to = CASE
+                WHEN target.is_current = 0 AND source.is_current = 1 THEN target.effective_to
+                ELSE source.effective_to
+            END,
             source_end_date = source.source_end_date,
-            is_current = source.is_current,
+            is_current = CASE
+                WHEN target.is_current = 0 AND source.is_current = 1 THEN CONVERT(BIT, 0)
+                ELSE source.is_current
+            END,
             dwh_updated_at = SYSUTCDATETIME()
         FROM gold.dim_products AS target
         INNER JOIN #product_source AS source
@@ -190,6 +211,40 @@ BEGIN
             FROM gold.dim_products AS target WITH (UPDLOCK, HOLDLOCK)
             WHERE target.product_id = source.product_id
         );
+
+        /*
+        Silver is a complete current snapshot. Product versions absent from the
+        new snapshot must therefore no longer remain current in the retained
+        SCD2 history. Retired products are allowed to have no current version.
+        */
+        UPDATE target
+        SET effective_to = COALESCE(
+                target.effective_to,
+                CASE
+                    WHEN target.source_end_date > target.effective_from THEN target.source_end_date
+                    WHEN COALESCE(@snapshot_as_of, CONVERT(DATE, SYSUTCDATETIME())) > target.effective_from
+                        THEN COALESCE(@snapshot_as_of, CONVERT(DATE, SYSUTCDATETIME()))
+                    ELSE DATEADD(DAY, 1, target.effective_from)
+                END
+            ),
+            is_current = 0,
+            dwh_updated_at = SYSUTCDATETIME()
+        FROM gold.dim_products AS target
+        WHERE target.product_key <> 0
+          AND target.is_current = 1
+          AND NOT EXISTS (
+              SELECT 1 FROM #product_source AS source
+              WHERE source.product_id = target.product_id
+          );
+
+        IF EXISTS (
+            SELECT product_number
+            FROM gold.dim_products
+            WHERE product_key <> 0 AND is_current = 1
+            GROUP BY product_number
+            HAVING COUNT_BIG(*) > 1
+        )
+            THROW 51008, 'Gold product history has more than one current version per product.', 1;
 
         /*
         Silver integration paths can multiply an otherwise identical CRM line

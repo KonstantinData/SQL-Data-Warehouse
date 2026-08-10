@@ -526,7 +526,17 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
         errors.append("CountrySalesViewer role is missing")
     else:
         role_text = role_path.read_text(encoding="utf-8")
-        for required in ("USERPRINCIPALNAME()", "Customers[country_code]", "Security User Country"):
+        for required in (
+            "USERPRINCIPALNAME()",
+            "tablePermission Customers =",
+            "Customers[country_code]",
+            "tablePermission 'Inventory Locations' =",
+            "'Inventory Locations'[country_code]",
+            "Security User Country",
+            "[IsActive] = TRUE()",
+            "[ValidFromUtc] <= CurrentUtc",
+            "[ValidToUtc] > CurrentUtc",
+        ):
             if required not in role_text:
                 errors.append(f"CountrySalesViewer role lacks {required}")
     security_text = (definition / "tables" / "Security User Country.tmdl").read_text(encoding="utf-8")

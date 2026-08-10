@@ -158,13 +158,17 @@ CREATE OR ALTER PROCEDURE control.run_pipeline
     @source_watermark BIGINT,
     @max_reject_rows BIGINT = 0,
     @restart_of_batch_id BIGINT = NULL,
+    @defer_completion BIT = 0,
     @batch_id BIGINT OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE @pipeline_name NVARCHAR(128) = N'sql-data-warehouse-full-snapshot';
+    DECLARE @pipeline_name NVARCHAR(128) = CASE
+        WHEN @defer_completion = 1 THEN N'sql-data-warehouse-full-snapshot'
+        ELSE N'sql-data-warehouse-core-snapshot'
+    END;
     DECLARE @lock_result INT;
     DECLARE @lock_acquired BIT = 0;
     DECLARE @existing_batch_id BIGINT;
@@ -191,6 +195,8 @@ BEGIN
         THROW 51003, 'source_watermark must be a positive integer.', 1;
     IF @max_reject_rows IS NULL OR @max_reject_rows < 0
         THROW 51010, 'max_reject_rows must be zero or greater.', 1;
+    IF @defer_completion IS NULL
+        THROW 51013, 'defer_completion must be zero or one.', 1;
     IF NOT (
         @base_path LIKE N'[A-Za-z]:\%'
         OR @base_path LIKE N'\\%'
@@ -324,7 +330,11 @@ BEGIN
         FROM control.load_watermark
         WHERE pipeline_name = @pipeline_name;
 
-        IF @latest_watermark IS NOT NULL AND @source_watermark <= @latest_watermark
+        IF @latest_watermark IS NOT NULL
+           AND (
+                @source_watermark < @latest_watermark
+                OR (@source_watermark = @latest_watermark AND @restart_of_batch_id IS NULL)
+           )
             THROW 51009, 'A new source snapshot requires a watermark greater than the published watermark.', 1;
 
         EXEC bronze.load_bronze
@@ -334,15 +344,23 @@ BEGIN
         EXEC silver.load_silver
             @batch_id = @batch_id;
 
-        BEGIN TRY
+        IF @defer_completion = 0
+        BEGIN
+            UPDATE control.pipeline_batch
+            SET status = 'SUCCEEDED', completed_at_utc = SYSUTCDATETIME()
+            WHERE batch_id = @batch_id AND status = 'RUNNING';
+
+            IF @@ROWCOUNT <> 1
+                THROW 51014, 'Pipeline batch did not transition from RUNNING to SUCCEEDED.', 1;
+
             EXEC sys.sp_releaseapplock
                 @Resource = N'SQL-Data-Warehouse:operational-pipeline',
                 @LockOwner = N'Session';
-        END TRY
-        BEGIN CATCH
-            -- Batch is already committed SUCCEEDED; the session lock releases on disconnect.
-        END CATCH;
-        SET @lock_acquired = 0;
+            SET @lock_acquired = 0;
+        END;
+        /* Deferred completion intentionally retains the session lock. The
+           caller must publish downstream layers, finalize the batch, and
+           release the lock in the same SQLCMD session. */
     END TRY
     BEGIN CATCH
         SELECT

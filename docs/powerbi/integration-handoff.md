@@ -10,7 +10,7 @@ The Power BI model now reads the curated physical Gold sales model and the Inven
 2. Bind a least-privilege development connection and refresh all tables.
 3. Compare sales/model counts and Inventory `14/10/4/10` source/accepted/rejected/Gold evidence with SQL gates.
 4. Validate measures, relationships, sort order, inactive date relationships, interactions, tooltips, responsive and phone layouts.
-5. Execute CountrySalesViewer allowed/denied role cases and decide Inventory authorization behavior.
+5. Execute CountrySalesViewer allowed/denied role cases for both Sales and Inventory; approve the implemented country boundary or replace it with a warehouse entitlement model.
 6. Inspect titles, alternative text, tab order, keyboard flow, contrast, and screen-reader names.
 7. Record screenshots and the Desktop version; do not commit credentials or transient `.pbi` state.
 
