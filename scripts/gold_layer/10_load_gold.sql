@@ -148,7 +148,9 @@ BEGIN
                 ) AS effective_to,
                 source_end_date,
                 CONVERT(BIT, CASE
-                    WHEN next_effective_from IS NULL AND source_end_date IS NULL THEN 1
+                    WHEN next_effective_from IS NULL
+                     AND (source_end_date IS NULL OR source_end_date = CONVERT(DATE, '99991231', 112))
+                        THEN 1
                     ELSE 0
                 END) AS is_current
             FROM product_with_next
@@ -169,6 +171,24 @@ BEGIN
         )
             THROW 51003, 'Product versions have duplicate effective start dates.', 1;
 
+        /*
+        A full-snapshot disappearance closes a warehouse episode. Reopening the
+        same closed product_id would rewrite retained history, so fail closed
+        until the source supplies a new version identity or an operator applies
+        an explicitly governed correction.
+        */
+        IF EXISTS
+        (
+            SELECT 1
+            FROM gold.dim_products AS target
+            INNER JOIN #product_source AS source
+                ON source.product_id = target.product_id
+            WHERE target.product_key <> 0
+              AND target.is_current = 0
+              AND source.is_current = 1
+        )
+            THROW 51010, 'A previously closed product version reappeared as current; provide a new version identity or governed correction.', 1;
+
         UPDATE target
         SET
             product_number = source.product_number,
@@ -179,15 +199,9 @@ BEGIN
             subcategory = source.subcategory,
             maintenance = source.maintenance,
             effective_from = source.effective_from,
-            effective_to = CASE
-                WHEN target.is_current = 0 AND source.is_current = 1 THEN target.effective_to
-                ELSE source.effective_to
-            END,
+            effective_to = source.effective_to,
             source_end_date = source.source_end_date,
-            is_current = CASE
-                WHEN target.is_current = 0 AND source.is_current = 1 THEN CONVERT(BIT, 0)
-                ELSE source.is_current
-            END,
+            is_current = source.is_current,
             dwh_updated_at = SYSUTCDATETIME()
         FROM gold.dim_products AS target
         INNER JOIN #product_source AS source
@@ -218,15 +232,11 @@ BEGIN
         SCD2 history. Retired products are allowed to have no current version.
         */
         UPDATE target
-        SET effective_to = COALESCE(
-                target.effective_to,
-                CASE
-                    WHEN target.source_end_date > target.effective_from THEN target.source_end_date
-                    WHEN COALESCE(@snapshot_as_of, CONVERT(DATE, SYSUTCDATETIME())) > target.effective_from
-                        THEN COALESCE(@snapshot_as_of, CONVERT(DATE, SYSUTCDATETIME()))
-                    ELSE DATEADD(DAY, 1, target.effective_from)
-                END
-            ),
+        SET effective_to = CASE
+                WHEN COALESCE(@snapshot_as_of, CONVERT(DATE, SYSUTCDATETIME())) > target.effective_from
+                    THEN COALESCE(@snapshot_as_of, CONVERT(DATE, SYSUTCDATETIME()))
+                ELSE DATEADD(DAY, 1, target.effective_from)
+            END,
             is_current = 0,
             dwh_updated_at = SYSUTCDATETIME()
         FROM gold.dim_products AS target

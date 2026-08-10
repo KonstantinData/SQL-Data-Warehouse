@@ -46,7 +46,13 @@ Every dimension has a key-`0` Unknown member. Unknown members preserve fact grai
 [effective_from, effective_to)
 ```
 
-`effective_from` comes from `prd_start_dt`. `effective_to` is the next version's `effective_from` for the same `product_number`; the final version has no end. This derived boundary prevents overlap even where the raw source end date is inconsistent. The raw cleaned end date remains available as `source_end_date` for lineage.
+`effective_from` comes from `prd_start_dt`. `effective_to` is the next version's `effective_from` for the same `product_number`; the final version has no end. A source end date of `9999-12-31` is treated as the explicit open-end sentinel, so that final version remains current with `effective_to = NULL`. This derived boundary prevents overlap even where the raw source end date is inconsistent. The raw cleaned end date remains available as `source_end_date` for lineage.
+
+Because Silver is a complete snapshot, disappearance closes a current product
+episode at `SnapshotAsOf`. If the same closed `product_id` later reappears as a
+current source row, the Gold load fails closed rather than silently reopening
+history; the source must provide a new version identity or an explicitly
+governed correction must be applied.
 
 A sales line resolves to a product only when its valid order date falls in exactly one interval. Missing, pre-history, post-history, or ambiguous matches use `product_key = 0`. The runtime/model quality gates report Unknown coverage for every verified run. Falling back to an unsupported earliest or latest product version would leak attributes into historical facts, so the load deliberately does not do that.
 
