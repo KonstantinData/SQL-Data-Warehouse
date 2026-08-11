@@ -1,6 +1,6 @@
 # SQL Data Warehouse
 
-A production-oriented Microsoft SQL Server and Power BI reference implementation for developing, operating, validating, documenting, and extending a data warehouse. All committed data is synthetic; this repository demonstrates engineering capability and does not claim a production deployment or employment experience.
+A production-oriented Microsoft SQL Server and Power BI reference implementation for developing, operating, validating, documenting, and extending a data warehouse. All committed data is synthetic; this repository demonstrates engineering capability and does not claim a production deployment.
 
 ## What the repository demonstrates
 
