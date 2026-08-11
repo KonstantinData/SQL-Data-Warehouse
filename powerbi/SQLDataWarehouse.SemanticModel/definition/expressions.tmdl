@@ -1,0 +1,11 @@
+expression SqlServerName = "localhost"
+	meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+expression SqlDatabaseName = "DataWarehouse"
+	meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+expression EnvironmentName = "Development"
+	meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+
+expression CommandTimeoutMinutes = 10
+	meta [IsParameterQuery=true, Type="Number", IsParameterQueryRequired=true]

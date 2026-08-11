@@ -1,0 +1,71 @@
+table 'Inventory Snapshots'
+	lineageTag: 2a9b7574-3486-401f-8712-2fbb21fb8a90
+
+	column inventory_snapshot_id
+		dataType: int64
+		isHidden
+		sourceColumn: inventory_snapshot_id
+		summarizeBy: none
+
+	column snapshot_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		sourceColumn: snapshot_date
+		summarizeBy: none
+
+	column warehouse_key
+		dataType: int64
+		isHidden
+		sourceColumn: warehouse_key
+		summarizeBy: none
+
+	column product_key
+		dataType: int64
+		isHidden
+		sourceColumn: product_key
+		summarizeBy: none
+
+	column on_hand_qty
+		dataType: int64
+		formatString: #,0
+		sourceColumn: on_hand_qty
+		summarizeBy: sum
+
+	column reserved_qty
+		dataType: int64
+		formatString: #,0
+		sourceColumn: reserved_qty
+		summarizeBy: sum
+
+	column available_qty
+		dataType: int64
+		formatString: #,0
+		sourceColumn: available_qty
+		summarizeBy: sum
+
+	column reorder_point_qty
+		dataType: int64
+		formatString: #,0
+		sourceColumn: reorder_point_qty
+		summarizeBy: sum
+
+	column inventory_value
+		dataType: decimal
+		formatString: #,0.00
+		sourceColumn: inventory_value
+		summarizeBy: sum
+
+	column stock_status
+		dataType: string
+		sourceColumn: stock_status
+		summarizeBy: none
+
+	partition 'Inventory Snapshots' = m
+		mode: import
+		source =
+			let
+				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
+				Query = "SELECT inventory_snapshot_id, snapshot_date, warehouse_key, product_key, on_hand_qty, reserved_qty, available_qty, reorder_point_qty, CONVERT(decimal(19,4), inventory_value) AS inventory_value, stock_status FROM gold.fact_inventory_snapshots",
+				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
+			in
+				Result

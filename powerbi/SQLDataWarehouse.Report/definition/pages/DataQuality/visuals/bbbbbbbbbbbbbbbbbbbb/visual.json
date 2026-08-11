@@ -1,0 +1,19 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "bbbbbbbbbbbbbbbbbbbb",
+  "position": {"x": 848, "y": 208, "z": 4000, "height": 220, "width": 400, "tabOrder": 4000},
+  "visual": {
+    "visualType": "cardVisual",
+    "visualContainerObjects": {
+      "title": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "text": {"expr": {"Literal": {"Value": "'Selected-scope sales exceptions'"}}}}}],
+      "general": [{"properties": {"altText": {"expr": {"Literal": {"Value": "'Counts of sales exceptions in the current access scope.'"}}}}}],
+      "background": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#FFFFFF'"}}}}}, "transparency": {"expr": {"Literal": {"Value": "0D"}}}}}],
+      "border": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#D0D5DD'"}}}}}, "radius": {"expr": {"Literal": {"Value": "8L"}}}, "width": {"expr": {"Literal": {"Value": "1L"}}}}}]
+    },
+    "query": {"queryState": {"Data": {"projections": [
+      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Invalid Order Date Lines"}}, "queryRef": "_Measures.Invalid Order Date Lines", "nativeQueryRef": "Invalid Order Date Lines"},
+      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Sales Equation Mismatch Lines"}}, "queryRef": "_Measures.Sales Equation Mismatch Lines", "nativeQueryRef": "Sales Equation Mismatch Lines"},
+      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Missing Customer Country"}}, "queryRef": "_Measures.Missing Customer Country", "nativeQueryRef": "Missing Customer Country"}
+    ]}}}
+  }
+}

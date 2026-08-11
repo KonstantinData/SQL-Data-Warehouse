@@ -1,0 +1,71 @@
+table Sales
+	lineageTag: b91f90d8-82f4-4118-a7df-227b35a8a51b
+
+	column product_key
+		dataType: int64
+		isHidden
+		sourceColumn: product_key
+		summarizeBy: none
+
+	column order_number
+		dataType: string
+		sourceColumn: order_number
+		summarizeBy: none
+
+	column product_number
+		dataType: string
+		isHidden
+		sourceColumn: product_number
+		summarizeBy: none
+
+	column customer_id
+		dataType: int64
+		isHidden
+		sourceColumn: customer_id
+		summarizeBy: none
+
+	column order_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		sourceColumn: order_date
+		summarizeBy: none
+
+	column ship_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		sourceColumn: ship_date
+		summarizeBy: none
+
+	column due_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		sourceColumn: due_date
+		summarizeBy: none
+
+	column sales_amount
+		dataType: decimal
+		formatString: #,0.00
+		sourceColumn: sales_amount
+		summarizeBy: sum
+
+	column quantity
+		dataType: int64
+		formatString: #,0
+		sourceColumn: quantity
+		summarizeBy: sum
+
+	column price
+		dataType: decimal
+		formatString: #,0.00
+		sourceColumn: price
+		summarizeBy: none
+
+	partition Sales = m
+		mode: import
+		source =
+			let
+				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
+				Query = "SELECT f.order_number, f.product_key, f.product_number, c.customer_id, f.order_date, f.ship_date, f.due_date, CONVERT(decimal(19,4), f.sales_amount) AS sales_amount, f.quantity, CONVERT(decimal(19,4), f.price) AS price FROM gold.fact_sales f INNER JOIN gold.dim_customers c ON c.customer_key = f.customer_key",
+				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
+			in
+				Result

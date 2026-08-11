@@ -1,88 +1,136 @@
 #!/usr/bin/env python3
-"""Orchestrate SQL pipeline execution via sqlcmd."""
+"""Run the canonical SQLCMD warehouse pipeline without exposing credentials."""
 
 from __future__ import annotations
 
 import argparse
+import datetime as dt
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-SQL_FILES = [
-    "scripts/init.database.sql",
-    "scripts/bronze_layer/create_table_bronze_layer.sql",
-    "scripts/bronze_layer/bulk_insert_crm_cust_info.sql",
-    "scripts/bronze_layer/bronze-load-bronze.sql",
-    "scripts/silver_layer/create_silver_table_structure.sql",
-    "scripts/silver_layer/cleansing_crm_cust_info.sql",
-    "scripts/silver_layer/cleansing_crm_prd_info.sql",
-]
 
+def build_sqlcmd_args(args: argparse.Namespace, pipeline_file: Path) -> list[str]:
+    command = [
+        args.sqlcmd_path,
+        "-S",
+        args.server,
+        "-d",
+        "master",
+        "-b",
+        "-i",
+        str(pipeline_file),
+    ]
 
-def build_sqlcmd_args(
-    sqlcmd_path: str,
-    server: str,
-    database: str,
-    username: str | None,
-    password: str | None,
-    trusted_connection: bool,
-) -> list[str]:
-    args = [sqlcmd_path, "-S", server, "-d", database, "-b"]
-
-    if trusted_connection:
-        args.append("-E")
+    if args.trusted_connection:
+        command.append("-E")
     else:
-        if not username or not password:
-            raise ValueError("Username and password are required when not using trusted connection.")
-        args.extend(["-U", username, "-P", password])
+        if not args.username:
+            raise ValueError("--username is required unless --trusted-connection is used.")
+        if "SQLCMDPASSWORD" not in os.environ:
+            raise ValueError(
+                "Set SQLCMDPASSWORD in the process environment; passwords are never accepted "
+                "as command-line arguments."
+            )
+        command.extend(["-U", args.username])
 
-    return args
+    if args.trust_server_certificate:
+        command.append("-C")
 
-
-def run_sql_file(sqlcmd_args: list[str], sql_file: Path) -> None:
-    command = sqlcmd_args + ["-i", str(sql_file)]
-    print(f"\n==> Running: {sql_file}")
-    result = subprocess.run(command, check=False)
-    if result.returncode != 0:
-        raise RuntimeError(f"sqlcmd failed for {sql_file} with exit code {result.returncode}.")
+    command.extend(
+        [
+            "-v",
+            f"BasePath={args.base_path}",
+            f"SourceVersion={args.source_version}",
+            f"SourceWatermark={args.source_watermark}",
+            f"MaxRejectRows={args.max_reject_rows}",
+            f"RestartOfBatchId={args.restart_of_batch_id}",
+            f"SnapshotAsOf={args.snapshot_as_of}",
+        ]
+    )
+    return command
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the full SQL Data Warehouse pipeline using sqlcmd.",
+        description="Run the audited CRM/ERP, Gold, and Inventory reference pipeline.",
     )
-    parser.add_argument("--server", default="localhost", help="SQL Server host (default: localhost)")
-    parser.add_argument("--database", default="master", help="Database context (default: master)")
-    parser.add_argument("--sqlcmd-path", default="sqlcmd", help="Path to sqlcmd executable")
-    parser.add_argument("--username", help="SQL login username")
-    parser.add_argument("--password", help="SQL login password")
+    parser.add_argument("--server", default="localhost", help="SQL Server name or address")
+    parser.add_argument("--sqlcmd-path", default="sqlcmd", help="Path to sqlcmd")
+    parser.add_argument("--username", help="SQL login; password must be in SQLCMDPASSWORD")
     parser.add_argument(
         "--trusted-connection",
         action="store_true",
-        help="Use Windows authentication (sqlcmd -E)",
+        help="Use Windows integrated authentication",
+    )
+    parser.add_argument(
+        "--trust-server-certificate",
+        action="store_true",
+        help="Pass -C to sqlcmd for a trusted development endpoint",
+    )
+    parser.add_argument(
+        "--base-path",
+        required=True,
+        help="Absolute dataset path visible to the SQL Server service",
+    )
+    parser.add_argument(
+        "--source-version",
+        required=True,
+        help="Immutable identifier for the six-file CRM/ERP snapshot",
+    )
+    parser.add_argument(
+        "--source-watermark",
+        required=True,
+        type=int,
+        help="Positive monotonically increasing delivery sequence",
+    )
+    parser.add_argument("--max-reject-rows", type=int, default=23)
+    parser.add_argument("--restart-of-batch-id", type=int, default=0)
+    parser.add_argument(
+        "--snapshot-as-of",
+        required=True,
+        help="Immutable full-snapshot business date in YYYY-MM-DD format",
     )
     return parser.parse_args()
 
 
+def validate_args(args: argparse.Namespace) -> None:
+    if args.trusted_connection and args.username:
+        raise ValueError("Choose either --trusted-connection or --username, not both.")
+    if args.source_watermark < 1:
+        raise ValueError("--source-watermark must be positive.")
+    if args.max_reject_rows < 0:
+        raise ValueError("--max-reject-rows must be zero or greater.")
+    if args.restart_of_batch_id < 0:
+        raise ValueError("--restart-of-batch-id must be zero or greater.")
+    try:
+        parsed_snapshot = dt.date.fromisoformat(args.snapshot_as_of)
+    except ValueError as exc:
+        raise ValueError("--snapshot-as-of must be an ISO date (YYYY-MM-DD).") from exc
+    if parsed_snapshot.isoformat() != args.snapshot_as_of:
+        raise ValueError("--snapshot-as-of must use canonical YYYY-MM-DD format.")
+    for label, value in (("--base-path", args.base_path), ("--source-version", args.source_version)):
+        if any(marker in value for marker in ("'", "\r", "\n", "$(")):
+            raise ValueError(f"{label} contains characters unsafe for SQLCMD substitution.")
+
+
 def main() -> int:
     args = parse_args()
-    repo_root = Path(__file__).resolve().parents[1]
+    try:
+        validate_args(args)
+        repo_root = Path(__file__).resolve().parents[1]
+        pipeline_file = repo_root / "scripts" / "run_pipeline.sql"
+        command = build_sqlcmd_args(args, pipeline_file)
+        print("Running the fail-closed SQL Data Warehouse pipeline.")
+        subprocess.run(command, cwd=repo_root, check=True)
+    except (ValueError, subprocess.CalledProcessError) as exc:
+        print(f"Pipeline failed: {exc}", file=sys.stderr)
+        return 1
 
-    sqlcmd_args = build_sqlcmd_args(
-        sqlcmd_path=args.sqlcmd_path,
-        server=args.server,
-        database=args.database,
-        username=args.username,
-        password=args.password,
-        trusted_connection=args.trusted_connection,
-    )
-
-    for sql_file in SQL_FILES:
-        run_sql_file(sqlcmd_args, repo_root / sql_file)
-
-    print("\nPipeline execution completed successfully.")
+    print("Pipeline completed successfully.")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

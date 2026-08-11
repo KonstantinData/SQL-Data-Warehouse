@@ -1,0 +1,23 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "99999999999999999999",
+  "position": {"x": 32, "y": 88, "z": 2000, "height": 96, "width": 1216, "tabOrder": 2000},
+  "visual": {
+    "visualType": "cardVisual",
+    "visualContainerObjects": {
+      "title": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "text": {"expr": {"Literal": {"Value": "'Quality and refresh summary'"}}}}}],
+      "general": [{"properties": {"altText": {"expr": {"Literal": {"Value": "'Summary of global refresh-time quality status and model refresh time.'"}}}}}],
+      "background": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#FFFFFF'"}}}}}, "transparency": {"expr": {"Literal": {"Value": "0D"}}}}}],
+      "border": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#D0D5DD'"}}}}}, "radius": {"expr": {"Literal": {"Value": "8L"}}}, "width": {"expr": {"Literal": {"Value": "1L"}}}}}]
+    },
+    "query": {"queryState": {"Data": {"projections": [
+      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Overall DQ Status"}}, "queryRef": "_Measures.Overall DQ Status", "nativeQueryRef": "Overall DQ Status"},
+      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "DQ Pass Rate"}}, "queryRef": "_Measures.DQ Pass Rate", "nativeQueryRef": "DQ Pass Rate"},
+      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "DQ Failed Checks"}}, "queryRef": "_Measures.DQ Failed Checks", "nativeQueryRef": "DQ Failed Checks"},
+      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "DQ Failed Error Checks"}}, "queryRef": "_Measures.DQ Failed Error Checks", "nativeQueryRef": "DQ Failed Error Checks"},
+      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "DQ Failed Warning Checks"}}, "queryRef": "_Measures.DQ Failed Warning Checks", "nativeQueryRef": "DQ Failed Warning Checks"},
+      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "DQ Not Evaluated Checks"}}, "queryRef": "_Measures.DQ Not Evaluated Checks", "nativeQueryRef": "DQ Not Evaluated Checks"},
+      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Last Dataset Refresh UTC"}}, "queryRef": "_Measures.Last Dataset Refresh UTC", "nativeQueryRef": "Last Dataset Refresh UTC"}
+    ]}}}
+  }
+}

@@ -1,0 +1,34 @@
+role CountrySalesViewer
+	modelPermission: read
+
+	tablePermission Customers =
+		VAR CurrentUser = LOWER(USERPRINCIPALNAME())
+		VAR CurrentUtc = UTCNOW()
+		VAR AllowedCountries =
+			SELECTCOLUMNS(
+				FILTER(
+					ALL('Security User Country'),
+					LOWER('Security User Country'[UserPrincipalName]) = CurrentUser
+						&& 'Security User Country'[IsActive] = TRUE()
+						&& 'Security User Country'[ValidFromUtc] <= CurrentUtc
+						&& 'Security User Country'[ValidToUtc] > CurrentUtc
+				),
+				"CountryCode", 'Security User Country'[CountryCode]
+			)
+		RETURN NOT ISBLANK(Customers[country_code]) && Customers[country_code] IN AllowedCountries
+
+	tablePermission 'Inventory Locations' =
+		VAR CurrentUser = LOWER(USERPRINCIPALNAME())
+		VAR CurrentUtc = UTCNOW()
+		VAR AllowedCountries =
+			SELECTCOLUMNS(
+				FILTER(
+					ALL('Security User Country'),
+					LOWER('Security User Country'[UserPrincipalName]) = CurrentUser
+						&& 'Security User Country'[IsActive] = TRUE()
+						&& 'Security User Country'[ValidFromUtc] <= CurrentUtc
+						&& 'Security User Country'[ValidToUtc] > CurrentUtc
+				),
+				"CountryCode", 'Security User Country'[CountryCode]
+			)
+		RETURN NOT ISBLANK('Inventory Locations'[country_code]) && 'Inventory Locations'[country_code] IN AllowedCountries

@@ -1,0 +1,169 @@
+table _Measures
+	lineageTag: 7b1ccb3f-5b38-4c10-bc79-c7ca5c984d25
+
+	measure 'Total Sales' = SUM(Sales[sales_amount])
+		formatString: #,0.00
+		displayFolder: Sales Performance
+
+	measure 'Sales Lines' = COUNTROWS(Sales)
+		formatString: #,0
+		displayFolder: Sales Performance
+
+	measure 'Distinct Orders' = COUNTROWS(FILTER(VALUES(Sales[order_number]), NOT ISBLANK(Sales[order_number])))
+		formatString: #,0
+		displayFolder: Sales Performance
+
+	measure 'Total Quantity' = SUM(Sales[quantity])
+		formatString: #,0
+		displayFolder: Sales Performance
+
+	measure 'Average Selling Price' = DIVIDE([Total Sales], [Total Quantity])
+		formatString: #,0.00
+		displayFolder: Sales Performance
+
+	measure 'Average Order Value' = DIVIDE([Total Sales], [Distinct Orders])
+		formatString: #,0.00
+		displayFolder: Sales Performance
+
+	measure 'Customer Count' = COUNTROWS(FILTER(VALUES(Sales[customer_id]), NOT ISBLANK(Sales[customer_id])))
+		formatString: #,0
+		displayFolder: Sales Performance
+
+	measure 'Product Count' = DISTINCTCOUNT(Sales[product_number])
+		formatString: #,0
+		displayFolder: Sales Performance
+
+	measure 'Estimated COGS' = SUMX(Sales, Sales[quantity] * RELATED(Products[product_cost]))
+		formatString: #,0.00
+		displayFolder: Profitability (Estimated)
+
+	measure 'Estimated Gross Profit' = [Total Sales] - [Estimated COGS]
+		formatString: #,0.00
+		displayFolder: Profitability (Estimated)
+
+	measure 'Estimated Gross Margin %' = DIVIDE([Estimated Gross Profit], [Total Sales])
+		formatString: 0.0%
+		displayFolder: Profitability (Estimated)
+
+	measure 'Sales Previous Year' = CALCULATE([Total Sales], DATEADD('Date'[Date], -1, YEAR))
+		formatString: #,0.00
+		displayFolder: Time Intelligence
+
+	measure 'Sales YoY' = [Total Sales] - [Sales Previous Year]
+		formatString: #,0.00
+		displayFolder: Time Intelligence
+
+	measure 'Sales YoY %' = VAR PY = [Sales Previous Year] RETURN IF(NOT ISBLANK(PY) && PY <> 0, DIVIDE([Total Sales] - PY, PY))
+		formatString: 0.0%;-0.0%;
+		displayFolder: Time Intelligence
+
+	measure 'Late Orders' = VAR Eligible = FILTER(VALUES(Sales[order_number]), NOT ISBLANK(CALCULATE(MAX(Sales[ship_date]))) && NOT ISBLANK(CALCULATE(MIN(Sales[due_date])))) RETURN COUNTROWS(FILTER(Eligible, CALCULATE(MAX(Sales[ship_date])) > CALCULATE(MIN(Sales[due_date]))))
+		formatString: #,0
+		displayFolder: Fulfillment
+
+	measure 'On-Time Shipment %' = VAR Eligible = FILTER(VALUES(Sales[order_number]), NOT ISBLANK(CALCULATE(MAX(Sales[ship_date]))) && NOT ISBLANK(CALCULATE(MIN(Sales[due_date])))) VAR OnTime = FILTER(Eligible, CALCULATE(MAX(Sales[ship_date])) <= CALCULATE(MIN(Sales[due_date]))) RETURN DIVIDE(COUNTROWS(OnTime), COUNTROWS(Eligible))
+		formatString: 0.0%
+		displayFolder: Fulfillment
+
+	measure 'Available Inventory Quantity' = SUM('Inventory Snapshots'[available_qty])
+		formatString: #,0
+		displayFolder: Inventory
+
+	measure 'Inventory Value' = SUM('Inventory Snapshots'[inventory_value])
+		formatString: #,0.00
+		displayFolder: Inventory
+
+	measure 'Below Reorder Snapshot Lines' = COUNTROWS(FILTER('Inventory Snapshots', 'Inventory Snapshots'[available_qty] <= 'Inventory Snapshots'[reorder_point_qty]))
+		formatString: #,0
+		displayFolder: Inventory
+
+	measure 'Average Fulfillment Days' = AVERAGEX(FILTER(VALUES(Sales[order_number]), NOT ISBLANK(CALCULATE(MIN(Sales[order_date]))) && NOT ISBLANK(CALCULATE(MAX(Sales[ship_date])))), VAR Ordered = CALCULATE(MIN(Sales[order_date])) VAR Shipped = CALCULATE(MAX(Sales[ship_date])) RETURN IF(Shipped >= Ordered, DATEDIFF(Ordered, Shipped, DAY)))
+		formatString: 0.0
+		displayFolder: Fulfillment
+
+	measure 'Invalid Order Date Lines' = COUNTROWS(FILTER(Sales, ISBLANK(Sales[order_date])))
+		formatString: #,0
+		displayFolder: Data Quality
+
+	measure 'Sales Equation Mismatch Lines' = COUNTROWS(FILTER(Sales, Sales[sales_amount] <> Sales[quantity] * Sales[price]))
+		formatString: #,0
+		displayFolder: Data Quality
+
+	measure 'Missing Customer Country' = COUNTROWS(FILTER(Customers, ISBLANK(Customers[country_code])))
+		formatString: #,0
+		displayFolder: Data Quality
+
+	measure 'Future Customer Records' = COUNTROWS(FILTER(Customers, Customers[cust_is_future] = TRUE()))
+		formatString: #,0
+		displayFolder: Data Quality
+
+	measure 'Nonpositive Product Cost Records' = COUNTROWS(FILTER(Products, Products[product_cost] <= 0 || ISBLANK(Products[product_cost])))
+		formatString: #,0
+		displayFolder: Data Quality
+
+	measure 'DQ Failed Rows' = SUM('Data Quality Checks'[FailedRows])
+		formatString: #,0
+		displayFolder: Data Quality
+
+	measure 'DQ Failed Checks' = COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = TRUE() && 'Data Quality Checks'[Status] = "Failed"))
+		formatString: #,0
+		displayFolder: Data Quality
+
+	measure 'DQ Failed Error Checks' = COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = TRUE() && 'Data Quality Checks'[Severity] = "Error" && 'Data Quality Checks'[FailedRows] > 0))
+		formatString: #,0
+		displayFolder: Data Quality
+
+	measure 'DQ Failed Warning Checks' = COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = TRUE() && 'Data Quality Checks'[Severity] = "Warning" && 'Data Quality Checks'[FailedRows] > 0))
+		formatString: #,0
+		displayFolder: Data Quality
+
+	measure 'DQ Pass Rate' = AVERAGEX(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = TRUE()), 'Data Quality Checks'[PassRate])
+		formatString: 0.0%
+		displayFolder: Data Quality
+
+	measure 'DQ Not Evaluated Checks' = COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = FALSE()))
+		formatString: #,0
+		displayFolder: Data Quality
+
+	measure 'Overall DQ Status' =
+			VAR EvaluatedChecks =
+				COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = TRUE()))
+			VAR NotEvaluatedChecks = [DQ Not Evaluated Checks]
+			VAR ErrorFailures = [DQ Failed Error Checks]
+			VAR WarningFailures = [DQ Failed Warning Checks]
+			RETURN
+				SWITCH(
+					TRUE(),
+					ErrorFailures > 0, "Failed",
+					EvaluatedChecks = 0 || NotEvaluatedChecks > 0, "Not run",
+					WarningFailures > 0, "Passed with warnings",
+					"Passed"
+				)
+		displayFolder: Data Quality
+
+	measure 'Last Dataset Refresh UTC' = MAX('Refresh Metadata'[RefreshedAtUtc])
+		formatString: yyyy-mm-dd hh:mm:ss
+		displayFolder: Refresh
+
+	measure 'Data Through Date' = MAX(Sales[order_date])
+		formatString: yyyy-mm-dd
+		displayFolder: Refresh
+
+	measure 'Reference Data Label' = "Synthetic reference data"
+		displayFolder: Report Context
+
+	measure 'Access Scope Label' = VAR ScopeLabel = CONCATENATEX(FILTER(VALUES(Customers[country_code]), NOT ISBLANK(Customers[country_code])), Customers[country_code], ", ") RETURN "Access scope: " & IF(ISBLANK(ScopeLabel), "No entitled rows", ScopeLabel)
+		displayFolder: Report Context
+
+	measure 'Refresh Context Label' = "Data through " & FORMAT([Data Through Date], "yyyy-MM-dd") & " | Dataset refresh " & FORMAT([Last Dataset Refresh UTC], "yyyy-MM-dd HH:mm") & " UTC"
+		displayFolder: Report Context
+
+	column 'Metric Anchor'
+		dataType: int64
+		isHidden
+		sourceColumn: [Metric Anchor]
+		summarizeBy: none
+
+	partition _Measures = calculated
+		mode: import
+		source = ROW("Metric Anchor", 1)

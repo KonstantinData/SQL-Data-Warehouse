@@ -1,0 +1,55 @@
+table Products
+	lineageTag: 564fd79b-39cf-46d0-953a-85ab2703f725
+
+	column product_key
+		dataType: int64
+		isHidden
+		sourceColumn: product_key
+		summarizeBy: none
+
+	column product_number
+		dataType: string
+		sourceColumn: product_number
+		summarizeBy: none
+
+	column product_name
+		dataType: string
+		sourceColumn: product_name
+		summarizeBy: none
+
+	column product_cost
+		dataType: decimal
+		formatString: #,0.00
+		sourceColumn: product_cost
+		summarizeBy: none
+
+	column product_line
+		dataType: string
+		sourceColumn: product_line
+		summarizeBy: none
+
+	column category
+		dataType: string
+		sourceColumn: category
+		summarizeBy: none
+
+	column subcategory
+		dataType: string
+		sourceColumn: subcategory
+		summarizeBy: none
+
+	column product_start_date
+		dataType: dateTime
+		formatString: yyyy-mm-dd
+		sourceColumn: product_start_date
+		summarizeBy: none
+
+	partition Products = m
+		mode: import
+		source =
+			let
+				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
+				Query = "SELECT product_key, product_number, product_name, CONVERT(decimal(19,4), product_cost) AS product_cost, product_line, category, subcategory, effective_from AS product_start_date FROM gold.dim_products",
+				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
+			in
+				Result

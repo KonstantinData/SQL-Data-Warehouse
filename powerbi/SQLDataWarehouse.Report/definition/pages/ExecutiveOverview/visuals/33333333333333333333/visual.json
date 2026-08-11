@@ -1,0 +1,21 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "33333333333333333333",
+  "position": {"x": 808, "y": 208, "z": 4000, "height": 272, "width": 440, "tabOrder": 4000},
+  "visual": {
+    "visualType": "barChart",
+    "visualContainerObjects": {
+      "title": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "text": {"expr": {"Literal": {"Value": "'Sales by product line'"}}}}}],
+      "general": [{"properties": {"altText": {"expr": {"Literal": {"Value": "'Ranked bar chart of total sales by product line for the selected scope.'"}}}}}],
+      "background": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#FFFFFF'"}}}}}, "transparency": {"expr": {"Literal": {"Value": "0D"}}}}}],
+      "border": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#D0D5DD'"}}}}}, "radius": {"expr": {"Literal": {"Value": "8L"}}}, "width": {"expr": {"Literal": {"Value": "1L"}}}}}]
+    },
+    "query": {
+      "queryState": {
+        "Category": {"projections": [{"field": {"Column": {"Expression": {"SourceRef": {"Entity": "Products"}}, "Property": "product_line"}}, "queryRef": "Products.product_line", "nativeQueryRef": "product_line"}]},
+        "Y": {"projections": [{"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Total Sales"}}, "queryRef": "_Measures.Total Sales", "nativeQueryRef": "Total Sales"}]}
+      },
+      "sortDefinition": {"sort": [{"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Total Sales"}}, "direction": "Descending"}]}
+    }
+  }
+}

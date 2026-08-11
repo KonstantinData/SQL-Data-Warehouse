@@ -1,0 +1,34 @@
+table 'Inventory Locations'
+	lineageTag: a442a0fb-eb77-465b-b2fc-21c2d4421567
+
+	column warehouse_key
+		dataType: int64
+		isKey
+		isHidden
+		sourceColumn: warehouse_key
+		summarizeBy: none
+
+	column warehouse_code
+		dataType: string
+		sourceColumn: warehouse_code
+		summarizeBy: none
+
+	column warehouse_name
+		dataType: string
+		sourceColumn: warehouse_name
+		summarizeBy: none
+
+	column country_code
+		dataType: string
+		sourceColumn: country_code
+		summarizeBy: none
+
+	partition 'Inventory Locations' = m
+		mode: import
+		source =
+			let
+				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
+				Query = "SELECT warehouse_key, warehouse_code, warehouse_name, country_code FROM gold.dim_inventory_locations",
+				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
+			in
+				Result
