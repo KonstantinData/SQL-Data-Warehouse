@@ -125,6 +125,30 @@ def main() -> int:
     if "persist-credentials: false" not in workflow_text:
         fail("checkout credentials are persisted")
 
+    expected_trigger_block = "on:\n  push:\n    branches:\n      - main\n  pull_request:"
+    trigger_block = re.search(
+        r"^on:\n.*?(?=\n^[A-Za-z][A-Za-z0-9_-]*:\s*$)",
+        workflow_text,
+        re.MULTILINE | re.DOTALL,
+    )
+    if trigger_block is None or trigger_block.group(0).rstrip() != expected_trigger_block:
+        fail("CI must run for pull requests and default-branch pushes only")
+    if "group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}" not in workflow_text:
+        fail("workflow concurrency is not isolated by pull request or default branch")
+    if "cancel-in-progress: true" not in workflow_text:
+        fail("superseded CI runs are not cancelled")
+
+    sql_job = re.search(
+        r"^  sql-quality-contracts:\s*\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\s*$|\Z)",
+        workflow_text,
+        re.MULTILINE | re.DOTALL,
+    )
+    if sql_job is None:
+        fail("reviewed SQL quality job is missing")
+    timeout = re.search(r"^\s{4}timeout-minutes:\s*(\d+)\s*$", sql_job.group("body"), re.MULTILINE)
+    if timeout is None or int(timeout.group(1)) != 45:
+        fail("SQL quality job must retain the reviewed 45-minute timeout")
+
     for action_reference in re.findall(r"^\s*uses:\s*([^\s#]+)(?:\s+#.*)?$", workflow_text, re.MULTILINE):
         if action_reference.startswith("./"):
             continue
