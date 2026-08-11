@@ -37,6 +37,64 @@ class PowerBIProjectValidatorTests(unittest.TestCase):
             errors = validate_project(root, check_git=False)
             self.assertTrue(any("semantic-model directory is missing" in error for error in errors), errors)
 
+    def test_parameter_meta_on_indented_child_line_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/SQLDataWarehouse.SemanticModel/definition/expressions.tmdl"
+            text = path.read_text(encoding="utf-8").replace(
+                'expression SqlServerName = "localhost" meta ',
+                'expression SqlServerName = "localhost"\n\tmeta ',
+                1,
+            )
+            path.write_text(text, encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(
+                any(
+                    "parameter metadata must be on the expression declaration line" in error
+                    and "SqlServerName" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_parameter_meta_on_expression_line_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            errors = validate_project(root, check_git=False)
+            self.assertFalse(
+                any("parameter metadata must be on the expression declaration line" in error for error in errors),
+                errors,
+            )
+
+    def test_date_function_in_calculated_datatable_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/SQLDataWarehouse.SemanticModel/definition/tables/Security User Country.tmdl"
+            text = path.read_text(encoding="utf-8").replace('dt"2020-01-01"', "DATE(2020, 1, 1)", 1)
+            path.write_text(text, encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(
+                any(
+                    "Calculated DATATABLE partitions must use dt date literals instead of DATE(...)" in error
+                    and "Security User Country.tmdl" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_dt_literal_in_calculated_datatable_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            errors = validate_project(root, check_git=False)
+            self.assertFalse(
+                any("Calculated DATATABLE partitions must use dt date literals" in error for error in errors),
+                errors,
+            )
+
     def test_duplicate_kpi_id_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

@@ -16,7 +16,7 @@ table Date
 
 	column Month = FORMAT('Date'[Date], "MMM")
 		dataType: string
-		sortByColumn: Month Number
+		sortByColumn: 'Month Number'
 		summarizeBy: none
 
 	column 'Month Number' = MONTH('Date'[Date])

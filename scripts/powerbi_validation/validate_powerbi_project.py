@@ -737,6 +737,16 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
     for parameter in ("SqlServerName", "SqlDatabaseName", "EnvironmentName", "CommandTimeoutMinutes"):
         if f"expression {parameter} =" not in expression_text:
             errors.append(f"Required refresh parameter is missing: {parameter}")
+    child_parameter_metadata = re.findall(
+        r"(?m)^expression\s+([^\s=]+)\s*=.*\r?\n[ \t]+meta\s+\[[^\]\r\n]*"
+        r"\bIsParameterQuery\s*=\s*true\b[^\]\r\n]*\]",
+        expression_text,
+    )
+    if child_parameter_metadata:
+        errors.append(
+            "Power Query parameter metadata must be on the expression declaration line; "
+            f"indented child meta is unsupported for: {sorted(child_parameter_metadata)}"
+        )
     if "Sql.Database(SqlServerName, SqlDatabaseName" not in table_text:
         errors.append("Refresh parameters are not used by Sql.Database")
     core_source_text = "\n".join(
@@ -783,6 +793,21 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
     identities = re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+", security_text)
     if any(not identity.endswith(".invalid") for identity in identities):
         errors.append("Only reserved .invalid synthetic identities may be committed")
+    calculated_partition = re.compile(
+        r"(?ms)^\tpartition\s+(.+?)\s*=\s*calculated\s*\r?\n"
+        r"(.*?)(?=^\t(?:column|hierarchy|measure|partition)\s+|\Z)"
+    )
+    datatable_source_with_date = re.compile(
+        r"(?mi)^[ \t]+source\s*=\s*DATATABLE\([^\r\n]*\bDATE\s*\("
+    )
+    for table_path in (definition / "tables").glob("*.tmdl"):
+        table_source = table_path.read_text(encoding="utf-8")
+        for partition in calculated_partition.finditer(table_source):
+            if datatable_source_with_date.search(partition.group(2)):
+                errors.append(
+                    "Calculated DATATABLE partitions must use dt date literals instead of DATE(...): "
+                    f"{table_path.name} / {partition.group(1).strip()}"
+                )
 
     validate_report(report_dir, inventory, errors)
     validate_kpi_catalog(root, inventory, errors)

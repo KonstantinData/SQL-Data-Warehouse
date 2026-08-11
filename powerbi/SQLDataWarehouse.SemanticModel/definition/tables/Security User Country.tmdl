@@ -29,4 +29,4 @@ table 'Security User Country'
 
 	partition 'Security User Country' = calculated
 		mode: import
-		source = DATATABLE("UserPrincipalName", STRING, "CountryCode", STRING, "IsActive", BOOLEAN, "ValidFromUtc", DATETIME, "ValidToUtc", DATETIME, {{"analyst.us@example.invalid", "US", TRUE, DATE(2020,1,1), DATE(2099,12,31)}, {"analyst.de@example.invalid", "DE", TRUE, DATE(2020,1,1), DATE(2099,12,31)}, {"inactive@example.invalid", "US", FALSE, DATE(2020,1,1), DATE(2099,12,31)}, {"expired@example.invalid", "DE", TRUE, DATE(2020,1,1), DATE(2020,12,31)}})
+		source = DATATABLE("UserPrincipalName", STRING, "CountryCode", STRING, "IsActive", BOOLEAN, "ValidFromUtc", DATETIME, "ValidToUtc", DATETIME, {{"analyst.us@example.invalid", "US", TRUE, dt"2020-01-01", dt"2099-12-31"}, {"analyst.de@example.invalid", "DE", TRUE, dt"2020-01-01", dt"2099-12-31"}, {"inactive@example.invalid", "US", FALSE, dt"2020-01-01", dt"2099-12-31"}, {"expired@example.invalid", "DE", TRUE, dt"2020-01-01", dt"2020-12-31"}})
