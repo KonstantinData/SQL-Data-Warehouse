@@ -8,7 +8,7 @@
 | CR-OPS-002 | Converged SQLCMD/Python/CI orchestration on one fail-closed pipeline | static wiring contract and SQL Server CI |
 | CR-SCHEMA-003 | Persisted Gold keys, SCD2 product/date/fact model, constraints/indexes | schema/data/reproducibility tests |
 | CR-ERR-006 | Errors rethrow; Bronze/Silver publish atomically with durable audit | fail-closed and atomicity tests |
-| CR-BI-007 | Added source-controlled Power BI model/report/KPI/RLS/refresh contracts | validator and negative tests; Desktop gate open |
+| CR-BI-007 | Added source-controlled Power BI model/report/KPI/RLS/refresh contracts | validator and negative tests; Desktop PoC accepted on 2026-08-15; production and external-integration gates remain open |
 | CR-SRC-008 | Added synthetic Inventory onboarding through Gold and Power BI | static plus double-run SQL tests |
 | CR-LEG-005A | Removed tracked generated `logs/dbt.log` and empty Gold placeholder; added ignore rules | repository reference search and full gates |
 

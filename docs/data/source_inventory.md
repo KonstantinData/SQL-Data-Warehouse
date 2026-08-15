@@ -30,10 +30,10 @@ Product mapping follows the structured `mapping.product_rule`: the `product_id` 
 
 | Outcome | Expected rows |
 |---|---:|
-| Bronze raw | 14 |
-| Silver accepted | 10 |
+| Bronze raw | 15 |
+| Silver accepted | 11 |
 | Silver rejected | 4 |
-| Gold fact | 10 |
+| Gold fact | 11 |
 
 The four intentional rejects are one superseded duplicate, one negative on-hand quantity, one reservation greater than on-hand quantity, and one unmapped product. `INV-0009` deliberately contains surrounding whitespace and lowercase codes and must be accepted after normalization.
 

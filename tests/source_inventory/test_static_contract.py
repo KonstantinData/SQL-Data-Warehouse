@@ -162,6 +162,21 @@ class SourceInventoryContractTests(unittest.TestCase):
         self.assertIn("semi-additive", documentation)
         self.assertIn("not a production deployment", documentation.lower())
 
+    def test_documented_fixture_outcomes_match_contract(self):
+        contract = json.loads(CONTRACT.read_text(encoding="utf-8"))
+        outcomes = contract["expected_fixture_outcomes"]
+        documentation = (REPO_ROOT / "docs" / "data" / "source_inventory.md").read_text(encoding="utf-8")
+        expected_rows = {
+            "Bronze raw": outcomes["bronze_rows"],
+            "Silver accepted": outcomes["silver_rows"],
+            "Silver rejected": outcomes["reject_rows"],
+            "Gold fact": outcomes["gold_rows"],
+        }
+
+        for label, count in expected_rows.items():
+            with self.subTest(outcome=label):
+                self.assertIn(f"| {label} | {count} |", documentation)
+
 
 if __name__ == "__main__":
     unittest.main()
