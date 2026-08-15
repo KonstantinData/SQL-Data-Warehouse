@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "evidenceBoundary": "runtime-not-claimed-without-capture",
+  "recordedAt": "2026-08-15T12:07:53+02:00",
+  "branch": "codex/powerbi-accessibility-responsive",
+  "baseCommit": "1ab84dcc",
+  "powerBIDesktopVersion": "2.156.951.0",
+  "sourceChecks": [
+    "PBIR titles, alt text, focus order, mobile order, bounds, gap, and contrast",
+    "Explicit non-color cue for the two-series Executive Overview trend",
+    "Honest mobile disposition for detail tables omitted from portrait layouts"
+  ],
+  "runtimeChecks": [
+    {"page": "ExecutiveOverview", "viewport": 320, "state": "default", "layoutEquivalent": "authored-phone-layout", "result": "NOT_EXECUTED", "note": "Power BI mobile runtime capture was unavailable; source geometry only was validated."},
+    {"page": "ExecutiveOverview", "viewport": 390, "state": "default", "layoutEquivalent": "scaled-phone-layout", "result": "NOT_EXECUTED", "note": "Power BI mobile runtime capture was unavailable; the shared phone grid was not rendered at 390."},
+    {"page": "ExecutiveOverview", "viewport": 768, "state": "default", "layoutEquivalent": "desktop-fit-to-page", "result": "NOT_EXECUTED", "note": "The fixed desktop canvas was not captured in a 768-wide Power BI runtime container."},
+    {"page": "ExecutiveOverview", "viewport": 1280, "state": "default", "layoutEquivalent": "native-desktop-canvas", "result": "NOT_EXECUTED", "note": "The changed PBIR was not captured after the Computer Use helper stopped accepting requests."},
+    {"page": "ExecutiveOverview", "viewport": 1440, "state": "default", "layoutEquivalent": "desktop-fit-to-page", "result": "NOT_EXECUTED", "note": "The fixed desktop canvas was not captured in a 1440-wide Power BI runtime container."},
+    {"page": "SalesPerformance", "viewport": 320, "state": "default", "layoutEquivalent": "authored-phone-layout", "result": "NOT_EXECUTED", "note": "Power BI mobile runtime capture was unavailable; source geometry only was validated."},
+    {"page": "SalesPerformance", "viewport": 390, "state": "default", "layoutEquivalent": "scaled-phone-layout", "result": "NOT_EXECUTED", "note": "Power BI mobile runtime capture was unavailable; the shared phone grid was not rendered at 390."},
+    {"page": "SalesPerformance", "viewport": 768, "state": "default", "layoutEquivalent": "desktop-fit-to-page", "result": "NOT_EXECUTED", "note": "The fixed desktop canvas was not captured in a 768-wide Power BI runtime container."},
+    {"page": "SalesPerformance", "viewport": 1280, "state": "default", "layoutEquivalent": "native-desktop-canvas", "result": "NOT_EXECUTED", "note": "The changed PBIR was not captured after the Computer Use helper stopped accepting requests."},
+    {"page": "SalesPerformance", "viewport": 1440, "state": "default", "layoutEquivalent": "desktop-fit-to-page", "result": "NOT_EXECUTED", "note": "The fixed desktop canvas was not captured in a 1440-wide Power BI runtime container."},
+    {"page": "DataQuality", "viewport": 320, "state": "default", "layoutEquivalent": "authored-phone-layout", "result": "NOT_EXECUTED", "note": "Power BI mobile runtime capture was unavailable; source geometry only was validated."},
+    {"page": "DataQuality", "viewport": 390, "state": "default", "layoutEquivalent": "scaled-phone-layout", "result": "NOT_EXECUTED", "note": "Power BI mobile runtime capture was unavailable; the shared phone grid was not rendered at 390."},
+    {"page": "DataQuality", "viewport": 768, "state": "default", "layoutEquivalent": "desktop-fit-to-page", "result": "NOT_EXECUTED", "note": "The fixed desktop canvas was not captured in a 768-wide Power BI runtime container."},
+    {"page": "DataQuality", "viewport": 1280, "state": "default", "layoutEquivalent": "native-desktop-canvas", "result": "NOT_EXECUTED", "note": "The changed PBIR was not captured after the Computer Use helper stopped accepting requests."},
+    {"page": "DataQuality", "viewport": 1440, "state": "default", "layoutEquivalent": "desktop-fit-to-page", "result": "NOT_EXECUTED", "note": "The fixed desktop canvas was not captured in a 1440-wide Power BI runtime container."}
+  ]
+}

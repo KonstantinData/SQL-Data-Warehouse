@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "status": "source-authored-desktop-validation-pending",
+  "version": "1.1.0",
+  "status": "source-authored-accessibility-responsive-runtime-validation-pending",
   "productJob": "Help a sales leader or analyst understand what changed, which drivers explain it, and whether the result is trustworthy enough to communicate.",
   "canvas": {"width": 1280, "height": 720, "spacingUnit": 8},
   "visualSystem": {
@@ -10,53 +10,79 @@
     "primary": "#146C94",
     "text": "#1F2937",
     "mutedText": "#52606D",
-    "border": "#D0D5DD",
+    "border": "#667085",
     "positive": "#16794D",
     "warning": "#A15C00",
     "negative": "#B42318",
     "focus": "#005A9E"
+  },
+  "accessibilityContract": {
+    "normalTextContrastMinimum": 4.5,
+    "nonTextContrastMinimum": 3.0,
+    "altTextMinimumCharacters": 20,
+    "altTextMaximumCharacters": 250,
+    "screenReaderComposition": "Visible title, native visual type, and authored alt text",
+    "accessibleDataPath": "Power BI Show data table (Alt+Shift+F11)",
+    "statusRequiresText": true,
+    "focusOrderRule": "Explicit page contract, top to bottom and left to right within each region"
   },
   "pages": [
     {
       "name": "ExecutiveOverview",
       "audience": "Executive and portfolio reviewers",
       "nextAction": "Inspect the largest contribution or open Data Quality when trust is not acceptable.",
+      "desktopFocusOrder": ["dddddddddddddddddddd", "11111111111111111111", "22222222222222222222", "33333333333333333333", "44444444444444444444"],
+      "mobileFocusOrder": ["dddddddddddddddddddd", "11111111111111111111", "22222222222222222222", "33333333333333333333"],
       "visuals": [
-        {"id": "dddddddddddddddddddd", "title": "Executive Overview", "altText": "Synthetic reference data, access scope, data-through date, and refresh context.", "mobilePriority": 1},
-        {"id": "11111111111111111111", "title": "Performance summary", "altText": "Four headline measures for the selected scope; synthetic reference data.", "mobilePriority": 2},
-        {"id": "22222222222222222222", "title": "Sales trend versus previous year", "altText": "Line chart comparing monthly sales with the equivalent previous-year period.", "mobilePriority": 3},
-        {"id": "33333333333333333333", "title": "Sales by product line", "altText": "Ranked bar chart of total sales by product line for the selected scope.", "mobilePriority": 4},
-        {"id": "44444444444444444444", "title": "Country performance", "altText": "Table of normalized country code, sales, year-over-year change, and on-time shipment.", "mobilePriority": null}
+        {"id": "dddddddddddddddddddd", "title": "Executive Overview context", "screenReaderName": "Executive Overview context", "altText": "Reference data notice, selected access scope, data-through date, and refresh context for this page.", "desktopOrder": 1, "mobilePriority": 1, "nonColorCue": "context-text"},
+        {"id": "11111111111111111111", "title": "Performance summary — selected scope", "screenReaderName": "Performance summary — selected scope", "altText": "Selected-scope Total Sales, Estimated Gross Profit, Estimated Gross Margin percentage, and Distinct Orders.", "desktopOrder": 2, "mobilePriority": 2, "nonColorCue": "measure-labels"},
+        {"id": "22222222222222222222", "title": "Monthly sales and prior-year comparison", "screenReaderName": "Monthly sales and prior-year comparison", "altText": "Monthly Total Sales and Sales Previous Year; series labels, markers, and the accessible data table provide a non-color comparison.", "desktopOrder": 3, "mobilePriority": 3, "nonColorCue": "series-labels-markers-and-show-data"},
+        {"id": "33333333333333333333", "title": "Total sales by product line — descending", "screenReaderName": "Total sales by product line — descending", "altText": "Selected-scope Total Sales by product line, sorted from highest to lowest; category labels provide the non-color cue.", "desktopOrder": 4, "mobilePriority": 4, "nonColorCue": "category-labels-and-show-data"},
+        {"id": "44444444444444444444", "title": "Country performance table — selected scope", "screenReaderName": "Country performance table — selected scope", "altText": "Selected-scope country code, Total Sales, Sales Year-over-Year percentage, and On-Time Shipment percentage, with sortable column headers.", "desktopOrder": 5, "mobilePriority": null, "nonColorCue": "table-values-and-headers", "mobileDisposition": "landscape-desktop-detail", "mobileReason": "A four-column detail table is intentionally excluded from the portrait triage layout; rotate to landscape for the full report page."}
       ]
     },
     {
       "name": "SalesPerformance",
       "audience": "Commercial analysts",
       "nextAction": "Select a product driver and compare the time trend and detailed product table.",
+      "desktopFocusOrder": ["eeeeeeeeeeeeeeeeeeee", "55555555555555555555", "66666666666666666666", "77777777777777777777", "88888888888888888888"],
+      "mobileFocusOrder": ["eeeeeeeeeeeeeeeeeeee", "55555555555555555555", "66666666666666666666", "77777777777777777777"],
       "visuals": [
-        {"id": "eeeeeeeeeeeeeeeeeeee", "title": "Sales Performance", "altText": "Synthetic reference data, access scope, data-through date, and refresh context.", "mobilePriority": 1},
-        {"id": "55555555555555555555", "title": "Sales operations summary", "altText": "Summary of units, customers, average order value, and on-time shipment.", "mobilePriority": 2},
-        {"id": "66666666666666666666", "title": "Sales by category", "altText": "Ranked bar chart of total sales by product category.", "mobilePriority": 3},
-        {"id": "77777777777777777777", "title": "Estimated gross profit trend", "altText": "Monthly estimated gross profit using the effective-dated product cost persisted through each Sales row's product_key.", "mobilePriority": 4},
-        {"id": "88888888888888888888", "title": "Product performance detail", "altText": "Product table with total sales and estimated profitability.", "mobilePriority": null}
+        {"id": "eeeeeeeeeeeeeeeeeeee", "title": "Sales Performance context", "screenReaderName": "Sales Performance context", "altText": "Reference data notice, selected access scope, data-through date, and refresh context for this page.", "desktopOrder": 1, "mobilePriority": 1, "nonColorCue": "context-text"},
+        {"id": "55555555555555555555", "title": "Sales operations summary — selected scope", "screenReaderName": "Sales operations summary — selected scope", "altText": "Selected-scope Total Quantity, Customer Count, Average Order Value, and On-Time Shipment percentage.", "desktopOrder": 2, "mobilePriority": 2, "nonColorCue": "measure-labels"},
+        {"id": "66666666666666666666", "title": "Total sales by product category — descending", "screenReaderName": "Total sales by product category — descending", "altText": "Selected-scope Total Sales by product category, sorted from highest to lowest; category labels provide the non-color cue.", "desktopOrder": 3, "mobilePriority": 3, "nonColorCue": "category-labels-and-show-data"},
+        {"id": "77777777777777777777", "title": "Monthly estimated gross profit trend", "screenReaderName": "Monthly estimated gross profit trend", "altText": "Monthly Estimated Gross Profit based on the product cost effective for each sale; exact values are available in the accessible data table.", "desktopOrder": 4, "mobilePriority": 4, "nonColorCue": "time-axis-and-show-data"},
+        {"id": "88888888888888888888", "title": "Product sales and estimated profit table", "screenReaderName": "Product sales and estimated profit table", "altText": "Product name and category with Total Sales, Estimated Gross Profit, and Estimated Gross Margin percentage, with sortable column headers.", "desktopOrder": 5, "mobilePriority": null, "nonColorCue": "table-values-and-headers", "mobileDisposition": "landscape-desktop-detail", "mobileReason": "A five-column detail table is intentionally excluded from the portrait triage layout; rotate to landscape for the full report page."}
       ]
     },
     {
       "name": "DataQuality",
       "audience": "BI maintainers and release reviewers",
       "nextAction": "Hold release when an Error check fails; investigate Warning checks before stakeholder communication.",
+      "desktopFocusOrder": ["ffffffffffffffffffff", "99999999999999999999", "aaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbb", "cccccccccccccccccccc"],
+      "mobileFocusOrder": ["ffffffffffffffffffff", "99999999999999999999", "bbbbbbbbbbbbbbbbbbbb", "cccccccccccccccccccc"],
       "visuals": [
-        {"id": "ffffffffffffffffffff", "title": "Data Quality", "altText": "Synthetic reference data, access scope, data-through date, and refresh context.", "mobilePriority": 1},
-        {"id": "99999999999999999999", "title": "Quality and refresh summary", "altText": "Summary of global refresh-time quality status and model refresh time.", "mobilePriority": 2},
-        {"id": "aaaaaaaaaaaaaaaaaaaa", "title": "Data quality check register", "altText": "Desktop table of check status, severity, scope, pass rate, evaluation time, and failed rows.", "mobilePriority": null},
-        {"id": "bbbbbbbbbbbbbbbbbbbb", "title": "Selected-scope sales exceptions", "altText": "Counts of sales exceptions in the current access scope.", "mobilePriority": 3},
-        {"id": "cccccccccccccccccccc", "title": "Mixed-scope dimension and freshness exceptions", "altText": "Customer exceptions and data-through date reflect the current access scope; product-cost exceptions are global.", "mobilePriority": 4}
+        {"id": "ffffffffffffffffffff", "title": "Data Quality context", "screenReaderName": "Data Quality context", "altText": "Reference data notice, selected access scope, data-through date, and refresh context for this page.", "desktopOrder": 1, "mobilePriority": 1, "nonColorCue": "context-text"},
+        {"id": "99999999999999999999", "title": "Data quality and refresh status — global", "screenReaderName": "Data quality and refresh status — global", "altText": "Global text status, pass rate, failed Error and Warning counts, not-evaluated count, and last model refresh time; status never depends on color alone.", "desktopOrder": 2, "mobilePriority": 2, "nonColorCue": "status-text-and-counts"},
+        {"id": "aaaaaaaaaaaaaaaaaaaa", "title": "Data quality checks table — global", "screenReaderName": "Data quality checks table — global", "altText": "Global check status, severity, scope, pass rate, evaluation time, and failed rows, with sortable column headers.", "desktopOrder": 3, "mobilePriority": null, "nonColorCue": "status-and-severity-text", "mobileDisposition": "landscape-desktop-detail", "mobileReason": "A seven-column diagnostic table is intentionally excluded from the portrait triage layout; rotate to landscape for the full register."},
+        {"id": "bbbbbbbbbbbbbbbbbbbb", "title": "Sales exceptions — selected scope", "screenReaderName": "Sales exceptions — selected scope", "altText": "Selected-scope counts for invalid sales dates, amount reconciliation failures, and missing country mappings.", "desktopOrder": 4, "mobilePriority": 3, "nonColorCue": "measure-labels"},
+        {"id": "cccccccccccccccccccc", "title": "Customer, product cost, and freshness exceptions — mixed scope", "screenReaderName": "Customer, product cost, and freshness exceptions — mixed scope", "altText": "Future customer records and data-through date use the selected access scope; nonpositive product cost records are global.", "desktopOrder": 5, "mobilePriority": 4, "nonColorCue": "measure-labels-and-scope-text"}
       ]
     }
   ],
   "responsiveAcceptance": {
-    "phoneLayout": "One independent Power BI phone layout; wide tables are omitted in favor of prioritized summaries.",
+    "phoneLayout": "One independent Power BI portrait layout; the grid scales across phone sizes and wide detail tables remain available in the landscape desktop layout.",
     "viewports": [320, 390, 768, 1280, 1440],
+    "layoutEquivalents": {
+      "320": "Authored 320-unit portrait baseline",
+      "390": "The same Power BI portrait grid scaled by the mobile runtime",
+      "768": "The fixed 1280x720 desktop canvas using Fit to page",
+      "1280": "Native 1280x720 desktop canvas",
+      "1440": "The fixed 1280x720 desktop canvas using Fit to page"
+    },
+    "phoneContentWidth": 320,
+    "minimumPhoneGap": 8,
+    "minimumPhoneVisualHeight": 100,
     "minimumTouchTarget": 44,
     "horizontalOverflowAllowed": false
   },

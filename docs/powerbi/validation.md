@@ -10,7 +10,9 @@ The refreshed report reconciled the visible executive totals to the SQL acceptan
 
 Performance Analyzer acceptance also passed on 2026-08-15. The versioned raw exports, hashes, thresholds, before/after values, result-row contracts, and reproduction steps are documented in `docs/powerbi/performance-analyzer.md` and `powerbi/performance/performance-evidence.json`.
 
-This is **Desktop PoC acceptance evidence**, not production validation. The full RLS identity matrix, interaction and accessibility sweeps, responsive screenshots, Power BI Service role memberships, gateway configuration, and Service refresh remain outside this local acceptance run.
+The accessibility/responsive source slice on branch `codex/powerbi-accessibility-responsive` adds strict PBIR checks for focus order, visible titles, 20-to-250-character alt text, screen-reader naming, contrast, non-color cues, full-width phone geometry, gaps, mobile omissions, and an honest runtime evidence manifest. See `docs/powerbi/accessibility-responsive-evidence.md`. Runtime rows remain `NOT_EXECUTED`; the earlier core Desktop evidence predates that slice and must not be presented as its visual acceptance.
+
+This is **Desktop PoC acceptance evidence**, not production validation. The full RLS identity matrix, rendered interaction/accessibility sweeps, responsive screenshots, Power BI Service role memberships, gateway configuration, and Service refresh remain outside this local acceptance run.
 
 Run the repository checks:
 
@@ -20,7 +22,7 @@ python scripts/powerbi_validation/validate_performance_evidence.py --root .
 python -m unittest discover scripts/powerbi_validation/tests -v
 ```
 
-Source validation checks JSON parsing, PBIP/PBIR paths and versions, Fabric `.platform` metadata and logical IDs, TMDL inventory, semantic references, relationships, parameters, RLS, KPI catalog parity, visual bounds and IDs, mobile-layout coverage, prohibited transient files, credentials, and scope/honesty markers. It is a conservative custom validator, not a complete TMDL, DAX, M, or PBIR schema engine.
+Source validation checks JSON parsing, PBIP/PBIR paths and versions, Fabric `.platform` metadata and logical IDs, TMDL inventory, semantic references, relationships, parameters, RLS, KPI catalog parity, visual bounds and IDs, focus/mobile order, title/alt-text contracts, persisted contrast pairs, non-color cues, mobile-layout coverage, the runtime evidence manifest, prohibited transient files, credentials, and scope/honesty markers. It is a conservative custom validator, not a complete TMDL, DAX, M, or PBIR schema engine.
 
 ## Mandatory Desktop gate
 
