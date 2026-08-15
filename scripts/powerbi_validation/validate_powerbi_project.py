@@ -41,6 +41,7 @@ SECRET_SCANNER_IMPLEMENTATIONS = {
     "powerbi_service_contract.py",
 }
 TRANSIENT_NAMES = {"cache.abf", "localSettings.json", "unappliedChanges.json", "editorSettings.json"}
+EVIDENCE_IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg"}
 SECRET_PATTERNS = {
     "password assignment": re.compile(r"(?i)(password|pwd)\s*[:=]\s*['\"]?[^\s,'\"]+"),
     "connection secret": re.compile(r"(?i)(accountkey|clientsecret|accesskey)\s*="),
@@ -975,6 +976,51 @@ def validate_accessibility_evidence(root: Path, errors: list[str]) -> None:
         errors.append("Accessibility runtime evidence does not cover every page and viewport in the default state")
 
 
+def validate_desktop_poc_evidence(root: Path, errors: list[str]) -> None:
+    manifests = sorted((root / "docs" / "powerbi" / "evidence" / "desktop-poc").glob("*/manifest.json"))
+    if not manifests:
+        errors.append("Desktop PoC evidence manifest is missing")
+        return
+    manifest = load_json(manifests[-1], errors)
+    if not isinstance(manifest, dict):
+        return
+    if manifest.get("schemaVersion") != "1.0.0" or manifest.get("evidenceBoundary") != "desktop-poc-not-production":
+        errors.append("Desktop PoC evidence schema or honesty boundary is invalid")
+    if not re.fullmatch(r"\d+\.\d+\.\d+\.\d+", str(manifest.get("powerBIDesktopVersion", ""))):
+        errors.append("Desktop PoC evidence must record a Power BI Desktop version")
+    if manifest.get("source", {}).get("classification") != "synthetic-loopback-acceptance":
+        errors.append("Desktop PoC evidence must identify the synthetic loopback source boundary")
+    entries = manifest.get("pages")
+    if not isinstance(entries, list):
+        errors.append("Desktop PoC evidence pages must be a list")
+        return
+    required_pages = {"ExecutiveOverview", "SalesPerformance", "DataQuality"}
+    actual_pages: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            errors.append("Desktop PoC evidence contains a non-object page")
+            continue
+        page = str(entry.get("page", ""))
+        if page in actual_pages:
+            errors.append(f"Duplicate Desktop PoC evidence page: {page}")
+        actual_pages.add(page)
+        if entry.get("result") != "PASS":
+            errors.append(f"Desktop PoC page is not accepted: {page}")
+            continue
+        screenshot = entry.get("screenshot")
+        digest = entry.get("sha256")
+        if not isinstance(screenshot, str) or not re.fullmatch(r"[0-9a-f]{64}", str(digest)):
+            errors.append(f"Desktop PoC evidence lacks screenshot/hash for {page}")
+            continue
+        screenshot_path = resolve_child(root, screenshot, errors, "Desktop PoC screenshot")
+        if not screenshot_path.is_file():
+            errors.append(f"Desktop PoC screenshot is missing for {page}")
+        elif hashlib.sha256(screenshot_path.read_bytes()).hexdigest() != digest:
+            errors.append(f"Desktop PoC screenshot hash differs for {page}")
+    if actual_pages != required_pages:
+        errors.append("Desktop PoC evidence does not cover all three report pages")
+
+
 def validate_kpi_catalog(root: Path, inventory: ModelInventory, errors: list[str]) -> None:
     path = root / "docs" / "kpi" / "kpi-catalog.json"
     catalog = load_json(path, errors)
@@ -1085,6 +1131,18 @@ def validate_files(root: Path, errors: list[str]) -> None:
                 errors.append(f"Path is unsafe for common Windows tooling (>=260 chars): {path}")
             try:
                 raw = path.read_bytes()
+                is_evidence_image = (
+                    path.suffix.lower() in EVIDENCE_IMAGE_SUFFIXES
+                    and path.is_relative_to(root / "docs" / "powerbi" / "evidence")
+                )
+                if is_evidence_image:
+                    if not raw:
+                        errors.append(f"Empty Power BI evidence image: {path}")
+                    elif path.suffix.lower() == ".png" and not raw.startswith(b"\x89PNG\r\n\x1a\n"):
+                        errors.append(f"Invalid PNG Power BI evidence image: {path}")
+                    elif path.suffix.lower() in {".jpg", ".jpeg"} and not raw.startswith(b"\xff\xd8\xff"):
+                        errors.append(f"Invalid JPEG Power BI evidence image: {path}")
+                    continue
                 is_performance_export = "performance" in path.parts and "raw" in path.parts
                 if raw.startswith(b"\xef\xbb\xbf") and not is_performance_export:
                     errors.append(f"UTF-8 BOM is not allowed: {path}")
@@ -1294,6 +1352,20 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
             errors.append(f"Data Quality Checks {numeric_column} must use int64")
         if f'{{"{numeric_column}", Int64.Type}}' not in dq_source_text:
             errors.append(f"Data Quality Checks M result must type {numeric_column} as Int64.Type")
+    for dq_contract_token in (
+        "KnownProductNumbers",
+        "GoldSourceOrphans",
+        "ProductPreHistoryRows",
+        'CheckKey = "gold_source_orphan_coverage"',
+        'CheckKey = "product_pre_history_coverage"',
+        'Scope = "Source limitation"',
+    ):
+        if dq_contract_token not in dq_source_text:
+            errors.append(
+                "Data Quality Checks must distinguish unresolved source references "
+                "from known-product pre-history coverage"
+            )
+            break
 
     role_path = definition / "roles" / "CountrySalesViewer.tmdl"
     if not role_path.is_file():
@@ -1341,6 +1413,7 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
 
     validate_report(report_dir, inventory, errors)
     validate_accessibility_evidence(root, errors)
+    validate_desktop_poc_evidence(root, errors)
     validate_kpi_catalog(root, inventory, errors)
     validate_rls_documentation(root, errors)
     errors.extend(validate_performance_evidence(root))
@@ -1375,8 +1448,8 @@ def main() -> int:
             print(f"- {error}")
         return 1
     print("Power BI source validation passed.")
-    print("Validated: PBIP/PBIR structure, Fabric item metadata, TMDL inventory/references, KPI catalog, report blueprint, focus/mobile order, source-level accessibility/contrast contracts, runtime and Service evidence honesty, RLS/refresh contracts, performance evidence, secrets, and owned-scope changes.")
-    print("Not validated: Power BI Desktop open/save, full TMDL/DAX/M parsing, refresh, rendering, RLS enforcement, runtime interactions, screen-reader output, High Contrast, internal touch hitboxes, or screenshots.")
+    print("Validated: PBIP/PBIR structure, Fabric item metadata, TMDL inventory/references, KPI catalog, report blueprint, focus/mobile order, source-level accessibility/contrast contracts, Desktop PoC screenshot hashes, runtime and Service evidence honesty, RLS/refresh contracts, performance evidence, secrets, and owned-scope changes.")
+    print("Not validated by this command: Power BI Desktop open/save, full TMDL/DAX/M parsing, refresh, rendered content semantics, RLS enforcement, runtime interactions, screen-reader output, High Contrast, internal touch hitboxes, or exact viewport behavior.")
     return 0
 
 

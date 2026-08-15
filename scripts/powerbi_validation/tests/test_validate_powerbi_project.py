@@ -347,6 +347,23 @@ class PowerBIProjectValidatorTests(unittest.TestCase):
             errors = validate_project(root, check_git=False)
             self.assertTrue(any("FailedRows must use int64" in error for error in errors), errors)
 
+    def test_missing_product_pre_history_split_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/SQLDataWarehouse.SemanticModel/definition/tables/Data Quality Checks.tmdl"
+            text = path.read_text(encoding="utf-8").replace(
+                'CheckKey = "product_pre_history_coverage"',
+                'CheckKey = "gold_source_orphan_coverage"',
+                1,
+            )
+            path.write_text(text, encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(
+                any("distinguish unresolved source references" in error for error in errors),
+                errors,
+            )
+
     def test_missing_inventory_rls_permission_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -467,6 +484,17 @@ class PowerBIProjectValidatorTests(unittest.TestCase):
             path.write_text(json.dumps(data, indent=2), encoding="utf-8")
             errors = validate_project(root, check_git=False)
             self.assertTrue(any("lacks screenshot/hash" in error for error in errors), errors)
+
+    def test_desktop_poc_screenshot_hash_drift_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "docs/powerbi/evidence/desktop-poc/2026-08-15/manifest.json"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data["pages"][0]["sha256"] = "0" * 64
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("Desktop PoC screenshot hash differs" in error for error in errors), errors)
 
     def test_git_scope_handles_space_in_unquoted_porcelain_z_path(self) -> None:
         errors: list[str] = []

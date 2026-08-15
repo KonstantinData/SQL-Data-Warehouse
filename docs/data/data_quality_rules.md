@@ -73,7 +73,8 @@ The catalog records implemented runtime reject codes and Power BI materialized c
 | `nonpositive_product_cost` | Warning | Current Gold Product rows | Product cost is null or nonpositive | Mark warning failure; note retired Products have no current row | BI maintainer role; named data owner unassigned |
 | `sales_line_baseline_variance` | Error | Synthetic fixture | Gold Sales count differs from checked baseline `60,379` | Mark check failed; reference-fixture contract only | BI maintainer role; named data owner unassigned |
 | `product_key_uniqueness` | Error | Current Gold Product rows | Current-row count exceeds distinct Product business-key count | Mark check failed; enforce at most one current row | BI maintainer role; named data owner unassigned |
-| `gold_source_orphan_coverage` | Error | Gold Sales dataset | Customer or Product surrogate key is Unknown (`0`) | Mark check failed | BI maintainer role; named data owner unassigned |
+| `gold_source_orphan_coverage` | Error | Gold Sales dataset | Customer is Unknown (`0`), or Product is Unknown and its source product number is absent from all known Product versions | Mark check failed; unresolved source reference | BI maintainer role; named data owner unassigned |
+| `product_pre_history_coverage` | Warning | Gold Sales dataset | Product is Unknown (`0`), but its product number exists and the sale predates the first available Product version | Preserve the Unknown member and expose the source-history limitation | BI maintainer role; named data owner unassigned |
 
 ## Status precedence and reconciliation
 

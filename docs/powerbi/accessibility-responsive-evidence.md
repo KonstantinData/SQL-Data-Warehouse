@@ -60,12 +60,11 @@ For each runtime row in the manifest:
 
 ## Runtime attempt and known limits
 
-Power BI Desktop 2.156.951.0 was discovered and launched through Windows Computer Use. The helper then returned `Computer Use helper already has an active request`; one documented retry after a JavaScript-session reset returned the same result. Per the Computer Use recovery contract, further UI input stopped. Consequently:
+Power BI Desktop 2.156.951.0 opened and refreshed the current PBIR against the synthetic loopback acceptance database. Executive Overview, Sales Performance, and Data Quality rendered without visual query errors; privacy-cropped report-canvas captures and hashes are recorded separately in `docs/powerbi/evidence/desktop-poc/2026-08-15/manifest.json`. This updates the earlier stale runtime-attempt note but does not broaden the accessibility claims:
 
-- the changed PBIR was not opened, saved, or screenshot-reviewed in this slice;
-- 320, 390, 768, 1280, and 1440 runtime rows remain `NOT_EXECUTED`;
-- keyboard focus inside visuals, NVDA output, High Contrast, touch hitboxes, filtered/no-data states, and Power BI mobile-app behavior remain open runtime gates;
-- the earlier core Desktop open/refresh/render/save/reopen evidence remains valid only for commit `1ab84dcc`, before this accessibility and responsive change.
+- 320, 390, 768, 1280, and 1440 exact-width runtime rows remain `NOT_EXECUTED` because the captured Desktop host window does not match those declared viewport widths;
+- keyboard focus inside native visuals, NVDA output, High Contrast, touch hitboxes, filtered/no-data states, and Power BI mobile-app behavior remain open runtime gates;
+- the three default landscape captures prove current rendering only; source-level responsive and accessibility contracts remain the stronger evidence for authored metadata and geometry.
 
 ## External design basis
 

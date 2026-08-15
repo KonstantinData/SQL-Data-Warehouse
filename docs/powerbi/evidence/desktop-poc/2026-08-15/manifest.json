@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1.0.0",
+  "evidenceBoundary": "desktop-poc-not-production",
+  "capturedAt": "2026-08-15T18:50:00+02:00",
+  "branch": "codex/powerbi-production-readiness",
+  "powerBIDesktopVersion": "2.156.951.0",
+  "source": {
+    "classification": "synthetic-loopback-acceptance",
+    "server": "127.0.0.1",
+    "database": "DataWarehouse"
+  },
+  "capture": {
+    "hostWindowPixels": "1561x957",
+    "displayMode": "FitToPage",
+    "storedCropPixels": "956x560",
+    "privacy": "Power BI report canvas only; application chrome and Windows identity excluded"
+  },
+  "refresh": {
+    "result": "PASS",
+    "salesLines": 60379,
+    "totalSales": 29351258.0,
+    "inventorySourceAcceptedRejectedGold": "15/11/4/11"
+  },
+  "dataQuality": {
+    "checks": 9,
+    "errorFailures": 0,
+    "warningFailures": 3,
+    "warningKeys": [
+      "nonpositive_product_cost",
+      "missing_customer_country",
+      "product_pre_history_coverage"
+    ]
+  },
+  "pages": [
+    {
+      "page": "ExecutiveOverview",
+      "result": "PASS",
+      "screenshot": "docs/powerbi/evidence/desktop-poc/2026-08-15/executive-overview.png",
+      "sha256": "5be1b8b1ed14a239dc82a76bae437a52e65ef0671322accef5df4660ceff289d",
+      "note": "Rendered totals, time comparison, product-line contribution, and country table without visual query errors."
+    },
+    {
+      "page": "SalesPerformance",
+      "result": "PASS",
+      "screenshot": "docs/powerbi/evidence/desktop-poc/2026-08-15/sales-performance.png",
+      "sha256": "92829aeba46442d917e2c89a7a53529a4a0a248cc1fa7ba3d652443336ce5d68",
+      "note": "Rendered category sales, monthly estimated profit, and product detail without visual query errors."
+    },
+    {
+      "page": "DataQuality",
+      "result": "PASS",
+      "screenshot": "docs/powerbi/evidence/desktop-poc/2026-08-15/data-quality.png",
+      "sha256": "8ed05d0d95ed08927179d8cadaef59f9972bcc8f6dc807609dbf7416c6e5db71",
+      "note": "Rendered nine global checks; every Error-severity gate passed and three declared source-quality warnings remained."
+    }
+  ],
+  "excludedClaims": [
+    "Power BI Service deployment",
+    "production data acceptance",
+    "screen-reader or High Contrast runtime acceptance",
+    "exact viewport-width acceptance",
+    "Desktop View as identity matrix acceptance"
+  ]
+}

@@ -35,19 +35,19 @@ The container CI executes `tests/powerbi_rls_data_contract.sql`. That SQL test d
 
 ## Local execution record (2026-08-15)
 
-The following evidence was produced from branch `codex/powerbi-rls-acceptance` at `2026-08-15T11:08:10Z`:
+The following evidence was refreshed from branch `codex/powerbi-production-readiness` on 2026-08-15:
 
 | Gate | Result | Evidence |
 |---|---|---|
 | Repository RLS contract | PASS | Source validator completed without errors. |
-| Validator regressions | PASS | 28 tests passed, including Multiple, Blank, entitlement isolation, and metric-drift failures. |
+| Validator regressions | PASS | 66 Power BI tests passed, including Multiple, Blank, entitlement isolation, metric drift, DQ classification, and screenshot-hash failures. |
 | Inventory fixture contract | PASS | 7 tests passed; accepted DE and US fixtures are present. |
 | End-to-end SQL CI | PASS | Runtime, pipeline, model, Inventory, quality, negative, restart, and `powerbi_rls_data_contract.sql` checks passed. |
-| Desktop project load | PASS | `SQLDataWarehouse.pbip` opened and its local Analysis Services process was running and responsive. |
-| Desktop `View as` matrix | NOT EXECUTED | The automation target resolved to the Codex window and then returned `foreground window did not report a process id`; no row-level result was observed or claimed. |
+| Desktop project load | PASS | `SQLDataWarehouse.pbip` opened, refreshed from the loopback acceptance database, and rendered all three report pages without visual query errors. |
+| Desktop `View as` matrix | NOT EXECUTED | Power BI Desktop opened the refreshed project and the `View as` dialog resolved `CountrySalesViewer` plus `Other user`. The automation bridge could not enter text into the identity field through typing, key presses, or clipboard paste; no row-level result was observed or claimed. |
 | Power BI Service | NOT EXECUTED | No workspace, role membership, gateway, or production identity was used. |
 
-The PASS rows above are reproducible from repository commands. The two NOT EXECUTED rows remain runtime gates and must not be represented as acceptance evidence.
+The PASS rows above are reproducible from repository commands. The two NOT EXECUTED rows remain production/integration runtime gates and must not be represented as completed RLS runtime evidence. They do not invalidate the functional Desktop reporting PoC or its fail-closed source and SQL contracts.
 
 ## Desktop View as procedure
 

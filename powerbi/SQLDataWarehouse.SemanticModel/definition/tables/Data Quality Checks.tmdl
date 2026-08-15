@@ -91,6 +91,10 @@ table 'Data Quality Checks'
 					CustomerRows = Int64.From(Table.RowCount(Customers)),
 					CurrentProducts = Table.SelectRows(Products, each [is_current] = true),
 					CurrentProductRows = Int64.From(Table.RowCount(CurrentProducts)),
+					KnownProductNumbers = Table.Buffer(Table.Distinct(Table.SelectColumns(Table.SelectRows(Products, each [product_key] <> 0), {"product_number"}))),
+					ClassifiedSales = Table.NestedJoin(Sales, {"product_number"}, KnownProductNumbers, {"product_number"}, "ProductNumberMatches", JoinKind.LeftOuter),
+					GoldSourceOrphans = Table.SelectRows(ClassifiedSales, each [customer_key] = 0 or ([product_key] = 0 and Table.IsEmpty([ProductNumberMatches]))),
+					ProductPreHistoryRows = Table.SelectRows(ClassifiedSales, each [product_key] = 0 and not Table.IsEmpty([ProductNumberMatches])),
 					CheckRecords = {
 						[CheckKey = "invalid_order_date", CheckName = "Invalid or blank order date", Layer = "Gold", Scope = "Dataset", Severity = "Error", FailedRows = Int64.From(Table.RowCount(Table.SelectRows(Sales, each [order_date_key] = 0))), EvaluatedRows = SalesRows],
 						[CheckKey = "sales_equation_mismatch", CheckName = "Sales amount differs from quantity times price", Layer = "Gold", Scope = "Dataset", Severity = "Warning", FailedRows = Int64.From(Table.RowCount(Table.SelectRows(Sales, each [sales_amount] = null or [quantity] = null or [price] = null or [sales_amount] <> [quantity] * [price]))), EvaluatedRows = SalesRows],
@@ -99,7 +103,8 @@ table 'Data Quality Checks'
 						[CheckKey = "nonpositive_product_cost", CheckName = "Current product cost is nonpositive", Layer = "Gold", Scope = "Dataset", Severity = "Warning", FailedRows = Int64.From(Table.RowCount(Table.SelectRows(CurrentProducts, each [product_cost] = null or [product_cost] <= 0))), EvaluatedRows = CurrentProductRows],
 						[CheckKey = "sales_line_baseline_variance", CheckName = "Synthetic sales line count differs from checked baseline", Layer = "Gold", Scope = "Fixture", Severity = "Error", FailedRows = Int64.From(Number.Abs(SalesRows - 60379)), EvaluatedRows = SalesRows],
 						[CheckKey = "product_key_uniqueness", CheckName = "Current product business key is not unique", Layer = "Gold", Scope = "Dataset", Severity = "Error", FailedRows = Int64.From(CurrentProductRows - Table.RowCount(Table.Distinct(Table.SelectColumns(CurrentProducts, {"product_number"})))), EvaluatedRows = CurrentProductRows],
-						[CheckKey = "gold_source_orphan_coverage", CheckName = "Gold Unknown-member coverage", Layer = "Gold", Scope = "Dataset", Severity = "Error", FailedRows = Int64.From(Table.RowCount(Table.SelectRows(Sales, each [customer_key] = 0 or [product_key] = 0))), EvaluatedRows = SalesRows]
+						[CheckKey = "gold_source_orphan_coverage", CheckName = "Gold unresolved source references", Layer = "Gold", Scope = "Dataset", Severity = "Error", FailedRows = Int64.From(Table.RowCount(GoldSourceOrphans)), EvaluatedRows = SalesRows],
+						[CheckKey = "product_pre_history_coverage", CheckName = "Sales before first available product version", Layer = "Gold", Scope = "Source limitation", Severity = "Warning", FailedRows = Int64.From(Table.RowCount(ProductPreHistoryRows)), EvaluatedRows = SalesRows]
 					},
 					Checks = Table.FromRecords(CheckRecords),
 					WithStatus = Table.AddColumn(Checks, "Status", each if [EvaluatedRows] = 0 then "Not run" else if [FailedRows] > 0 then "Failed" else "Passed", type text),

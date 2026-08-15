@@ -8,7 +8,7 @@ The Power BI model now reads the curated physical Gold sales model and the Inven
 
 The dated 2026-08-15 Desktop PoC acceptance covers open, full refresh, visible core rendering, save, close, and reopen against the loopback acceptance database. Source-level accessibility/responsive contracts, Performance Analyzer evidence, and the local RLS/SQL matrix are also versioned and validated. `validation.md` remains authoritative for accepted evidence and for runtime items that were not fully exercised.
 
-Before publication, execute the remaining Desktop runtime gate:
+Before publishing into a real tenant or representing the model as production-ready, execute the remaining Desktop runtime gate:
 
 1. Refresh `powerbi/SQLDataWarehouse.pbip` against the intended non-secret environment and reconcile Sales plus Inventory `15/11/4/11` evidence with the SQL gates.
 2. Execute the full `CountrySalesViewer` matrix (allowed, multiple countries, inactive, expired, unknown, and blank) for both Sales and Inventory using Desktop `View as`.
@@ -19,9 +19,9 @@ Before publication, execute the remaining Desktop runtime gate:
 
 Follow `service-production-runbook.md` and validate an environment-specific copy of `powerbi/service/service-contract.example.json`. The gate requires the authorized workspace and exact Service items, production parameters, Standard gateway/data-source mapping, managed credentials, a reconciled manual refresh, an approved schedule plus one successful scheduled run, governed entitlements, approved RLS group membership, effective Viewer tests, ownership, capacity, privacy approval, and current evidence.
 
-The current source model is a release HOLD: it defaults to `127.0.0.1`/`Development`, its entitlement table contains only synthetic `.invalid` identities, and the dated Desktop refresh reports the global `gold_source_orphan_coverage` check as Error.
+The repository is ready to publish as a portfolio Desktop PoC: `127.0.0.1`/`Development` and synthetic `.invalid` identities are deliberate safe defaults. The dated Desktop refresh shows no failed Error-severity data-quality gate. Known product numbers whose sales predate the first available product version remain visible as the separate `product_pre_history_coverage` warning.
 
-No publication is authorized until gateway, credentials, role membership, privacy review, refresh schedule, capacity, release owner, and evidence are environment-specific and approved.
+No **production tenant publication** is authorized until gateway, credentials, role membership, privacy review, refresh schedule, capacity, release owner, and evidence are environment-specific and approved. None of those external controls is required merely to present this synthetic repository and its dated Desktop evidence to recruiters or reviewers.
 
 Any change to table/measure/page IDs, source grain, refresh parameters, or RLS requires coordinated updates to TMDL, PBIR, KPI catalog, report blueprint, validators, and documentation.
 

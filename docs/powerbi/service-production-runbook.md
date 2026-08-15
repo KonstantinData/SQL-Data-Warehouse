@@ -12,7 +12,7 @@ The checked-in project is not production-ready without environment-specific reme
 
 - `SqlServerName` defaults to `127.0.0.1` and `EnvironmentName` defaults to `Development`.
 - `Security User Country` uses an inline synthetic `DATATABLE` with reserved `.invalid` identities. Adding a Service role member does not create a corresponding country entitlement.
-- the dated Desktop acceptance reports `gold_source_orphan_coverage` as an Error. Production requires post-refresh data-quality status `Pass`.
+- the reference fixture contains known-Product sales that predate the first available Product version. They remain mapped to the Unknown member and must be replaced or explicitly remediated before production; production requires post-refresh data-quality status `Pass`.
 - Fabric `.platform` logical IDs identify source-controlled items; they do not prove current Service workspace or item IDs.
 - no tenant, workspace, capacity, Service item, gateway, data-source, Entra group, membership, owner, approval, schedule, or refresh-history evidence is committed.
 
@@ -115,9 +115,9 @@ If credentials are missing, invalid, expired, or owned by the wrong semantic-mod
 2. Record the pipeline completion time and confirm no Power BI refresh overlaps publication.
 3. Trigger **Refresh now** only after gateway mapping and credential checks pass.
 4. Capture the accepted refresh ID, UTC start/end time, final status, and sanitized service exception summary.
-5. Reconcile Sales totals and Inventory `14/10/4/10` source/accepted/rejected/Gold evidence to the same warehouse run.
+5. Reconcile Sales totals and Inventory `15/11/4/11` source/accepted/rejected/Gold evidence to the same warehouse run.
 6. Verify the semantic model's `RefreshedAtUtc` is within 15 minutes of Service completion.
-7. Require overall data-quality status `Pass`. The current Desktop `gold_source_orphan_coverage` Error is a production HOLD even if Service reports `Completed`.
+7. Require overall data-quality status `Pass`. Any unresolved source reference or retained reference-fixture warning is a production HOLD even if Service reports `Completed`.
 
 Do not enable the schedule after a failed, cancelled, unknown, or unreconciled manual refresh.
 
