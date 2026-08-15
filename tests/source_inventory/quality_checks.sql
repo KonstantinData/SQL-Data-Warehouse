@@ -38,12 +38,12 @@ IF EXISTS (SELECT 1 FROM silver.inventory_snapshot WHERE load_batch_id <> @bronz
 BEGIN SET @error_count += 1; PRINT 'ERROR: Silver or reject rows do not reconcile to the current Bronze batch.'; END;
 
 IF OBJECT_ID('bronze.inventory_snapshot_raw', 'U') IS NOT NULL
-   AND (SELECT COUNT(*) FROM bronze.inventory_snapshot_raw) <> 14
-BEGIN SET @error_count += 1; PRINT 'ERROR: expected 14 Bronze inventory rows.'; END;
+   AND (SELECT COUNT(*) FROM bronze.inventory_snapshot_raw) <> 15
+BEGIN SET @error_count += 1; PRINT 'ERROR: expected 15 Bronze inventory rows.'; END;
 
 IF OBJECT_ID('silver.inventory_snapshot', 'U') IS NOT NULL
-   AND (SELECT COUNT(*) FROM silver.inventory_snapshot) <> 10
-BEGIN SET @error_count += 1; PRINT 'ERROR: expected 10 accepted Silver inventory rows.'; END;
+   AND (SELECT COUNT(*) FROM silver.inventory_snapshot) <> 11
+BEGIN SET @error_count += 1; PRINT 'ERROR: expected 11 accepted Silver inventory rows.'; END;
 
 IF OBJECT_ID('silver.inventory_snapshot_reject', 'U') IS NOT NULL
    AND (SELECT COUNT(*) FROM silver.inventory_snapshot_reject) <> 4
@@ -150,8 +150,8 @@ IF OBJECT_ID('silver.inventory_snapshot', 'U') IS NOT NULL
 BEGIN SET @error_count += 1; PRINT 'ERROR: expected whitespace/case normalization was not applied.'; END;
 
 IF OBJECT_ID('gold.fact_inventory_snapshots', 'V') IS NOT NULL
-   AND (SELECT COUNT(*) FROM gold.fact_inventory_snapshots) <> 10
-BEGIN SET @error_count += 1; PRINT 'ERROR: expected 10 Gold inventory fact rows.'; END;
+   AND (SELECT COUNT(*) FROM gold.fact_inventory_snapshots) <> 11
+BEGIN SET @error_count += 1; PRINT 'ERROR: expected 11 Gold inventory fact rows.'; END;
 
 IF OBJECT_ID('gold.fact_inventory_snapshots', 'V') IS NOT NULL
    AND EXISTS (
@@ -173,12 +173,44 @@ BEGIN SET @error_count += 1; PRINT 'ERROR: Gold inventory fact grain is not uniq
 
 IF OBJECT_ID('gold.fact_inventory_snapshots', 'V') IS NOT NULL
    AND (
-       (SELECT SUM(CONVERT(BIGINT, on_hand_qty)) FROM gold.fact_inventory_snapshots) <> 404
-       OR (SELECT SUM(CONVERT(BIGINT, reserved_qty)) FROM gold.fact_inventory_snapshots) <> 69
-       OR (SELECT SUM(CONVERT(BIGINT, available_qty)) FROM gold.fact_inventory_snapshots) <> 335
-       OR (SELECT SUM(inventory_value) FROM gold.fact_inventory_snapshots) <> CONVERT(DECIMAL(19,2), 4826.00)
+       (SELECT SUM(CONVERT(BIGINT, on_hand_qty)) FROM gold.fact_inventory_snapshots) <> 429
+       OR (SELECT SUM(CONVERT(BIGINT, reserved_qty)) FROM gold.fact_inventory_snapshots) <> 74
+       OR (SELECT SUM(CONVERT(BIGINT, available_qty)) FROM gold.fact_inventory_snapshots) <> 355
+       OR (SELECT SUM(inventory_value) FROM gold.fact_inventory_snapshots) <> CONVERT(DECIMAL(19,2), 5138.50)
    )
 BEGIN SET @error_count += 1; PRINT 'ERROR: deterministic Gold fixture totals do not match the contract.'; END;
+
+IF OBJECT_ID('gold.fact_inventory_snapshots', 'V') IS NOT NULL
+   AND (
+       EXISTS (
+           SELECT expected.country_code, expected.expected_rows, expected.expected_available, expected.expected_value
+           FROM (VALUES
+               ('DE', CONVERT(BIGINT, 10), CONVERT(BIGINT, 335), CONVERT(DECIMAL(19,2), 4826.00)),
+               ('US', CONVERT(BIGINT, 1), CONVERT(BIGINT, 20), CONVERT(DECIMAL(19,2), 312.50))
+           ) expected(country_code, expected_rows, expected_available, expected_value)
+           LEFT JOIN (
+               SELECT locations.country_code,
+                      COUNT_BIG(*) AS actual_rows,
+                      SUM(CONVERT(BIGINT, snapshots.available_qty)) AS actual_available,
+                      SUM(snapshots.inventory_value) AS actual_value
+               FROM gold.fact_inventory_snapshots AS snapshots
+               INNER JOIN gold.dim_inventory_locations AS locations
+                   ON locations.warehouse_key = snapshots.warehouse_key
+               GROUP BY locations.country_code
+           ) actual ON actual.country_code = expected.country_code
+           WHERE ISNULL(actual.actual_rows, 0) <> expected.expected_rows
+              OR ISNULL(actual.actual_available, 0) <> expected.expected_available
+              OR ISNULL(actual.actual_value, 0) <> expected.expected_value
+       )
+       OR EXISTS (
+           SELECT locations.country_code
+           FROM gold.fact_inventory_snapshots AS snapshots
+           INNER JOIN gold.dim_inventory_locations AS locations
+               ON locations.warehouse_key = snapshots.warehouse_key
+           WHERE locations.country_code NOT IN ('DE', 'US')
+       )
+   )
+BEGIN SET @error_count += 1; PRINT 'ERROR: Inventory country baselines for RLS acceptance do not match the contract.'; END;
 
 IF @error_count > 0
     RAISERROR('source_inventory quality checks failed. Violations: %d', 16, 1, @error_count);

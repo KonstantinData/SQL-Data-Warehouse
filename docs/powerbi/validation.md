@@ -12,7 +12,9 @@ Performance Analyzer acceptance also passed on 2026-08-15. The versioned raw exp
 
 The accessibility/responsive source slice on branch `codex/powerbi-accessibility-responsive` adds strict PBIR checks for focus order, visible titles, 20-to-250-character alt text, screen-reader naming, contrast, non-color cues, full-width phone geometry, gaps, mobile omissions, and an honest runtime evidence manifest. See `docs/powerbi/accessibility-responsive-evidence.md`. Runtime rows remain `NOT_EXECUTED`; the earlier core Desktop evidence predates that slice and must not be presented as its visual acceptance.
 
-This is **Desktop PoC acceptance evidence**, not production validation. The full RLS identity matrix, rendered interaction/accessibility sweeps, responsive screenshots, Power BI Service role memberships, gateway configuration, and Service refresh remain outside this local acceptance run.
+The RLS source/fixture and SQL baseline contracts are recorded in `rls-acceptance.md`. The six identity cases are machine-validated for Sales and Inventory, but Desktop `View as` remains `NOT_EXECUTED` until all six rows are run against a freshly refreshed model.
+
+This is **Desktop PoC acceptance evidence**, not production validation. Rendered interaction/accessibility sweeps, responsive screenshots, Desktop `View as`, Power BI Service role memberships, gateway configuration, and Service refresh remain outside this local acceptance run.
 
 Power BI Service release status on 2026-08-15: **UNKNOWN / HOLD**. No authenticated Service session, workspace/item mapping, gateway/data-source mapping, credential status, manual or scheduled refresh evidence, or RLS group membership was available for verification. Use `service-production-runbook.md` and the fail-closed service contract; do not infer Service state from Desktop acceptance or `.platform` logical IDs.
 
@@ -35,7 +37,7 @@ Source validation checks JSON parsing, PBIP/PBIR paths and versions, Fabric `.pl
 3. Fully close Desktop, open `powerbi/SQLDataWarehouse.pbip`, and capture the Desktop version.
 4. Resolve every blocking, non-blocking, or auto-fix warning. Inspect any upgrade diff before saving.
 5. Set non-secret parameters and bind credentials outside source control.
-6. Refresh all tables and reconcile 60,379 accepted Gold sales lines plus the Inventory `14/10/4/10` source/accepted/rejected/Gold evidence to the SQL gates. Derive order, quantity, and value totals from the same verified run; treat any difference as a hold until explained.
+6. Refresh all tables and reconcile 60,379 accepted Gold sales lines plus the Inventory `15/11/4/11` source/accepted/rejected/Gold evidence to the SQL gates. Derive order, quantity, and value totals from the same verified run; treat any difference as a hold until explained.
 7. Confirm the six active customer/product/order-date/Inventory relationships and the two inactive Sales date relationships.
 8. Evaluate every explicit DAX measure, including blank and zero denominator behaviour.
 9. Execute the complete `CountrySalesViewer` matrix below for both Sales and Inventory; test service memberships separately.

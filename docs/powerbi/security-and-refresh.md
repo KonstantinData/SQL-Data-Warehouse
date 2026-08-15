@@ -14,7 +14,7 @@ Incremental refresh is intentionally absent. Add it only with reviewed range par
 
 ## RLS design
 
-`CountrySalesViewer` filters both `Customers[country_code]` and `Inventory Locations[country_code]` through `Security User Country` and `USERPRINCIPALNAME()`. The dimension relationships propagate the filter to the protected Sales and Inventory Snapshot facts. Missing, inactive, blank, or unmatched entitlement returns zero protected fact rows. Shared Product, Date, refresh, and global data-quality metadata are intentionally outside this reference role; production owners must approve that boundary or isolate those surfaces. Checked-in identities use the reserved `.invalid` domain.
+`CountrySalesViewer` filters both `Customers[country_code]` and `Inventory Locations[country_code]` through `Security User Country` and `USERPRINCIPALNAME()`. UPNs are trimmed and lowercased, country codes are trimmed and uppercased, and blank principals or entitlement countries fail closed. The role also filters `Security User Country` to the normalized current principal so hidden entitlement rows cannot be queried across identities through the role. The dimension relationships propagate the filter to the protected Sales and Inventory Snapshot facts. Missing, inactive, expired, blank, or unmatched entitlement returns zero protected fact rows. Shared Product, Date, refresh, and global data-quality metadata are intentionally outside this reference role; production owners must approve that boundary or isolate those surfaces. Checked-in identities use the reserved `.invalid` domain.
 
 ## RLS protection matrix
 
@@ -30,6 +30,8 @@ Incremental refresh is intentionally absent. Add it only with reviewed range par
 | Refresh Metadata | Global | Dataset refresh evidence remains global and contains no country entitlement. |
 
 `Security User Country` is the entitlement input used by the role. Report labels and release evidence must distinguish **protected selected-scope facts** from **global model metadata**. In particular, `Nonpositive Product Cost Records` is global because Products is global, while sales, customer, Inventory, and data-through measures follow the protected fact paths described above.
+
+The synthetic fixture contains active DE and US identities, one DE+US multiple assignment, an inactive DE assignment, an expired DE assignment, and an active identity with an empty country assignment. `unknown@example.invalid` is deliberately absent. The Inventory source includes accepted DE and US rows so the multiple and denial cases exercise both protected fact paths. Exact expected values and the Desktop procedure are recorded in `rls-acceptance.md`.
 
 Before publication:
 

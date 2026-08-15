@@ -1,36 +1,55 @@
 role CountrySalesViewer
 	modelPermission: read
 
+	tablePermission 'Security User Country' =
+			VAR CurrentUser = LOWER(TRIM(USERPRINCIPALNAME()))
+			VAR EntitlementUser = LOWER(TRIM(COALESCE('Security User Country'[UserPrincipalName], "")))
+			RETURN LEN(CurrentUser) > 0 && LEN(EntitlementUser) > 0 && EntitlementUser = CurrentUser
+
 	tablePermission Customers =
-			VAR CurrentUser = LOWER(USERPRINCIPALNAME())
+			VAR CurrentUser = LOWER(TRIM(USERPRINCIPALNAME()))
 			VAR CurrentUtc = UTCNOW()
 			VAR AllowedCountries =
-				SELECTCOLUMNS(
-					FILTER(
-						ALL('Security User Country'),
-						LOWER('Security User Country'[UserPrincipalName]) = CurrentUser
-							&& 'Security User Country'[IsActive] = TRUE()
-							&& 'Security User Country'[ValidFromUtc] <= CurrentUtc
-							&& 'Security User Country'[ValidToUtc] > CurrentUtc
-					),
-					"CountryCode", 'Security User Country'[CountryCode]
+				DISTINCT(
+					SELECTCOLUMNS(
+						FILTER(
+							ALL('Security User Country'),
+							LEN(TRIM(COALESCE('Security User Country'[UserPrincipalName], ""))) > 0
+								&& LOWER(TRIM('Security User Country'[UserPrincipalName])) = CurrentUser
+								&& LEN(TRIM(COALESCE('Security User Country'[CountryCode], ""))) > 0
+								&& 'Security User Country'[IsActive] = TRUE()
+								&& 'Security User Country'[ValidFromUtc] <= CurrentUtc
+								&& 'Security User Country'[ValidToUtc] > CurrentUtc
+						),
+						"CountryCode", UPPER(TRIM('Security User Country'[CountryCode]))
+					)
 				)
-			RETURN NOT ISBLANK(Customers[country_code]) && Customers[country_code] IN AllowedCountries
+			RETURN
+				LEN(CurrentUser) > 0
+					&& LEN(TRIM(COALESCE(Customers[country_code], ""))) > 0
+					&& UPPER(TRIM(Customers[country_code])) IN AllowedCountries
 
 	tablePermission 'Inventory Locations' =
-			VAR CurrentUser = LOWER(USERPRINCIPALNAME())
+			VAR CurrentUser = LOWER(TRIM(USERPRINCIPALNAME()))
 			VAR CurrentUtc = UTCNOW()
 			VAR AllowedCountries =
-				SELECTCOLUMNS(
-					FILTER(
-						ALL('Security User Country'),
-						LOWER('Security User Country'[UserPrincipalName]) = CurrentUser
-							&& 'Security User Country'[IsActive] = TRUE()
-							&& 'Security User Country'[ValidFromUtc] <= CurrentUtc
-							&& 'Security User Country'[ValidToUtc] > CurrentUtc
-					),
-					"CountryCode", 'Security User Country'[CountryCode]
+				DISTINCT(
+					SELECTCOLUMNS(
+						FILTER(
+							ALL('Security User Country'),
+							LEN(TRIM(COALESCE('Security User Country'[UserPrincipalName], ""))) > 0
+								&& LOWER(TRIM('Security User Country'[UserPrincipalName])) = CurrentUser
+								&& LEN(TRIM(COALESCE('Security User Country'[CountryCode], ""))) > 0
+								&& 'Security User Country'[IsActive] = TRUE()
+								&& 'Security User Country'[ValidFromUtc] <= CurrentUtc
+								&& 'Security User Country'[ValidToUtc] > CurrentUtc
+						),
+						"CountryCode", UPPER(TRIM('Security User Country'[CountryCode]))
+					)
 				)
-			RETURN NOT ISBLANK('Inventory Locations'[country_code]) && 'Inventory Locations'[country_code] IN AllowedCountries
+			RETURN
+				LEN(CurrentUser) > 0
+					&& LEN(TRIM(COALESCE('Inventory Locations'[country_code], ""))) > 0
+					&& UPPER(TRIM('Inventory Locations'[country_code])) IN AllowedCountries
 
 	annotation PBI_Id = 121931f190e64bdc906c7f693f4ee29c

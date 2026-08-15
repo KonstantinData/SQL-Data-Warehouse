@@ -210,6 +210,60 @@ class PowerBIProjectValidatorTests(unittest.TestCase):
             errors = validate_project(root, check_git=False)
             self.assertTrue(any("RLS validation matrix identity cases differ" in error for error in errors), errors)
 
+    def test_missing_multiple_country_fixture_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/SQLDataWarehouse.SemanticModel/definition/tables/Security User Country.tmdl"
+            text = path.read_text(encoding="utf-8").replace(
+                ', {"analyst.multiple@example.invalid", "US", TRUE, dt"2020-01-01", dt"2099-12-31"}',
+                "",
+                1,
+            )
+            path.write_text(text, encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("seven deterministic rows" in error for error in errors), errors)
+
+    def test_blank_country_fixture_must_remain_empty(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/SQLDataWarehouse.SemanticModel/definition/tables/Security User Country.tmdl"
+            text = path.read_text(encoding="utf-8").replace(
+                '{"blank.country@example.invalid", "", TRUE',
+                '{"blank.country@example.invalid", "DE", TRUE',
+                1,
+            )
+            path.write_text(text, encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("empty CountryCode fixture" in error for error in errors), errors)
+
+    def test_entitlement_table_permission_is_required(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/SQLDataWarehouse.SemanticModel/definition/roles/CountrySalesViewer.tmdl"
+            text = path.read_text(encoding="utf-8").replace(
+                "tablePermission 'Security User Country' =",
+                "tablePermission 'Security User Country Audit' =",
+                1,
+            )
+            path.write_text(text, encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("Security User Country" in error for error in errors), errors)
+
+    def test_rls_acceptance_metric_drift_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/rls-acceptance-matrix.json"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            multiple = next(case for case in data["cases"] if case["case"] == "Multiple")
+            multiple["expected"]["inventoryRows"] = 10
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("metrics differ for Multiple" in error for error in errors), errors)
+
     def test_data_through_scope_misclassification_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

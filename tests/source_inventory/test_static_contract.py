@@ -27,7 +27,7 @@ HEADER = [
     "extracted_at_utc",
 ]
 
-WAREHOUSES = {"WH-BER-01", "WH-HAM-01"}
+WAREHOUSES = {"WH-BER-01", "WH-HAM-01", "WH-USA-01"}
 PRODUCTS = {
     (210, "FR-R92B-58"),
     (211, "FR-R92R-58"),
@@ -107,14 +107,14 @@ class SourceInventoryContractTests(unittest.TestCase):
 
     def test_csv_shape_and_identity_are_deterministic(self):
         self.assertEqual(self.fieldnames, HEADER)
-        self.assertEqual(len(self.rows), 14)
+        self.assertEqual(len(self.rows), 15)
         source_ids = [row["source_row_id"].strip() for row in self.rows]
         self.assertEqual(len(source_ids), len(set(source_ids)))
 
     def test_expected_acceptance_and_reject_partition(self):
         rejects = {row["source_row_id"]: row["reason"] for row in self.classified if row["reason"]}
         self.assertEqual(rejects, EXPECTED_REJECTS)
-        self.assertEqual(sum(row["reason"] is None for row in self.classified), 10)
+        self.assertEqual(sum(row["reason"] is None for row in self.classified), 11)
         self.assertEqual(Counter(rejects.values()), Counter(EXPECTED_REJECTS.values()))
 
     def test_normalization_case_is_accepted(self):
@@ -125,13 +125,20 @@ class SourceInventoryContractTests(unittest.TestCase):
         self.assertEqual(row["product_number"], "FR-R92B-58")
         self.assertEqual(row["currency_code"], "EUR")
 
+    def test_rls_inventory_fixture_covers_both_reference_countries(self):
+        accepted_warehouses = {
+            row["warehouse_code"] for row in self.classified if row["reason"] is None
+        }
+        self.assertIn("WH-BER-01", accepted_warehouses)
+        self.assertIn("WH-USA-01", accepted_warehouses)
+
     def test_json_contract_matches_fixture_expectations(self):
         contract = json.loads(CONTRACT.read_text(encoding="utf-8"))
         outcomes = contract["expected_fixture_outcomes"]
-        self.assertEqual(outcomes["bronze_rows"], 14)
-        self.assertEqual(outcomes["silver_rows"], 10)
+        self.assertEqual(outcomes["bronze_rows"], 15)
+        self.assertEqual(outcomes["silver_rows"], 11)
         self.assertEqual(outcomes["reject_rows"], 4)
-        self.assertEqual(outcomes["gold_rows"], 10)
+        self.assertEqual(outcomes["gold_rows"], 11)
         self.assertEqual(outcomes["reject_reason_counts"], dict(Counter(EXPECTED_REJECTS.values())))
 
     def test_sqlcmd_entrypoint_order(self):

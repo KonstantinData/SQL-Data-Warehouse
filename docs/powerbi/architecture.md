@@ -4,7 +4,7 @@
 
 This source-controlled Power BI Project uses the repository's synthetic CRM, ERP, and Inventory data. It demonstrates semantic modelling, explicit DAX, report definitions, refresh/RLS design, data-quality communication, and automated source validation. It is not evidence of a production deployment or operational adoption.
 
-Maturity: **source-authored reference with dated Desktop PoC acceptance; Service production release not validated**. The 2026-08-15 Desktop evidence is recorded in `validation.md`. It does not prove Service workspace mapping, gateway/credentials, refresh operations, or effective RLS membership.
+Maturity: **Desktop refresh, source-level accessibility, Performance Analyzer, and local RLS/SQL contracts accepted; full release validation remains open**. The 2026-08-15 evidence is recorded in `validation.md`. It does not prove rendered accessibility interactions, Desktop `View as` results for all RLS identities, Service workspace mapping, gateway/credentials, refresh operations, or effective Service role membership.
 
 ## Source format
 

@@ -15,11 +15,11 @@ import subprocess
 import sys
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from validate_performance_evidence import validate_performance_evidence
-
 
 ALLOWED_PREFIXES = (
     ".gitignore",
@@ -27,7 +27,14 @@ ALLOWED_PREFIXES = (
     "powerbi/",
     "docs/kpi/",
     "docs/powerbi/",
+    "docs/data/",
+    "datasets/source_inventory/",
     "scripts/powerbi_validation/",
+    "scripts/source_inventory/",
+    "scripts/ci/run_ci_checks.sh",
+    "tests/source_inventory/",
+    "tests/powerbi_rls_data_contract.sql",
+    "tests/runtime_silver_coverage.sql",
 )
 SECRET_SCANNER_IMPLEMENTATIONS = {
     "validate_powerbi_project.py",
@@ -270,13 +277,19 @@ def validate_rls_documentation(root: Path, errors: list[str]) -> None:
     security_path = root / "docs" / "powerbi" / "security-and-refresh.md"
     validation_path = root / "docs" / "powerbi" / "validation.md"
     quality_path = root / "docs" / "powerbi" / "data-quality-reporting.md"
-    missing = [path for path in (security_path, validation_path, quality_path) if not path.is_file()]
+    acceptance_path = root / "docs" / "powerbi" / "rls-acceptance.md"
+    missing = [
+        path
+        for path in (security_path, validation_path, quality_path, acceptance_path)
+        if not path.is_file()
+    ]
     if missing:
         errors.extend(f"Required RLS documentation is missing: {path}" for path in missing)
         return
     security_text = security_path.read_text(encoding="utf-8")
     validation_text = validation_path.read_text(encoding="utf-8")
     quality_text = quality_path.read_text(encoding="utf-8")
+    acceptance_text = acceptance_path.read_text(encoding="utf-8")
 
     protection_rows = markdown_table(security_text, "RLS protection matrix")
     expected_boundaries = {
@@ -305,6 +318,15 @@ def validate_rls_documentation(root: Path, errors: list[str]) -> None:
     for identity_case, row in actual_cases.items():
         if not row.get("Expected Sales") or not row.get("Expected Inventory") or not row.get("Required evidence"):
             errors.append(f"RLS validation matrix lacks Sales, Inventory, or evidence for {identity_case}")
+    for required in (
+        "analyst.multiple@example.invalid",
+        "blank.country@example.invalid",
+        "Inventory Snapshot Lines",
+        "Desktop `View as` is a separate Tabular-engine gate",
+        "15 = 11 accepted + 4 rejected",
+    ):
+        if required not in acceptance_text:
+            errors.append(f"RLS acceptance documentation lacks {required}")
 
     evidence_rows = markdown_table(quality_text, "Global and selected-scope evidence")
     evidence_scope = {
@@ -320,6 +342,118 @@ def validate_rls_documentation(root: Path, errors: list[str]) -> None:
         scope = evidence_scope.get(evidence, "")
         if any(token not in scope for token in tokens):
             errors.append(f"Data Quality scope matrix is missing or incorrect for {evidence}")
+
+
+def validate_rls_acceptance_contract(
+    root: Path,
+    security_text: str,
+    errors: list[str],
+) -> None:
+    path = root / "powerbi" / "rls-acceptance-matrix.json"
+    contract = load_json(path, errors)
+    if not isinstance(contract, dict):
+        errors.append("RLS acceptance matrix contract is missing or invalid")
+        return
+    if contract.get("role") != "CountrySalesViewer":
+        errors.append("RLS acceptance matrix must target CountrySalesViewer")
+    try:
+        as_of = datetime.fromisoformat(str(contract["asOfUtc"]).replace("Z", "+00:00"))
+        if as_of.tzinfo is None:
+            raise ValueError("timezone is required")
+        as_of = as_of.astimezone(timezone.utc)
+    except (KeyError, TypeError, ValueError) as exc:
+        errors.append(f"RLS acceptance matrix has invalid asOfUtc: {exc}")
+        return
+
+    fixture_pattern = re.compile(
+        r'\{"(?P<upn>[^"]*)",\s*"(?P<country>[^"]*)",\s*'
+        r'(?P<active>TRUE|FALSE),\s*dt"(?P<valid_from>\d{4}-\d{2}-\d{2})",\s*'
+        r'dt"(?P<valid_to>\d{4}-\d{2}-\d{2})"\}'
+    )
+    fixtures: list[dict[str, Any]] = []
+    for match in fixture_pattern.finditer(security_text):
+        fixtures.append(
+            {
+                "identity": match.group("upn").strip().lower(),
+                "country": match.group("country").strip().upper(),
+                "active": match.group("active") == "TRUE",
+                "valid_from": datetime.fromisoformat(match.group("valid_from")).replace(tzinfo=timezone.utc),
+                "valid_to": datetime.fromisoformat(match.group("valid_to")).replace(tzinfo=timezone.utc),
+            }
+        )
+    if len(fixtures) != 7:
+        errors.append(f"RLS entitlement fixture must contain seven deterministic rows, found {len(fixtures)}")
+
+    baselines = contract.get("countryBaselines")
+    if not isinstance(baselines, dict) or set(baselines) != {"DE", "US"}:
+        errors.append("RLS acceptance matrix must define DE and US country baselines")
+        return
+    metric_names = {
+        "salesRows",
+        "salesTotal",
+        "inventoryRows",
+        "availableInventoryQuantity",
+        "inventoryValue",
+    }
+    if any(not isinstance(value, dict) or set(value) != metric_names for value in baselines.values()):
+        errors.append("RLS acceptance country baselines have an invalid metric shape")
+        return
+
+    cases = contract.get("cases")
+    if not isinstance(cases, list):
+        errors.append("RLS acceptance matrix cases are missing")
+        return
+    by_case = {str(case.get("case")): case for case in cases if isinstance(case, dict)}
+    required_cases = {"Allowed", "Multiple", "Inactive", "Expired", "Unknown", "Blank"}
+    if set(by_case) != required_cases or len(cases) != len(required_cases):
+        errors.append("RLS acceptance matrix must contain each required case exactly once")
+        return
+
+    expected_identities = {
+        "Allowed": "analyst.de@example.invalid",
+        "Multiple": "analyst.multiple@example.invalid",
+        "Inactive": "inactive@example.invalid",
+        "Expired": "expired@example.invalid",
+        "Unknown": "unknown@example.invalid",
+        "Blank": "blank.country@example.invalid",
+    }
+    for case_name, expected_identity in expected_identities.items():
+        case = by_case[case_name]
+        identity = str(case.get("identity", "")).strip().lower()
+        if identity != expected_identity:
+            errors.append(f"RLS acceptance identity differs for {case_name}")
+            continue
+        allowed = sorted(
+            {
+                fixture["country"]
+                for fixture in fixtures
+                if fixture["identity"] == identity
+                and fixture["country"]
+                and fixture["active"]
+                and fixture["valid_from"] <= as_of < fixture["valid_to"]
+            }
+        )
+        documented = case.get("expectedCountries")
+        if documented != allowed:
+            errors.append(f"RLS acceptance countries differ for {case_name}: {documented} != {allowed}")
+            continue
+        expected_metrics: dict[str, int | float | None] = {}
+        for metric in metric_names:
+            if allowed:
+                expected_metrics[metric] = sum(baselines[country][metric] for country in allowed)
+            elif metric in {"salesRows", "inventoryRows"}:
+                expected_metrics[metric] = 0
+            else:
+                expected_metrics[metric] = None
+        if case.get("expected") != expected_metrics:
+            errors.append(f"RLS acceptance metrics differ for {case_name}")
+
+    unknown_rows = [fixture for fixture in fixtures if fixture["identity"] == expected_identities["Unknown"]]
+    if unknown_rows:
+        errors.append("Unknown RLS acceptance identity must not have an entitlement fixture")
+    blank_rows = [fixture for fixture in fixtures if fixture["identity"] == expected_identities["Blank"]]
+    if len(blank_rows) != 1 or blank_rows[0]["country"] != "":
+        errors.append("Blank RLS acceptance identity must have one empty CountryCode fixture")
 
 
 def validate_relationships(definition: Path, inventory: ModelInventory, errors: list[str]) -> None:
@@ -1168,11 +1302,16 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
         role_text = role_path.read_text(encoding="utf-8")
         for required in (
             "USERPRINCIPALNAME()",
+            "tablePermission 'Security User Country' =",
             "tablePermission Customers =",
             "Customers[country_code]",
             "tablePermission 'Inventory Locations' =",
             "'Inventory Locations'[country_code]",
             "Security User Country",
+            "LOWER(TRIM(USERPRINCIPALNAME()))",
+            "LEN(CurrentUser) > 0",
+            "LEN(TRIM(COALESCE('Security User Country'[CountryCode], \"\"))) > 0",
+            "UPPER(TRIM('Security User Country'[CountryCode]))",
             "[IsActive] = TRUE()",
             "[ValidFromUtc] <= CurrentUtc",
             "[ValidToUtc] > CurrentUtc",
@@ -1183,6 +1322,7 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
     identities = re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+", security_text)
     if any(not identity.endswith(".invalid") for identity in identities):
         errors.append("Only reserved .invalid synthetic identities may be committed")
+    validate_rls_acceptance_contract(root, security_text, errors)
     calculated_partition = re.compile(
         r"(?ms)^\tpartition\s+(.+?)\s*=\s*calculated\s*\r?\n"
         r"(.*?)(?=^\t(?:column|hierarchy|measure|partition)\s+|\Z)"

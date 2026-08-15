@@ -15,7 +15,7 @@ The Data Quality page communicates whether the synthetic reference model is suit
 - uniqueness of current product business keys;
 - customer/product Unknown-member coverage in `gold.fact_sales`.
 
-The source-to-Bronze-to-Silver-to-Gold reconciliation is independently enforced in SQL CI. Inventory has its own `14 = 10 accepted + 4 rejected` reconciliation and double-run equality gate.
+The source-to-Bronze-to-Silver-to-Gold reconciliation is independently enforced in SQL CI. Inventory has its own `15 = 11 accepted + 4 rejected` reconciliation and double-run equality gate.
 
 ## Status and release rule
 
