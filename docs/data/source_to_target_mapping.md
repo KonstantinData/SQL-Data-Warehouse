@@ -2,7 +2,7 @@
 
 ## Source contracts
 
-All seven files are synthetic reference fixtures. CRM/ERP loading uses SQL Server CSV parsing and positional mappings; Inventory additionally has `datasets/source_inventory/source_contract.json`. The current committed total is **116,308** data rows.
+All seven files are synthetic reference fixtures. CRM/ERP loading uses SQL Server CSV parsing and positional mappings; Inventory additionally has `datasets/source_inventory/source_contract.json`. The current committed total is **116,309** data rows.
 
 | Source file | Rows | Bronze target | Silver target | Analytical target |
 | --- | ---: | --- | --- | --- |
