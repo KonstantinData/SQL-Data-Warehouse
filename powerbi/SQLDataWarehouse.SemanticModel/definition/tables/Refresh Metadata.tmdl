@@ -4,14 +4,20 @@ table 'Refresh Metadata'
 
 	column RefreshedAtUtc
 		dataType: dateTime
-		formatString: yyyy-mm-dd hh:mm:ss
-		sourceColumn: [RefreshedAtUtc]
+		formatString: General Date
+		lineageTag: e824d33f-17a6-4b6f-a7be-8e8ac83df9d8
 		summarizeBy: none
+		sourceColumn: RefreshedAtUtc
+
+		annotation SummarizationSetBy = Automatic
 
 	column Environment
 		dataType: string
-		sourceColumn: [Environment]
+		lineageTag: a1a707c8-0ef1-4cfd-9f95-4c94668e9cbb
 		summarizeBy: none
+		sourceColumn: Environment
+
+		annotation SummarizationSetBy = Automatic
 
 	partition 'Refresh Metadata' = m
 		mode: import

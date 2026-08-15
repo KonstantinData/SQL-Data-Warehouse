@@ -1,70 +1,112 @@
 table 'Data Quality Checks'
 	lineageTag: 6b59bd3c-34c9-47c0-873c-8436ccf5d535
 
-	column CheckKey
-		dataType: string
-		isKey
-		sourceColumn: [CheckKey]
-		summarizeBy: none
-
-	column CheckName
-		dataType: string
-		sourceColumn: [CheckName]
-		summarizeBy: none
-
 	column Severity
 		dataType: string
-		sourceColumn: Severity
+		lineageTag: a8ce7aa0-ffdf-450b-a9fa-e2978f87ce8d
 		summarizeBy: none
+		sourceColumn: Severity
 
 	column Layer
 		dataType: string
-		sourceColumn: Layer
+		lineageTag: 6189a4a4-12b2-4cc7-b378-1bae9f264b73
 		summarizeBy: none
+		sourceColumn: Layer
 
 	column Scope
 		dataType: string
-		sourceColumn: Scope
+		lineageTag: 5791c153-48df-43e2-b91d-eba357df9136
 		summarizeBy: none
+		sourceColumn: Scope
 
 	column Status
 		dataType: string
-		sourceColumn: Status
+		lineageTag: 64613339-531f-4d6d-87c5-9bf307701200
 		summarizeBy: none
+		sourceColumn: Status
 
 	column FailedRows
 		dataType: int64
+		formatString: #,0
+		lineageTag: f2081016-9cc0-4d54-8f3f-665c24e1e57a
+		summarizeBy: none
 		sourceColumn: FailedRows
-		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
 
 	column EvaluatedRows
 		dataType: int64
+		formatString: #,0
+		lineageTag: 3d3f6dbc-241c-4c25-93ff-dea8e092cd8c
+		summarizeBy: none
 		sourceColumn: EvaluatedRows
-		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
 
 	column PassRate
 		dataType: double
 		formatString: 0.0%
-		sourceColumn: PassRate
+		lineageTag: caf41e51-9bb0-41a4-8ced-543b4c235a4f
 		summarizeBy: average
+		sourceColumn: PassRate
 
 	column IsEvaluated
 		dataType: boolean
-		sourceColumn: IsEvaluated
+		lineageTag: f93675e4-aac6-406b-b9d9-3a9a8019e0f5
 		summarizeBy: none
+		sourceColumn: IsEvaluated
 
 	column LastEvaluatedAtUtc
 		dataType: dateTime
 		formatString: yyyy-mm-dd hh:mm:ss
-		sourceColumn: LastEvaluatedAtUtc
+		lineageTag: 3a6dee8c-1560-4a02-8568-81e657210c80
 		summarizeBy: none
+		sourceColumn: LastEvaluatedAtUtc
+
+	column CheckKey
+		dataType: string
+		lineageTag: 4116eef7-db95-448f-af01-bb47b2cb9447
+		summarizeBy: none
+		sourceColumn: CheckKey
+
+		annotation SummarizationSetBy = Automatic
+
+	column CheckName
+		dataType: string
+		lineageTag: 4374e760-bf16-4459-8ea0-033409a5fd3b
+		summarizeBy: none
+		sourceColumn: CheckName
+
+		annotation SummarizationSetBy = Automatic
 
 	partition 'Data Quality Checks' = m
 		mode: import
 		source =
-			let
-				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
-				Query = "WITH checks AS (SELECT 'invalid_order_date' CheckKey, 'Invalid or blank order date' CheckName, 'Gold' Layer, 'Dataset' Scope, 'Error' Severity, SUM(CASE WHEN order_date_key = 0 THEN 1 ELSE 0 END) FailedRows, COUNT_BIG(*) EvaluatedRows FROM gold.fact_sales UNION ALL SELECT 'sales_equation_mismatch', 'Sales amount differs from quantity times price', 'Gold', 'Dataset', 'Warning', SUM(CASE WHEN sales_amount <> quantity * price OR sales_amount IS NULL OR quantity IS NULL OR price IS NULL THEN 1 ELSE 0 END), COUNT_BIG(*) FROM gold.fact_sales UNION ALL SELECT 'missing_customer_country', 'Customer country is missing or not normalized', 'Gold', 'Dataset', 'Warning', SUM(CASE WHEN country IS NULL OR country = 'Unknown' THEN 1 ELSE 0 END), COUNT_BIG(*) FROM gold.dim_customers UNION ALL SELECT 'future_customer_record', 'Customer creation date flagged as future', 'Gold', 'Dataset', 'Error', SUM(CONVERT(int, customer_is_future)), COUNT_BIG(*) FROM gold.dim_customers UNION ALL SELECT 'nonpositive_product_cost', 'Current product cost is nonpositive', 'Gold', 'Dataset', 'Warning', SUM(CASE WHEN product_cost IS NULL OR product_cost <= 0 THEN 1 ELSE 0 END), COUNT_BIG(*) FROM gold.dim_products WHERE is_current = 1 UNION ALL SELECT 'sales_line_baseline_variance', 'Synthetic sales line count differs from checked baseline', 'Gold', 'Fixture', 'Error', ABS(COUNT_BIG(*) - 60379), COUNT_BIG(*) FROM gold.fact_sales UNION ALL SELECT 'product_key_uniqueness', 'Current product business key is not unique', 'Gold', 'Dataset', 'Error', COUNT_BIG(*) - COUNT_BIG(DISTINCT product_number), COUNT_BIG(*) FROM gold.dim_products WHERE is_current = 1 UNION ALL SELECT 'gold_source_orphan_coverage', 'Gold Unknown-member coverage', 'Gold', 'Dataset', 'Error', SUM(CASE WHEN customer_key = 0 OR product_key = 0 THEN 1 ELSE 0 END), COUNT_BIG(*) FROM gold.fact_sales) SELECT CheckKey, CheckName, Layer, Scope, Severity, CASE WHEN EvaluatedRows IS NULL OR EvaluatedRows = 0 THEN 'Not run' WHEN FailedRows > 0 THEN 'Failed' ELSE 'Passed' END Status, FailedRows, EvaluatedRows, CASE WHEN EvaluatedRows IS NULL OR EvaluatedRows = 0 THEN NULL WHEN FailedRows > 0 THEN CONVERT(float, 0) ELSE CONVERT(float, 1) END PassRate, CONVERT(bit, CASE WHEN EvaluatedRows IS NULL OR EvaluatedRows = 0 THEN 0 ELSE 1 END) IsEvaluated, SYSUTCDATETIME() LastEvaluatedAtUtc FROM checks",
-				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
-			in
-				Result
+				let
+					Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
+					Sales = Table.Buffer(Source{[Schema = "gold", Item = "fact_sales"]}[Data]),
+					Customers = Table.Buffer(Source{[Schema = "gold", Item = "dim_customers"]}[Data]),
+					Products = Table.Buffer(Source{[Schema = "gold", Item = "dim_products"]}[Data]),
+					SalesRows = Int64.From(Table.RowCount(Sales)),
+					CustomerRows = Int64.From(Table.RowCount(Customers)),
+					CurrentProducts = Table.SelectRows(Products, each [is_current] = true),
+					CurrentProductRows = Int64.From(Table.RowCount(CurrentProducts)),
+					CheckRecords = {
+						[CheckKey = "invalid_order_date", CheckName = "Invalid or blank order date", Layer = "Gold", Scope = "Dataset", Severity = "Error", FailedRows = Int64.From(Table.RowCount(Table.SelectRows(Sales, each [order_date_key] = 0))), EvaluatedRows = SalesRows],
+						[CheckKey = "sales_equation_mismatch", CheckName = "Sales amount differs from quantity times price", Layer = "Gold", Scope = "Dataset", Severity = "Warning", FailedRows = Int64.From(Table.RowCount(Table.SelectRows(Sales, each [sales_amount] = null or [quantity] = null or [price] = null or [sales_amount] <> [quantity] * [price]))), EvaluatedRows = SalesRows],
+						[CheckKey = "missing_customer_country", CheckName = "Customer country is missing or not normalized", Layer = "Gold", Scope = "Dataset", Severity = "Warning", FailedRows = Int64.From(Table.RowCount(Table.SelectRows(Customers, each [country] = null or [country] = "Unknown"))), EvaluatedRows = CustomerRows],
+						[CheckKey = "future_customer_record", CheckName = "Customer creation date flagged as future", Layer = "Gold", Scope = "Dataset", Severity = "Error", FailedRows = Int64.From(Table.RowCount(Table.SelectRows(Customers, each [customer_is_future] = true))), EvaluatedRows = CustomerRows],
+						[CheckKey = "nonpositive_product_cost", CheckName = "Current product cost is nonpositive", Layer = "Gold", Scope = "Dataset", Severity = "Warning", FailedRows = Int64.From(Table.RowCount(Table.SelectRows(CurrentProducts, each [product_cost] = null or [product_cost] <= 0))), EvaluatedRows = CurrentProductRows],
+						[CheckKey = "sales_line_baseline_variance", CheckName = "Synthetic sales line count differs from checked baseline", Layer = "Gold", Scope = "Fixture", Severity = "Error", FailedRows = Int64.From(Number.Abs(SalesRows - 60379)), EvaluatedRows = SalesRows],
+						[CheckKey = "product_key_uniqueness", CheckName = "Current product business key is not unique", Layer = "Gold", Scope = "Dataset", Severity = "Error", FailedRows = Int64.From(CurrentProductRows - Table.RowCount(Table.Distinct(Table.SelectColumns(CurrentProducts, {"product_number"})))), EvaluatedRows = CurrentProductRows],
+						[CheckKey = "gold_source_orphan_coverage", CheckName = "Gold Unknown-member coverage", Layer = "Gold", Scope = "Dataset", Severity = "Error", FailedRows = Int64.From(Table.RowCount(Table.SelectRows(Sales, each [customer_key] = 0 or [product_key] = 0))), EvaluatedRows = SalesRows]
+					},
+					Checks = Table.FromRecords(CheckRecords),
+					WithStatus = Table.AddColumn(Checks, "Status", each if [EvaluatedRows] = 0 then "Not run" else if [FailedRows] > 0 then "Failed" else "Passed", type text),
+					WithPassRate = Table.AddColumn(WithStatus, "PassRate", each if [EvaluatedRows] = 0 then null else if [FailedRows] > 0 then 0.0 else 1.0, type number),
+					WithEvaluationFlag = Table.AddColumn(WithPassRate, "IsEvaluated", each [EvaluatedRows] > 0, type logical),
+					WithTimestamp = Table.AddColumn(WithEvaluationFlag, "LastEvaluatedAtUtc", each DateTimeZone.RemoveZone(DateTimeZone.UtcNow()), type datetime),
+					Typed = Table.TransformColumnTypes(WithTimestamp, {{"CheckKey", type text}, {"CheckName", type text}, {"Layer", type text}, {"Scope", type text}, {"Severity", type text}, {"Status", type text}, {"FailedRows", Int64.Type}, {"EvaluatedRows", Int64.Type}, {"PassRate", type number}, {"IsEvaluated", type logical}, {"LastEvaluatedAtUtc", type datetime}}),
+					Result = Table.ReorderColumns(Typed, {"CheckKey", "CheckName", "Layer", "Scope", "Severity", "Status", "FailedRows", "EvaluatedRows", "PassRate", "IsEvaluated", "LastEvaluatedAtUtc"})
+				in
+					Result

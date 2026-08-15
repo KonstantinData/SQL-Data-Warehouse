@@ -4,68 +4,80 @@ table Sales
 	column product_key
 		dataType: int64
 		isHidden
-		sourceColumn: product_key
+		lineageTag: 35b08bd5-f1fb-462d-a7e1-cf441c5ceab5
 		summarizeBy: none
+		sourceColumn: product_key
 
 	column order_number
 		dataType: string
-		sourceColumn: order_number
+		lineageTag: 82af63a4-3b52-40c8-9f24-bb29ef784414
 		summarizeBy: none
+		sourceColumn: order_number
 
 	column product_number
 		dataType: string
 		isHidden
-		sourceColumn: product_number
+		lineageTag: b0059bcb-64eb-490f-8424-9695d1099b7f
 		summarizeBy: none
+		sourceColumn: product_number
 
 	column customer_id
 		dataType: int64
 		isHidden
-		sourceColumn: customer_id
+		lineageTag: 89900a34-fa43-462a-a36e-3c152a401e2c
 		summarizeBy: none
+		sourceColumn: customer_id
 
 	column order_date
 		dataType: dateTime
 		formatString: yyyy-mm-dd
-		sourceColumn: order_date
+		lineageTag: e24d63b1-a165-4695-857d-6b0f1740c631
 		summarizeBy: none
+		sourceColumn: order_date
 
 	column ship_date
 		dataType: dateTime
 		formatString: yyyy-mm-dd
-		sourceColumn: ship_date
+		lineageTag: b039b338-7d9d-42ee-a5d2-dbda7308af49
 		summarizeBy: none
+		sourceColumn: ship_date
 
 	column due_date
 		dataType: dateTime
 		formatString: yyyy-mm-dd
-		sourceColumn: due_date
+		lineageTag: d06e2a9f-fb92-403b-abcd-26fb0dc45d3b
 		summarizeBy: none
+		sourceColumn: due_date
 
 	column sales_amount
-		dataType: decimal
+		dataType: double
 		formatString: #,0.00
-		sourceColumn: sales_amount
+		lineageTag: 507ca76a-182c-4ef5-8b6e-e532370ed1d5
 		summarizeBy: sum
+		sourceColumn: sales_amount
 
 	column quantity
 		dataType: int64
 		formatString: #,0
-		sourceColumn: quantity
+		lineageTag: 034dc247-712b-4f37-bf1c-d197224b22f7
 		summarizeBy: sum
+		sourceColumn: quantity
 
 	column price
-		dataType: decimal
+		dataType: double
 		formatString: #,0.00
+		lineageTag: 9a68c1aa-5a72-4839-93f8-be77bea8350a
+		summarizeBy: sum
 		sourceColumn: price
-		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
 
 	partition Sales = m
 		mode: import
 		source =
-			let
-				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
-				Query = "SELECT f.order_number, f.product_key, f.product_number, c.customer_id, f.order_date, f.ship_date, f.due_date, CONVERT(decimal(19,4), f.sales_amount) AS sales_amount, f.quantity, CONVERT(decimal(19,4), f.price) AS price FROM gold.fact_sales f INNER JOIN gold.dim_customers c ON c.customer_key = f.customer_key",
-				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
-			in
-				Result
+				let
+					Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
+					Query = "SELECT f.order_number, f.product_key, f.product_number, c.customer_id, f.order_date, f.ship_date, f.due_date, CONVERT(decimal(19,4), f.sales_amount) AS sales_amount, f.quantity, CONVERT(decimal(19,4), f.price) AS price FROM gold.fact_sales f INNER JOIN gold.dim_customers c ON c.customer_key = f.customer_key",
+					Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
+				in
+					Result

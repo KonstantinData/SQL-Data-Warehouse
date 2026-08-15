@@ -2,18 +2,25 @@
 
 ## Current evidence
 
-Power BI Desktop was not available through PATH, standard MSI locations, or an installed Power BI Appx package in the implementation environment. `pbi-tools`, the Power BI authoring CLI, and Tabular Editor were also unavailable.
+Desktop refresh passed on 2026-08-15 with Power BI Desktop 2.156.951.0.
 
-Therefore the current result can claim only **source validation**, not Desktop, refresh, rendering, interaction, accessibility, service, or production validation.
+`powerbi/SQLDataWarehouse.pbip` opened from source, refreshed all tables from the loopback-only `127.0.0.1/DataWarehouse` acceptance database, saved, closed, and reopened with the refreshed state intact. Credentials were stored outside source control through Desktop's data-source settings.
+
+The refreshed report reconciled the visible executive totals to the SQL acceptance evidence: Total Sales `29,351,258`, Germany `2,894,066`, and United States `9,162,225`. Executive Overview, Sales Performance, and Data Quality rendered without visual query errors. The Data Quality register evaluated eight checks and showed three intentional failures: one error (`gold_source_orphan_coverage`) and two warnings (`missing_customer_country` and `nonpositive_product_cost`).
+
+Performance Analyzer acceptance also passed on 2026-08-15. The versioned raw exports, hashes, thresholds, before/after values, result-row contracts, and reproduction steps are documented in `docs/powerbi/performance-analyzer.md` and `powerbi/performance/performance-evidence.json`.
+
+This is **Desktop PoC acceptance evidence**, not production validation. The full RLS identity matrix, interaction and accessibility sweeps, responsive screenshots, Power BI Service role memberships, gateway configuration, and Service refresh remain outside this local acceptance run.
 
 Run the repository checks:
 
 ```text
 python scripts/powerbi_validation/validate_powerbi_project.py --root .
+python scripts/powerbi_validation/validate_performance_evidence.py --root .
 python -m unittest discover scripts/powerbi_validation/tests -v
 ```
 
-Source validation checks JSON parsing, PBIP/PBIR paths and versions, TMDL inventory, semantic references, relationships, parameters, RLS, KPI catalog parity, visual bounds and IDs, mobile-layout coverage, prohibited transient files, credentials, and scope/honesty markers. It is a conservative custom validator, not a complete TMDL, DAX, M, or PBIR schema engine.
+Source validation checks JSON parsing, PBIP/PBIR paths and versions, Fabric `.platform` metadata and logical IDs, TMDL inventory, semantic references, relationships, parameters, RLS, KPI catalog parity, visual bounds and IDs, mobile-layout coverage, prohibited transient files, credentials, and scope/honesty markers. It is a conservative custom validator, not a complete TMDL, DAX, M, or PBIR schema engine.
 
 ## Mandatory Desktop gate
 
@@ -29,10 +36,10 @@ Source validation checks JSON parsing, PBIP/PBIR paths and versions, TMDL invent
 10. Inspect every visual for binding errors, empty frames, slicers, cross-filtering, tooltips, reset behaviour, and any implemented navigation/drillthrough.
 11. Validate keyboard order, focus, screen-reader names, alt text, High Contrast, non-colour states, and touch targets.
 12. Capture 320, 390, 768, 1280, and 1440 px screenshots for default, filtered, no-data, quality-failure, and detail states.
-13. Run Performance Analyzer and record material DAX/visual latency.
+13. Re-run the versioned Performance Analyzer method in `docs/powerbi/performance-analyzer.md` after material DAX, model, Power Query, or visual changes.
 14. Save, restart Desktop, reopen, rerun the source validator, and review the complete Git diff for generated or upgraded content.
 
-Passing source validation does not prove that Desktop can open, refresh, render, or enforce the project. The phrase `Production validated` must not be used for this implementation.
+Passing source validation alone does not prove that Desktop can open, refresh, render, or enforce the project. The dated Desktop evidence above covers open, refresh, core rendering, save, and reopen only. The phrase `Production validated` must not be used for this implementation.
 
 ## RLS validation matrix
 

@@ -12,9 +12,12 @@ import json
 import re
 import subprocess
 import sys
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from validate_performance_evidence import validate_performance_evidence
 
 
 ALLOWED_PREFIXES = ("powerbi/", "docs/kpi/", "docs/powerbi/", "scripts/powerbi_validation/")
@@ -40,9 +43,11 @@ def unquote(value: str) -> str:
 def load_json(path: Path, errors: list[str]) -> Any | None:
     try:
         raw = path.read_bytes()
-        if raw.startswith(b"\xef\xbb\xbf"):
+        is_performance_export = "performance" in path.parts and "raw" in path.parts
+        if raw.startswith(b"\xef\xbb\xbf") and not is_performance_export:
             errors.append(f"UTF-8 BOM is not allowed: {path}")
-        return json.loads(raw.decode("utf-8"))
+        encoding = "utf-8-sig" if raw.startswith(b"\xef\xbb\xbf") else "utf-8"
+        return json.loads(raw.decode(encoding))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         errors.append(f"Invalid JSON in {path}: {exc}")
         return None
@@ -60,6 +65,49 @@ def resolve_child(base: Path, relative: str, errors: list[str], label: str) -> P
 def iter_json_like(root: Path) -> list[Path]:
     suffixes = {".json", ".pbip", ".pbir", ".pbism"}
     return sorted(path for path in root.rglob("*") if path.is_file() and path.suffix in suffixes)
+
+
+def validate_platform_files(report_dir: Path, semantic_dir: Path, errors: list[str]) -> None:
+    expected = {
+        report_dir: "Report",
+        semantic_dir: "SemanticModel",
+    }
+    logical_ids: list[str] = []
+    expected_schema = (
+        "https://developer.microsoft.com/json-schemas/fabric/"
+        "gitIntegration/platformProperties/2.0.0/schema.json"
+    )
+
+    for item_dir, expected_type in expected.items():
+        path = item_dir / ".platform"
+        if not path.is_file():
+            errors.append(f"Required Fabric Git integration file is missing: {path}")
+            continue
+        data = load_json(path, errors)
+        if not isinstance(data, dict):
+            continue
+        if data.get("$schema") != expected_schema:
+            errors.append(f"Unsupported .platform schema for {expected_type}")
+        metadata = data.get("metadata")
+        config = data.get("config")
+        if not isinstance(metadata, dict) or metadata.get("type") != expected_type:
+            errors.append(f".platform item type must be {expected_type}")
+        if not isinstance(metadata, dict) or metadata.get("displayName") != "SQLDataWarehouse":
+            errors.append(f".platform displayName must be SQLDataWarehouse for {expected_type}")
+        if not isinstance(config, dict) or config.get("version") != "2.0":
+            errors.append(f".platform config version must be 2.0 for {expected_type}")
+        logical_id = config.get("logicalId") if isinstance(config, dict) else None
+        try:
+            parsed_id = uuid.UUID(str(logical_id))
+            if parsed_id.int == 0:
+                raise ValueError("nil UUID")
+        except (ValueError, AttributeError):
+            errors.append(f".platform logicalId must be a non-nil UUID for {expected_type}")
+        else:
+            logical_ids.append(str(parsed_id))
+
+    if len(logical_ids) != len(set(logical_ids)):
+        errors.append("Report and SemanticModel .platform logicalIds must be distinct")
 
 
 @dataclass
@@ -326,11 +374,15 @@ def validate_dq_status_contract(inventory: ModelInventory, errors: list[str]) ->
         ("DQ Failed Error Checks", error_expression, '"Error"'),
         ("DQ Failed Warning Checks", warning_expression, '"Warning"'),
     ):
-        required_tokens = ("Data Quality Checks", "IsEvaluated", "Severity", severity)
+        required_tokens = ("Data Quality Checks", "Severity", severity)
         if any(token not in expression for token in required_tokens):
-            errors.append(f"{label} must count evaluated failed checks for Severity={severity}")
+            errors.append(f"{label} must count failed checks for Severity={severity}")
         status_based = "Status" in expression and '"Failed"' in expression
-        row_based = "FailedRows" in expression and re.search(r"FailedRows\]\s*>\s*0", expression)
+        row_based = (
+            "IsEvaluated" in expression
+            and "FailedRows" in expression
+            and re.search(r"FailedRows\]\s*>\s*0", expression)
+        )
         if not status_based and not row_based:
             errors.append(f"{label} must identify failed checks through Status or FailedRows")
     for token in (
@@ -623,9 +675,11 @@ def validate_files(root: Path, errors: list[str]) -> None:
                 errors.append(f"Path is unsafe for common Windows tooling (>=260 chars): {path}")
             try:
                 raw = path.read_bytes()
-                if raw.startswith(b"\xef\xbb\xbf"):
+                is_performance_export = "performance" in path.parts and "raw" in path.parts
+                if raw.startswith(b"\xef\xbb\xbf") and not is_performance_export:
                     errors.append(f"UTF-8 BOM is not allowed: {path}")
-                text = raw.decode("utf-8")
+                encoding = "utf-8-sig" if raw.startswith(b"\xef\xbb\xbf") else "utf-8"
+                text = raw.decode(encoding)
             except UnicodeDecodeError:
                 errors.append(f"Non-UTF-8 artifact: {path}")
                 continue
@@ -706,6 +760,7 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
     if not semantic_dir.is_dir():
         errors.append(f"PBIR semantic-model directory is missing: {semantic_dir}")
         return errors
+    validate_platform_files(report_dir, semantic_dir, errors)
     pbism = load_json(semantic_dir / "definition.pbism", errors)
     if not isinstance(pbism, dict) or float(pbism.get("version", 0)) < 4.0:
         errors.append("definition.pbism version must be 4.0 or newer")
@@ -728,15 +783,25 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
     if len(root_refs) != 11:
         errors.append(f"Expected eleven root-level TMDL table/role refs, found {len(root_refs)}")
     first_ref = re.search(r"^ref\s+(?:table|role)\s+", model_text, re.MULTILINE)
-    annotation = re.search(r"^\tannotation __PBI_TimeIntelligenceEnabled", model_text, re.MULTILINE)
+    annotation = re.search(r"^annotation __PBI_TimeIntelligenceEnabled", model_text, re.MULTILINE)
     if not annotation or (first_ref and annotation.start() > first_ref.start()):
-        errors.append("Model annotation must remain inside the model block before root-level refs")
+        errors.append("Desktop-canonical model annotation must precede root-level refs")
 
     expression_text = (definition / "expressions.tmdl").read_text(encoding="utf-8")
     table_text = "\n".join(path.read_text(encoding="utf-8") for path in (definition / "tables").glob("*.tmdl"))
     for parameter in ("SqlServerName", "SqlDatabaseName", "EnvironmentName", "CommandTimeoutMinutes"):
         if f"expression {parameter} =" not in expression_text:
             errors.append(f"Required refresh parameter is missing: {parameter}")
+    child_parameter_metadata = re.findall(
+        r"(?m)^expression\s+([^\s=]+)\s*=.*\r?\n[ \t]+meta\s+\[[^\]\r\n]*"
+        r"\bIsParameterQuery\s*=\s*true\b[^\]\r\n]*\]",
+        expression_text,
+    )
+    if child_parameter_metadata:
+        errors.append(
+            "Power Query parameter metadata must be on the expression declaration line; "
+            f"indented child meta is unsupported for: {sorted(child_parameter_metadata)}"
+        )
     if "Sql.Database(SqlServerName, SqlDatabaseName" not in table_text:
         errors.append("Refresh parameters are not used by Sql.Database")
     core_source_text = "\n".join(
@@ -761,6 +826,26 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
     if re.search(r"\bFROM\s+silver\.", core_source_text, re.IGNORECASE):
         errors.append("Core semantic tables must not bypass the curated Gold contract")
 
+    dq_source_path = definition / "tables" / "Data Quality Checks.tmdl"
+    dq_source_text = dq_source_path.read_text(encoding="utf-8")
+    if "Value.NativeQuery" in dq_source_text:
+        errors.append("Data Quality Checks must not require native-query approval")
+    for dq_source in (
+        'Source{[Schema = "gold", Item = "fact_sales"]}[Data]',
+        'Source{[Schema = "gold", Item = "dim_customers"]}[Data]',
+        'Source{[Schema = "gold", Item = "dim_products"]}[Data]',
+    ):
+        if dq_source not in dq_source_text:
+            errors.append(f"Data Quality Checks curated source is missing: {dq_source}")
+    for numeric_column in ("FailedRows", "EvaluatedRows"):
+        type_contract = re.compile(
+            rf"(?m)^\tcolumn {re.escape(numeric_column)}\r?$\n\t\tdataType: int64\r?$"
+        )
+        if not type_contract.search(dq_source_text):
+            errors.append(f"Data Quality Checks {numeric_column} must use int64")
+        if f'{{"{numeric_column}", Int64.Type}}' not in dq_source_text:
+            errors.append(f"Data Quality Checks M result must type {numeric_column} as Int64.Type")
+
     role_path = definition / "roles" / "CountrySalesViewer.tmdl"
     if not role_path.is_file():
         errors.append("CountrySalesViewer role is missing")
@@ -783,15 +868,31 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
     identities = re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+", security_text)
     if any(not identity.endswith(".invalid") for identity in identities):
         errors.append("Only reserved .invalid synthetic identities may be committed")
+    calculated_partition = re.compile(
+        r"(?ms)^\tpartition\s+(.+?)\s*=\s*calculated\s*\r?\n"
+        r"(.*?)(?=^\t(?:column|hierarchy|measure|partition)\s+|\Z)"
+    )
+    datatable_source_with_date = re.compile(
+        r"(?mi)^[ \t]+source\s*=\s*DATATABLE\([^\r\n]*\bDATE\s*\("
+    )
+    for table_path in (definition / "tables").glob("*.tmdl"):
+        table_source = table_path.read_text(encoding="utf-8")
+        for partition in calculated_partition.finditer(table_source):
+            if datatable_source_with_date.search(partition.group(2)):
+                errors.append(
+                    "Calculated DATATABLE partitions must use dt date literals instead of DATE(...): "
+                    f"{table_path.name} / {partition.group(1).strip()}"
+                )
 
     validate_report(report_dir, inventory, errors)
     validate_kpi_catalog(root, inventory, errors)
     validate_rls_documentation(root, errors)
+    errors.extend(validate_performance_evidence(root))
 
     validation_doc = (root / "docs" / "powerbi" / "validation.md").read_text(encoding="utf-8")
     architecture_doc = (root / "docs" / "powerbi" / "architecture.md").read_text(encoding="utf-8")
-    if "Power BI Desktop was not available" not in validation_doc:
-        errors.append("Desktop-unavailable limitation is not documented")
+    if "Desktop refresh passed" not in validation_doc:
+        errors.append("Dated Power BI Desktop refresh evidence is not documented")
     if "synthetic CRM, ERP, and Inventory data" not in architecture_doc:
         errors.append("Synthetic-data evidence boundary is not documented")
     prohibited_claims = ("deployed to production", "years of experience")
@@ -817,7 +918,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
     print("Power BI source validation passed.")
-    print("Validated: PBIP/PBIR structure, TMDL inventory/references, KPI catalog, report blueprint, layouts, RLS/refresh contracts, secrets, and owned-scope changes.")
+    print("Validated: PBIP/PBIR structure, Fabric item metadata, TMDL inventory/references, KPI catalog, report blueprint, layouts, RLS/refresh contracts, performance evidence, secrets, and owned-scope changes.")
     print("Not validated: Power BI Desktop open/save, full TMDL/DAX/M parsing, refresh, rendering, RLS enforcement, interactions, accessibility, or screenshots.")
     return 0
 

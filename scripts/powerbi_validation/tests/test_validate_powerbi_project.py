@@ -37,6 +37,86 @@ class PowerBIProjectValidatorTests(unittest.TestCase):
             errors = validate_project(root, check_git=False)
             self.assertTrue(any("semantic-model directory is missing" in error for error in errors), errors)
 
+    def test_missing_platform_file_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/SQLDataWarehouse.Report/.platform"
+            path.unlink()
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("Required Fabric Git integration file is missing" in error for error in errors), errors)
+
+    def test_duplicate_platform_logical_id_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            report_path = root / "powerbi/SQLDataWarehouse.Report/.platform"
+            semantic_path = root / "powerbi/SQLDataWarehouse.SemanticModel/.platform"
+            report_data = json.loads(report_path.read_text(encoding="utf-8"))
+            semantic_data = json.loads(semantic_path.read_text(encoding="utf-8"))
+            semantic_data["config"]["logicalId"] = report_data["config"]["logicalId"]
+            semantic_path.write_text(json.dumps(semantic_data, indent=2), encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("logicalIds must be distinct" in error for error in errors), errors)
+
+    def test_parameter_meta_on_indented_child_line_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/SQLDataWarehouse.SemanticModel/definition/expressions.tmdl"
+            text = path.read_text(encoding="utf-8").replace(
+                'expression SqlServerName = "127.0.0.1" meta ',
+                'expression SqlServerName = "127.0.0.1"\n\tmeta ',
+                1,
+            )
+            path.write_text(text, encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(
+                any(
+                    "parameter metadata must be on the expression declaration line" in error
+                    and "SqlServerName" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_parameter_meta_on_expression_line_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            errors = validate_project(root, check_git=False)
+            self.assertFalse(
+                any("parameter metadata must be on the expression declaration line" in error for error in errors),
+                errors,
+            )
+
+    def test_date_function_in_calculated_datatable_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/SQLDataWarehouse.SemanticModel/definition/tables/Security User Country.tmdl"
+            text = path.read_text(encoding="utf-8").replace('dt"2020-01-01"', "DATE(2020, 1, 1)", 1)
+            path.write_text(text, encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(
+                any(
+                    "Calculated DATATABLE partitions must use dt date literals instead of DATE(...)" in error
+                    and "Security User Country.tmdl" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_dt_literal_in_calculated_datatable_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            errors = validate_project(root, check_git=False)
+            self.assertFalse(
+                any("Calculated DATATABLE partitions must use dt date literals" in error for error in errors),
+                errors,
+            )
+
     def test_duplicate_kpi_id_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -158,6 +238,34 @@ class PowerBIProjectValidatorTests(unittest.TestCase):
             path.write_text(text, encoding="utf-8")
             errors = validate_project(root, check_git=False)
             self.assertTrue(any("Relationship topology differs" in error for error in errors), errors)
+
+    def test_native_data_quality_query_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/SQLDataWarehouse.SemanticModel/definition/tables/Data Quality Checks.tmdl"
+            text = path.read_text(encoding="utf-8").replace(
+                "\t\t\t\t\tSales = Table.Buffer(",
+                '\t\t\t\t\tUnsafe = Value.NativeQuery(Source, "SELECT 1"),\n\t\t\t\t\tSales = Table.Buffer(',
+                1,
+            )
+            path.write_text(text, encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("must not require native-query approval" in error for error in errors), errors)
+
+    def test_text_data_quality_count_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/SQLDataWarehouse.SemanticModel/definition/tables/Data Quality Checks.tmdl"
+            text = path.read_text(encoding="utf-8").replace(
+                "\tcolumn FailedRows\n\t\tdataType: int64",
+                "\tcolumn FailedRows\n\t\tdataType: string",
+                1,
+            )
+            path.write_text(text, encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("FailedRows must use int64" in error for error in errors), errors)
 
     def test_missing_inventory_rls_permission_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

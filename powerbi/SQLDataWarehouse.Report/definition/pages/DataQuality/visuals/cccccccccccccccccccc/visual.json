@@ -1,19 +1,169 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
   "name": "cccccccccccccccccccc",
-  "position": {"x": 848, "y": 448, "z": 5000, "height": 240, "width": 400, "tabOrder": 5000},
+  "position": {
+    "x": 848,
+    "y": 448,
+    "z": 5000,
+    "height": 240,
+    "width": 400,
+    "tabOrder": 5000
+  },
   "visual": {
     "visualType": "cardVisual",
     "visualContainerObjects": {
-      "title": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "text": {"expr": {"Literal": {"Value": "'Mixed-scope dimension and freshness exceptions'"}}}}}],
-      "general": [{"properties": {"altText": {"expr": {"Literal": {"Value": "'Customer exceptions and data-through date reflect the current access scope; product-cost exceptions are global.'"}}}}}],
-      "background": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#FFFFFF'"}}}}}, "transparency": {"expr": {"Literal": {"Value": "0D"}}}}}],
-      "border": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#D0D5DD'"}}}}}, "radius": {"expr": {"Literal": {"Value": "8L"}}}, "width": {"expr": {"Literal": {"Value": "1L"}}}}}]
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Mixed-scope dimension and freshness exceptions'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "general": [
+        {
+          "properties": {
+            "altText": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Customer exceptions and data-through date reflect the current access scope; product-cost exceptions are global.'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "background": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "color": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "'#FFFFFF'"
+                    }
+                  }
+                }
+              }
+            },
+            "transparency": {
+              "expr": {
+                "Literal": {
+                  "Value": "0D"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "border": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "color": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "'#D0D5DD'"
+                    }
+                  }
+                }
+              }
+            },
+            "radius": {
+              "expr": {
+                "Literal": {
+                  "Value": "8L"
+                }
+              }
+            },
+            "width": {
+              "expr": {
+                "Literal": {
+                  "Value": "1L"
+                }
+              }
+            }
+          }
+        }
+      ]
     },
-    "query": {"queryState": {"Data": {"projections": [
-      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Future Customer Records"}}, "queryRef": "_Measures.Future Customer Records", "nativeQueryRef": "Future Customer Records"},
-      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Nonpositive Product Cost Records"}}, "queryRef": "_Measures.Nonpositive Product Cost Records", "nativeQueryRef": "Nonpositive Product Cost Records"},
-      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Data Through Date"}}, "queryRef": "_Measures.Data Through Date", "nativeQueryRef": "Data Through Date"}
-    ]}}}
+    "query": {
+      "queryState": {
+        "Data": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Future Customer Records"
+                }
+              },
+              "queryRef": "_Measures.Future Customer Records",
+              "nativeQueryRef": "Future Customer Records"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Nonpositive Product Cost Records"
+                }
+              },
+              "queryRef": "_Measures.Nonpositive Product Cost Records",
+              "nativeQueryRef": "Nonpositive Product Cost Records"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Data Through Date"
+                }
+              },
+              "queryRef": "_Measures.Data Through Date",
+              "nativeQueryRef": "Data Through Date"
+            }
+          ]
+        }
+      }
+    }
   }
 }

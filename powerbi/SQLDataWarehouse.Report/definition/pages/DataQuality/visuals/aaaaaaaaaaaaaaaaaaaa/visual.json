@@ -1,25 +1,253 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
   "name": "aaaaaaaaaaaaaaaaaaaa",
-  "position": {"x": 32, "y": 208, "z": 3000, "height": 480, "width": 800, "tabOrder": 3000},
+  "position": {
+    "x": 32,
+    "y": 208,
+    "z": 3000,
+    "height": 480,
+    "width": 800,
+    "tabOrder": 3000
+  },
   "visual": {
     "visualType": "tableEx",
     "visualContainerObjects": {
-      "title": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "text": {"expr": {"Literal": {"Value": "'Data quality check register'"}}}}}],
-      "general": [{"properties": {"altText": {"expr": {"Literal": {"Value": "'Desktop table of check status, severity, scope, pass rate, evaluation time, and failed rows.'"}}}}}],
-      "background": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#FFFFFF'"}}}}}, "transparency": {"expr": {"Literal": {"Value": "0D"}}}}}],
-      "border": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#D0D5DD'"}}}}}, "radius": {"expr": {"Literal": {"Value": "8L"}}}, "width": {"expr": {"Literal": {"Value": "1L"}}}}}]
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Data quality check register'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "general": [
+        {
+          "properties": {
+            "altText": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Desktop table of check status, severity, scope, pass rate, evaluation time, and failed rows.'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "background": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "color": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "'#FFFFFF'"
+                    }
+                  }
+                }
+              }
+            },
+            "transparency": {
+              "expr": {
+                "Literal": {
+                  "Value": "0D"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "border": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "color": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "'#D0D5DD'"
+                    }
+                  }
+                }
+              }
+            },
+            "radius": {
+              "expr": {
+                "Literal": {
+                  "Value": "8L"
+                }
+              }
+            },
+            "width": {
+              "expr": {
+                "Literal": {
+                  "Value": "1L"
+                }
+              }
+            }
+          }
+        }
+      ]
     },
-    "query": {"queryState": {"Values": {"projections": [
-      {"field": {"Column": {"Expression": {"SourceRef": {"Entity": "Data Quality Checks"}}, "Property": "CheckName"}}, "queryRef": "Data Quality Checks.CheckName", "nativeQueryRef": "CheckName"},
-      {"field": {"Column": {"Expression": {"SourceRef": {"Entity": "Data Quality Checks"}}, "Property": "Severity"}}, "queryRef": "Data Quality Checks.Severity", "nativeQueryRef": "Severity"},
-      {"field": {"Column": {"Expression": {"SourceRef": {"Entity": "Data Quality Checks"}}, "Property": "Layer"}}, "queryRef": "Data Quality Checks.Layer", "nativeQueryRef": "Layer"},
-      {"field": {"Column": {"Expression": {"SourceRef": {"Entity": "Data Quality Checks"}}, "Property": "Scope"}}, "queryRef": "Data Quality Checks.Scope", "nativeQueryRef": "Scope"},
-      {"field": {"Column": {"Expression": {"SourceRef": {"Entity": "Data Quality Checks"}}, "Property": "Status"}}, "queryRef": "Data Quality Checks.Status", "nativeQueryRef": "Status"},
-      {"field": {"Column": {"Expression": {"SourceRef": {"Entity": "Data Quality Checks"}}, "Property": "IsEvaluated"}}, "queryRef": "Data Quality Checks.IsEvaluated", "nativeQueryRef": "IsEvaluated"},
-      {"field": {"Column": {"Expression": {"SourceRef": {"Entity": "Data Quality Checks"}}, "Property": "PassRate"}}, "queryRef": "Data Quality Checks.PassRate", "nativeQueryRef": "PassRate"},
-      {"field": {"Column": {"Expression": {"SourceRef": {"Entity": "Data Quality Checks"}}, "Property": "LastEvaluatedAtUtc"}}, "queryRef": "Data Quality Checks.LastEvaluatedAtUtc", "nativeQueryRef": "LastEvaluatedAtUtc"},
-      {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "DQ Failed Rows"}}, "queryRef": "_Measures.DQ Failed Rows", "nativeQueryRef": "DQ Failed Rows"}
-    ]}}}
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Data Quality Checks"
+                    }
+                  },
+                  "Property": "CheckName"
+                }
+              },
+              "queryRef": "Data Quality Checks.CheckName",
+              "nativeQueryRef": "CheckName"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Data Quality Checks"
+                    }
+                  },
+                  "Property": "Severity"
+                }
+              },
+              "queryRef": "Data Quality Checks.Severity",
+              "nativeQueryRef": "Severity"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Data Quality Checks"
+                    }
+                  },
+                  "Property": "Layer"
+                }
+              },
+              "queryRef": "Data Quality Checks.Layer",
+              "nativeQueryRef": "Layer"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Data Quality Checks"
+                    }
+                  },
+                  "Property": "Scope"
+                }
+              },
+              "queryRef": "Data Quality Checks.Scope",
+              "nativeQueryRef": "Scope"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Data Quality Checks"
+                    }
+                  },
+                  "Property": "Status"
+                }
+              },
+              "queryRef": "Data Quality Checks.Status",
+              "nativeQueryRef": "Status"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Data Quality Checks"
+                    }
+                  },
+                  "Property": "IsEvaluated"
+                }
+              },
+              "queryRef": "Data Quality Checks.IsEvaluated",
+              "nativeQueryRef": "IsEvaluated"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Data Quality Checks"
+                    }
+                  },
+                  "Property": "PassRate"
+                }
+              },
+              "queryRef": "Data Quality Checks.PassRate",
+              "nativeQueryRef": "PassRate"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Data Quality Checks"
+                    }
+                  },
+                  "Property": "LastEvaluatedAtUtc"
+                }
+              },
+              "queryRef": "Data Quality Checks.LastEvaluatedAtUtc",
+              "nativeQueryRef": "LastEvaluatedAtUtc"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "DQ Failed Rows"
+                }
+              },
+              "queryRef": "_Measures.DQ Failed Rows",
+              "nativeQueryRef": "DQ Failed Rows"
+            }
+          ]
+        }
+      }
+    }
   }
 }

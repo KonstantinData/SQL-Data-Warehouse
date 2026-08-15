@@ -4,126 +4,169 @@ table _Measures
 	measure 'Total Sales' = SUM(Sales[sales_amount])
 		formatString: #,0.00
 		displayFolder: Sales Performance
+		lineageTag: ec02081b-b864-45b6-851e-96e5129d37b8
 
 	measure 'Sales Lines' = COUNTROWS(Sales)
 		formatString: #,0
 		displayFolder: Sales Performance
+		lineageTag: b118f780-208b-4b29-8edb-35fd7c8d41b9
 
-	measure 'Distinct Orders' = COUNTROWS(FILTER(VALUES(Sales[order_number]), NOT ISBLANK(Sales[order_number])))
+	measure 'Distinct Orders' = DISTINCTCOUNTNOBLANK(Sales[order_number])
 		formatString: #,0
 		displayFolder: Sales Performance
+		lineageTag: 12de1838-fda3-4f83-8377-a69ad728bdc9
 
 	measure 'Total Quantity' = SUM(Sales[quantity])
 		formatString: #,0
 		displayFolder: Sales Performance
+		lineageTag: 9b091cdd-80ac-4b20-90ab-c97d59607ea9
 
 	measure 'Average Selling Price' = DIVIDE([Total Sales], [Total Quantity])
 		formatString: #,0.00
 		displayFolder: Sales Performance
+		lineageTag: c8d4f5e3-425c-4144-a25d-7b8dc882ac17
 
 	measure 'Average Order Value' = DIVIDE([Total Sales], [Distinct Orders])
 		formatString: #,0.00
 		displayFolder: Sales Performance
+		lineageTag: 2bfe4b32-e98f-4934-8a96-b338e2433fe9
 
-	measure 'Customer Count' = COUNTROWS(FILTER(VALUES(Sales[customer_id]), NOT ISBLANK(Sales[customer_id])))
+	measure 'Customer Count' = DISTINCTCOUNTNOBLANK(Sales[customer_id])
 		formatString: #,0
 		displayFolder: Sales Performance
+		lineageTag: 51161bc3-537c-46bd-b685-dcfa867318fd
 
 	measure 'Product Count' = DISTINCTCOUNT(Sales[product_number])
 		formatString: #,0
 		displayFolder: Sales Performance
+		lineageTag: fbb3e1d0-94e2-4e24-a85c-813e1ec812b9
 
 	measure 'Estimated COGS' = SUMX(Sales, Sales[quantity] * RELATED(Products[product_cost]))
 		formatString: #,0.00
 		displayFolder: Profitability (Estimated)
+		lineageTag: 07cdc201-9e77-42f0-bb11-70e0c0b3a6e4
 
 	measure 'Estimated Gross Profit' = [Total Sales] - [Estimated COGS]
 		formatString: #,0.00
 		displayFolder: Profitability (Estimated)
+		lineageTag: 43f40b71-afba-4fae-a1f7-1357602d92d9
 
 	measure 'Estimated Gross Margin %' = DIVIDE([Estimated Gross Profit], [Total Sales])
 		formatString: 0.0%
 		displayFolder: Profitability (Estimated)
+		lineageTag: 99a775f6-9136-4966-9809-9342535a74cc
 
 	measure 'Sales Previous Year' = CALCULATE([Total Sales], DATEADD('Date'[Date], -1, YEAR))
 		formatString: #,0.00
 		displayFolder: Time Intelligence
+		lineageTag: c734e913-39cf-4f37-8172-f7fd3d353fd4
 
 	measure 'Sales YoY' = [Total Sales] - [Sales Previous Year]
 		formatString: #,0.00
 		displayFolder: Time Intelligence
+		lineageTag: 7e31c03c-0eee-40e8-bd7c-737a4edea53a
 
 	measure 'Sales YoY %' = VAR PY = [Sales Previous Year] RETURN IF(NOT ISBLANK(PY) && PY <> 0, DIVIDE([Total Sales] - PY, PY))
 		formatString: 0.0%;-0.0%;
 		displayFolder: Time Intelligence
+		lineageTag: 9a079c8b-0da2-4622-ab37-e0c65a5ac2d3
 
 	measure 'Late Orders' = VAR Eligible = FILTER(VALUES(Sales[order_number]), NOT ISBLANK(CALCULATE(MAX(Sales[ship_date]))) && NOT ISBLANK(CALCULATE(MIN(Sales[due_date])))) RETURN COUNTROWS(FILTER(Eligible, CALCULATE(MAX(Sales[ship_date])) > CALCULATE(MIN(Sales[due_date]))))
 		formatString: #,0
 		displayFolder: Fulfillment
+		lineageTag: a01c316a-db7b-49ff-b2e4-36490672f63a
 
-	measure 'On-Time Shipment %' = VAR Eligible = FILTER(VALUES(Sales[order_number]), NOT ISBLANK(CALCULATE(MAX(Sales[ship_date]))) && NOT ISBLANK(CALCULATE(MIN(Sales[due_date])))) VAR OnTime = FILTER(Eligible, CALCULATE(MAX(Sales[ship_date])) <= CALCULATE(MIN(Sales[due_date]))) RETURN DIVIDE(COUNTROWS(OnTime), COUNTROWS(Eligible))
+	measure 'On-Time Shipment %' =
+			VAR Orders =
+				ADDCOLUMNS(
+					FILTER(VALUES(Sales[order_number]), NOT ISBLANK(Sales[order_number])),
+					"@ShipDate", CALCULATE(MAX(Sales[ship_date])),
+					"@DueDate", CALCULATE(MIN(Sales[due_date]))
+				)
+			VAR Eligible =
+				FILTER(Orders, NOT ISBLANK([@ShipDate]) && NOT ISBLANK([@DueDate]))
+			VAR OnTime =
+				FILTER(Eligible, [@ShipDate] <= [@DueDate])
+			RETURN
+				DIVIDE(COUNTROWS(OnTime), COUNTROWS(Eligible))
 		formatString: 0.0%
 		displayFolder: Fulfillment
+		lineageTag: 605ffee6-64dc-474f-ba6b-c2df2c9eb51b
 
 	measure 'Available Inventory Quantity' = SUM('Inventory Snapshots'[available_qty])
 		formatString: #,0
 		displayFolder: Inventory
+		lineageTag: d0324ebc-2d77-4fad-814f-4425925b6e41
 
 	measure 'Inventory Value' = SUM('Inventory Snapshots'[inventory_value])
 		formatString: #,0.00
 		displayFolder: Inventory
+		lineageTag: 25783392-9d5d-4740-b2a7-42838df83da0
 
 	measure 'Below Reorder Snapshot Lines' = COUNTROWS(FILTER('Inventory Snapshots', 'Inventory Snapshots'[available_qty] <= 'Inventory Snapshots'[reorder_point_qty]))
 		formatString: #,0
 		displayFolder: Inventory
+		lineageTag: 0ca7efaa-f7c8-4f4a-b1e4-9e9fc580fa04
 
 	measure 'Average Fulfillment Days' = AVERAGEX(FILTER(VALUES(Sales[order_number]), NOT ISBLANK(CALCULATE(MIN(Sales[order_date]))) && NOT ISBLANK(CALCULATE(MAX(Sales[ship_date])))), VAR Ordered = CALCULATE(MIN(Sales[order_date])) VAR Shipped = CALCULATE(MAX(Sales[ship_date])) RETURN IF(Shipped >= Ordered, DATEDIFF(Ordered, Shipped, DAY)))
 		formatString: 0.0
 		displayFolder: Fulfillment
+		lineageTag: c6c737fe-6c21-44db-8581-4c657b423d8d
 
 	measure 'Invalid Order Date Lines' = COUNTROWS(FILTER(Sales, ISBLANK(Sales[order_date])))
 		formatString: #,0
 		displayFolder: Data Quality
+		lineageTag: a6ef40be-8e92-4302-88e0-925fb7816077
 
 	measure 'Sales Equation Mismatch Lines' = COUNTROWS(FILTER(Sales, Sales[sales_amount] <> Sales[quantity] * Sales[price]))
 		formatString: #,0
 		displayFolder: Data Quality
+		lineageTag: be34118d-5d41-4c01-b9af-670cd3e6163e
 
 	measure 'Missing Customer Country' = COUNTROWS(FILTER(Customers, ISBLANK(Customers[country_code])))
 		formatString: #,0
 		displayFolder: Data Quality
+		lineageTag: df9f4b89-60a0-49ea-a7f5-ae2ab6688378
 
 	measure 'Future Customer Records' = COUNTROWS(FILTER(Customers, Customers[cust_is_future] = TRUE()))
 		formatString: #,0
 		displayFolder: Data Quality
+		lineageTag: 4c228563-582e-4045-a175-5734d0160b9b
 
 	measure 'Nonpositive Product Cost Records' = COUNTROWS(FILTER(Products, Products[product_cost] <= 0 || ISBLANK(Products[product_cost])))
 		formatString: #,0
 		displayFolder: Data Quality
+		lineageTag: b2aa5108-a372-45ad-b6e1-e7c62f0945e6
 
 	measure 'DQ Failed Rows' = SUM('Data Quality Checks'[FailedRows])
 		formatString: #,0
 		displayFolder: Data Quality
+		lineageTag: 309533da-d38a-49e2-aaf7-8abd25e31732
 
 	measure 'DQ Failed Checks' = COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = TRUE() && 'Data Quality Checks'[Status] = "Failed"))
 		formatString: #,0
 		displayFolder: Data Quality
+		lineageTag: e8ba4a55-8772-4d19-8b2f-679deab3c57a
 
-	measure 'DQ Failed Error Checks' = COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = TRUE() && 'Data Quality Checks'[Severity] = "Error" && 'Data Quality Checks'[FailedRows] > 0))
+	measure 'DQ Failed Error Checks' = COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[Severity] = "Error" && 'Data Quality Checks'[Status] = "Failed"))
 		formatString: #,0
 		displayFolder: Data Quality
+		lineageTag: bea589c8-0e0c-4988-a42f-762219429672
 
-	measure 'DQ Failed Warning Checks' = COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = TRUE() && 'Data Quality Checks'[Severity] = "Warning" && 'Data Quality Checks'[FailedRows] > 0))
+	measure 'DQ Failed Warning Checks' = COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[Severity] = "Warning" && 'Data Quality Checks'[Status] = "Failed"))
 		formatString: #,0
 		displayFolder: Data Quality
+		lineageTag: 44c623a1-d31b-422f-9222-ffd0c0aefd89
 
 	measure 'DQ Pass Rate' = AVERAGEX(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = TRUE()), 'Data Quality Checks'[PassRate])
 		formatString: 0.0%
 		displayFolder: Data Quality
+		lineageTag: 58494be7-9ba5-4d21-a62b-bfb2c899ba51
 
 	measure 'DQ Not Evaluated Checks' = COUNTROWS(FILTER('Data Quality Checks', 'Data Quality Checks'[IsEvaluated] = FALSE()))
 		formatString: #,0
 		displayFolder: Data Quality
+		lineageTag: cc11e784-08c5-4211-aa93-8142d01fc356
 
 	measure 'Overall DQ Status' =
 			VAR EvaluatedChecks =
@@ -140,29 +183,36 @@ table _Measures
 					"Passed"
 				)
 		displayFolder: Data Quality
+		lineageTag: 01b334fe-1b08-480c-af95-177fa84d7a37
 
 	measure 'Last Dataset Refresh UTC' = MAX('Refresh Metadata'[RefreshedAtUtc])
 		formatString: yyyy-mm-dd hh:mm:ss
 		displayFolder: Refresh
+		lineageTag: 1a071a2e-1099-4be0-8598-f4dc475c7656
 
 	measure 'Data Through Date' = MAX(Sales[order_date])
 		formatString: yyyy-mm-dd
 		displayFolder: Refresh
+		lineageTag: 5a19155d-be9b-478c-9efc-81372c6e34ea
 
 	measure 'Reference Data Label' = "Synthetic reference data"
 		displayFolder: Report Context
+		lineageTag: 98c780f8-c3b8-4dc9-a69c-f8377b6686c0
 
 	measure 'Access Scope Label' = VAR ScopeLabel = CONCATENATEX(FILTER(VALUES(Customers[country_code]), NOT ISBLANK(Customers[country_code])), Customers[country_code], ", ") RETURN "Access scope: " & IF(ISBLANK(ScopeLabel), "No entitled rows", ScopeLabel)
 		displayFolder: Report Context
+		lineageTag: 96596792-cdc6-40a2-9788-18b625f6a207
 
 	measure 'Refresh Context Label' = "Data through " & FORMAT([Data Through Date], "yyyy-MM-dd") & " | Dataset refresh " & FORMAT([Last Dataset Refresh UTC], "yyyy-MM-dd HH:mm") & " UTC"
 		displayFolder: Report Context
+		lineageTag: 91f12895-a120-472c-94bb-26b0a2cc3c0f
 
 	column 'Metric Anchor'
 		dataType: int64
 		isHidden
-		sourceColumn: [Metric Anchor]
+		lineageTag: 05898dc6-2cae-4df5-86cb-02ab2c651d06
 		summarizeBy: none
+		sourceColumn: [Metric Anchor]
 
 	partition _Measures = calculated
 		mode: import

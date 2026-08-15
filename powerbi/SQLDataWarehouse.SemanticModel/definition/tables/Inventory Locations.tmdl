@@ -3,32 +3,36 @@ table 'Inventory Locations'
 
 	column warehouse_key
 		dataType: int64
-		isKey
 		isHidden
-		sourceColumn: warehouse_key
+		isKey
+		lineageTag: cb2afd32-d84e-4f12-a93f-4a7c8356375c
 		summarizeBy: none
+		sourceColumn: warehouse_key
 
 	column warehouse_code
 		dataType: string
-		sourceColumn: warehouse_code
+		lineageTag: 382a34a7-297f-4d69-8775-73f661169506
 		summarizeBy: none
+		sourceColumn: warehouse_code
 
 	column warehouse_name
 		dataType: string
-		sourceColumn: warehouse_name
+		lineageTag: ab64ebd7-bc7b-46b7-9184-9346fa47fb62
 		summarizeBy: none
+		sourceColumn: warehouse_name
 
 	column country_code
 		dataType: string
-		sourceColumn: country_code
+		lineageTag: 27e516e2-3375-42c1-8868-f7060ac5eadb
 		summarizeBy: none
+		sourceColumn: country_code
 
 	partition 'Inventory Locations' = m
 		mode: import
 		source =
-			let
-				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
-				Query = "SELECT warehouse_key, warehouse_code, warehouse_name, country_code FROM gold.dim_inventory_locations",
-				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
-			in
-				Result
+				let
+					Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
+					Query = "SELECT warehouse_key, warehouse_code, warehouse_name, country_code FROM gold.dim_inventory_locations",
+					Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
+				in
+					Result
