@@ -142,7 +142,7 @@ The million-row performance case is opt-in and isolated from the normal pipeline
 
 Open `powerbi/SQLDataWarehouse.pbip` in a supported Power BI Desktop version. The semantic model reads the curated Gold sales model and the new Inventory Gold views. It includes sales, profitability estimates, fulfillment, data quality, refresh context, Inventory quantities/value/reorder indicators, and country-based reference RLS.
 
-Before treating a build as publishable, complete the Desktop gate in `docs/powerbi/validation.md`: refresh, visual rendering, mobile layouts, interactions, RLS roles, accessibility, and screenshots. No Power BI Service deployment is performed by this repository.
+Before treating a build as publishable, complete the Desktop gate in `docs/powerbi/validation.md`: refresh, visual rendering, mobile layouts, interactions, RLS roles, accessibility, and screenshots. The repository does not deploy to Power BI Service. Environment-specific release work is fail-closed through `docs/powerbi/service-production-runbook.md` and the local, non-secret service contract validated by `scripts/powerbi_validation/powerbi_service_contract.py`.
 
 ## Data quality and operations
 

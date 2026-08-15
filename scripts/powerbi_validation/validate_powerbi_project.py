@@ -21,7 +21,18 @@ from typing import Any
 from validate_performance_evidence import validate_performance_evidence
 
 
-ALLOWED_PREFIXES = ("powerbi/", "docs/kpi/", "docs/powerbi/", "scripts/powerbi_validation/")
+ALLOWED_PREFIXES = (
+    ".gitignore",
+    "README.md",
+    "powerbi/",
+    "docs/kpi/",
+    "docs/powerbi/",
+    "scripts/powerbi_validation/",
+)
+SECRET_SCANNER_IMPLEMENTATIONS = {
+    "validate_powerbi_project.py",
+    "powerbi_service_contract.py",
+}
 TRANSIENT_NAMES = {"cache.abf", "localSettings.json", "unappliedChanges.json", "editorSettings.json"}
 SECRET_PATTERNS = {
     "password assignment": re.compile(r"(?i)(password|pwd)\s*[:=]\s*['\"]?[^\s,'\"]+"),
@@ -949,7 +960,7 @@ def validate_files(root: Path, errors: list[str]) -> None:
                 errors.append(f"Non-UTF-8 artifact: {path}")
                 continue
             for label, pattern in SECRET_PATTERNS.items():
-                if path.name != "validate_powerbi_project.py" and pattern.search(text):
+                if path.name not in SECRET_SCANNER_IMPLEMENTATIONS and pattern.search(text):
                     errors.append(f"Potential {label} in {path}")
             if path.is_relative_to(root / "powerbi"):
                 if ABSOLUTE_PATH.search(text):
@@ -979,6 +990,45 @@ def validate_git_scope(root: Path, errors: list[str]) -> None:
             index += 1  # Porcelain -z emits the second rename/copy path as a separate record.
         if path and not path.startswith(ALLOWED_PREFIXES):
             errors.append(f"Working-tree change is outside the owned slice: {path}")
+
+
+def validate_service_release_assets(root: Path, errors: list[str]) -> None:
+    contract_path = root / "powerbi" / "service" / "service-contract.example.json"
+    runbook_path = root / "docs" / "powerbi" / "service-production-runbook.md"
+    validator_path = root / "scripts" / "powerbi_validation" / "powerbi_service_contract.py"
+    for path in (contract_path, runbook_path, validator_path):
+        if not path.is_file():
+            errors.append(f"Required Power BI Service release asset is missing: {path}")
+    contract = load_json(contract_path, errors) if contract_path.is_file() else None
+    if not isinstance(contract, dict):
+        return
+    if contract.get("schemaVersion") != 1:
+        errors.append("Power BI Service example contract schemaVersion must be 1")
+    if contract.get("target", {}).get("environment") != "Production":
+        errors.append("Power BI Service example contract must explicitly target Production")
+    expected_items = {
+        "semanticModel": "c8c14294-542b-460d-aec3-f48f0fcd40fc",
+        "report": "696c2727-6eb6-4422-86a9-dc951409c8d8",
+    }
+    artifacts = contract.get("artifacts", {})
+    for item_type, logical_id in expected_items.items():
+        item = artifacts.get(item_type, {}) if isinstance(artifacts, dict) else {}
+        if item.get("expectedDisplayName") != "SQLDataWarehouse":
+            errors.append(f"Power BI Service {item_type} expectedDisplayName must be SQLDataWarehouse")
+        if item.get("expectedLogicalId") != logical_id:
+            errors.append(f"Power BI Service {item_type} logical ID differs from .platform")
+        if item.get("observedItemId") is not None:
+            errors.append(f"Power BI Service example must not claim an observed {item_type} item ID")
+    if contract.get("security", {}).get("approvedGroups"):
+        errors.append("Power BI Service example must not contain approved production group IDs")
+    if contract.get("target", {}).get("observedTenantId") is not None:
+        errors.append("Power BI Service example must not claim an observed tenant ID")
+    if contract.get("target", {}).get("workspace", {}).get("observedId") is not None:
+        errors.append("Power BI Service example must not claim an observed workspace ID")
+    if contract.get("artifacts", {}).get("provenance", {}).get("observedSourceCommit") is not None:
+        errors.append("Power BI Service example must not claim a deployed source commit")
+    if contract.get("approval", {}).get("releaseOwnerObjectId") is not None:
+        errors.append("Power BI Service example must not contain a production release owner ID")
 
 
 def validate_project(root: Path, check_git: bool = True) -> list[str]:
@@ -1154,6 +1204,7 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
     validate_kpi_catalog(root, inventory, errors)
     validate_rls_documentation(root, errors)
     errors.extend(validate_performance_evidence(root))
+    validate_service_release_assets(root, errors)
 
     validation_doc = (root / "docs" / "powerbi" / "validation.md").read_text(encoding="utf-8")
     architecture_doc = (root / "docs" / "powerbi" / "architecture.md").read_text(encoding="utf-8")
@@ -1184,7 +1235,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
     print("Power BI source validation passed.")
-    print("Validated: PBIP/PBIR structure, Fabric item metadata, TMDL inventory/references, KPI catalog, report blueprint, focus/mobile order, source-level accessibility/contrast contracts, evidence honesty, RLS/refresh contracts, performance evidence, secrets, and owned-scope changes.")
+    print("Validated: PBIP/PBIR structure, Fabric item metadata, TMDL inventory/references, KPI catalog, report blueprint, focus/mobile order, source-level accessibility/contrast contracts, runtime and Service evidence honesty, RLS/refresh contracts, performance evidence, secrets, and owned-scope changes.")
     print("Not validated: Power BI Desktop open/save, full TMDL/DAX/M parsing, refresh, rendering, RLS enforcement, runtime interactions, screen-reader output, High Contrast, internal touch hitboxes, or screenshots.")
     return 0
 

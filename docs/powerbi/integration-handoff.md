@@ -4,15 +4,15 @@
 
 The Power BI model now reads the curated physical Gold sales model and the Inventory Gold views. The canonical SQLCMD and Python entry points populate both source domains; CI validates runtime, model, Inventory, negative contracts, and Power BI source structure.
 
-## Remaining Desktop gate
+## Desktop gate status
 
-1. Open `powerbi/SQLDataWarehouse.pbip` in the supported Power BI Desktop version.
-2. Bind a least-privilege development connection and refresh all tables.
-3. Compare sales/model counts and Inventory `14/10/4/10` source/accepted/rejected/Gold evidence with SQL gates.
-4. Validate measures, relationships, sort order, inactive date relationships, interactions, tooltips, responsive and phone layouts.
-5. Execute the full `CountrySalesViewer` matrix (allowed, multiple countries, inactive, expired, unknown, and blank) for both Sales and Inventory; approve the implemented country boundary or replace it with a warehouse entitlement model.
-6. Inspect titles, alternative text, tab order, keyboard flow, contrast, and screen-reader names.
-7. Record screenshots and the Desktop version; do not commit credentials or transient `.pbi` state.
+The dated 2026-08-15 Desktop PoC acceptance covers open, full refresh, visible core rendering, save, close, and reopen against the loopback acceptance database. `validation.md` remains authoritative for the accepted evidence and for Desktop items that were not fully exercised, including the complete RLS matrix, interaction/accessibility sweeps, responsive screenshots, and Performance Analyzer capture.
+
+## Remaining Service production gate
+
+Follow `service-production-runbook.md` and validate an environment-specific copy of `powerbi/service/service-contract.example.json`. The gate requires the authorized workspace and exact Service items, production parameters, Standard gateway/data-source mapping, managed credentials, a reconciled manual refresh, an approved schedule plus one successful scheduled run, governed entitlements, approved RLS group membership, effective Viewer tests, ownership, capacity, privacy approval, and current evidence.
+
+The current source model is a release HOLD: it defaults to `127.0.0.1`/`Development`, its entitlement table contains only synthetic `.invalid` identities, and the dated Desktop refresh reports the global `gold_source_orphan_coverage` check as Error.
 
 No publication is authorized until gateway, credentials, role membership, privacy review, refresh schedule, capacity, release owner, and evidence are environment-specific and approved.
 

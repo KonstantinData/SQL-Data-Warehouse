@@ -46,6 +46,32 @@ class PowerBIProjectValidatorTests(unittest.TestCase):
             errors = validate_project(root, check_git=False)
             self.assertTrue(any("Required Fabric Git integration file is missing" in error for error in errors), errors)
 
+    def test_service_contract_logical_id_drift_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/service/service-contract.example.json"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data["artifacts"]["semanticModel"]["expectedLogicalId"] = (
+                "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+            )
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("semanticModel logical ID differs" in error for error in errors), errors)
+
+    def test_service_example_must_not_claim_observed_item_id(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_slice(root)
+            path = root / "powerbi/service/service-contract.example.json"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data["artifacts"]["report"]["observedItemId"] = (
+                "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+            )
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            errors = validate_project(root, check_git=False)
+            self.assertTrue(any("must not claim an observed report" in error for error in errors), errors)
+
     def test_duplicate_platform_logical_id_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

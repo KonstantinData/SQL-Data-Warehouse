@@ -14,6 +14,8 @@ The accessibility/responsive source slice on branch `codex/powerbi-accessibility
 
 This is **Desktop PoC acceptance evidence**, not production validation. The full RLS identity matrix, rendered interaction/accessibility sweeps, responsive screenshots, Power BI Service role memberships, gateway configuration, and Service refresh remain outside this local acceptance run.
 
+Power BI Service release status on 2026-08-15: **UNKNOWN / HOLD**. No authenticated Service session, workspace/item mapping, gateway/data-source mapping, credential status, manual or scheduled refresh evidence, or RLS group membership was available for verification. Use `service-production-runbook.md` and the fail-closed service contract; do not infer Service state from Desktop acceptance or `.platform` logical IDs.
+
 Run the repository checks:
 
 ```text
@@ -22,7 +24,9 @@ python scripts/powerbi_validation/validate_performance_evidence.py --root .
 python -m unittest discover scripts/powerbi_validation/tests -v
 ```
 
-Source validation checks JSON parsing, PBIP/PBIR paths and versions, Fabric `.platform` metadata and logical IDs, TMDL inventory, semantic references, relationships, parameters, RLS, KPI catalog parity, visual bounds and IDs, focus/mobile order, title/alt-text contracts, persisted contrast pairs, non-color cues, mobile-layout coverage, the runtime evidence manifest, prohibited transient files, credentials, and scope/honesty markers. It is a conservative custom validator, not a complete TMDL, DAX, M, or PBIR schema engine.
+The untouched Service example is a deliberate negative check: `python scripts/powerbi_validation/powerbi_service_contract.py validate --contract powerbi/service/service-contract.example.json` must return `UNKNOWN` and exit code `2`, because it contains no environment evidence.
+
+Source validation checks JSON parsing, PBIP/PBIR paths and versions, Fabric `.platform` metadata and logical IDs, TMDL inventory, semantic references, relationships, parameters, RLS, KPI catalog parity, visual bounds and IDs, focus/mobile order, title/alt-text contracts, persisted contrast pairs, non-color cues, mobile-layout coverage, runtime and Service evidence contracts, prohibited transient files, credentials, and scope/honesty markers. It is a conservative custom validator, not a complete TMDL, DAX, M, or PBIR schema engine.
 
 ## Mandatory Desktop gate
 

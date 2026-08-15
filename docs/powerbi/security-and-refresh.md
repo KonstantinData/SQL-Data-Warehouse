@@ -47,3 +47,5 @@ RLS does not restrict semantic-model editors or administrators. Hidden columns a
 - Treat privacy level as Organizational and review any source combination.
 - Replace endpoints through deployment rules.
 - Keep gateway binding, refresh schedules, credentials, capacity, role membership, and approvals as audited environment state.
+
+The executable release sequence, evidence contract, fail-closed statuses, and rollback rules are defined in `service-production-runbook.md`. The checked-in example contract is intentionally incomplete and must return `UNKNOWN`; production-specific identifiers and observations belong in ignored `*.local.json` evidence unless publication is explicitly approved.
