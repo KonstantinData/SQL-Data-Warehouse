@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "captured_at_utc": "2026-08-15T10:49:44Z",
+  "desktop_version": "2.156.951.0",
+  "baseline_commit": "1ab84dcc",
+  "metric": "Execute DAX Query duration_ms",
+  "cache_policy": "Initial page activation is the warm-up; clear the analyzer; then capture five Visuals refresh actions without clearing the model cache.",
+  "median_policy": "Upper median of the sorted integer-millisecond samples.",
+  "non_regression_bound": "After median must be less than or equal to the before maximum.",
+  "improvement_claim_bound": "An improved claim requires after median to be strictly less than before median.",
+  "render_metric_policy": "Visual Container Lifecycle totals are retained only as raw diagnostic evidence because cardVisual events contain an invalid 1969 end sentinel in this Desktop build.",
+  "sql_anchors": {
+    "sales_rows": 60379,
+    "total_sales": 29351258.00,
+    "distinct_orders": 27657,
+    "customer_count": 18482,
+    "eligible_orders": 27657,
+    "on_time_orders": 27657,
+    "on_time_rate": 1.0,
+    "germany_sales": 2894066.00,
+    "united_states_sales": 9162225.00,
+    "other_sales": 17294967.00
+  },
+  "pages": [
+    {
+      "page": "Data Quality",
+      "before": {
+        "file": "before-data-quality-runs1-5.json",
+        "sha256": "aa05c9d43757a6226c3318501bf868c30b456e0ed4cfabdc0041b347a899dbdc"
+      },
+      "after": {
+        "file": "after-data-quality-runs1-5.json",
+        "sha256": "e91823d6a9135d7108296afdb0e19733f9956ab6d543d85cd336dddcfa5aee16"
+      },
+      "visuals": [
+        {"title": "Data Quality", "row_count": 1, "minimum_query_count": 5, "before_ms": [9, 10, 10, 12, 27], "after_ms": [5, 7, 9, 23, 30], "claim": "no_improvement_claim"},
+        {"title": "Data quality check register", "row_count": 9, "minimum_query_count": 5, "before_ms": [8, 9, 10, 10, 12], "after_ms": [4, 5, 6, 6, 6], "claim": "no_improvement_claim"},
+        {"title": "Mixed-scope dimension and freshness exceptions", "row_count": 1, "minimum_query_count": 5, "before_ms": [8, 9, 10, 10, 12], "after_ms": [5, 6, 7, 8, 23], "claim": "no_improvement_claim"},
+        {"title": "Quality and refresh summary", "row_count": 1, "minimum_query_count": 5, "before_ms": [11, 12, 12, 12, 14], "after_ms": [9, 9, 9, 12, 23], "claim": "no_improvement_claim"},
+        {"title": "Selected-scope sales exceptions", "row_count": 1, "minimum_query_count": 5, "before_ms": [9, 9, 10, 10, 12], "after_ms": [5, 6, 7, 8, 23], "claim": "no_improvement_claim"}
+      ]
+    },
+    {
+      "page": "Sales Performance",
+      "before": {
+        "file": "before-sales-performance-runs1-5.json",
+        "sha256": "0ccced1532f1a3023e347477484e14957210384d29ceabc06de3d70c0b31dd29"
+      },
+      "after": {
+        "file": "after-sales-performance-runs1-5.json",
+        "sha256": "44c75889d22ec47d18af206ce0ece65b8aea6ff946f477de25d63da0dbfd6079"
+      },
+      "visuals": [
+        {"title": "Sales Performance", "row_count": 1, "minimum_query_count": 4, "before_ms": [8, 8, 9, 10], "after_ms": [7, 7, 8, 8], "claim": "no_improvement_claim"},
+        {"title": "Sales operations summary", "row_count": 1, "minimum_query_count": 5, "before_ms": [28, 30, 32, 34, 72], "after_ms": [29, 30, 35, 36, 43], "claim": "no_improvement_claim"},
+        {"title": "Sales by category", "row_count": 4, "minimum_query_count": 5, "before_ms": [8, 8, 8, 8, 10], "after_ms": [7, 7, 7, 7, 12], "claim": "no_improvement_claim"},
+        {"title": "Estimated gross profit trend", "row_count": 39, "minimum_query_count": 5, "before_ms": [8, 8, 8, 8, 9], "after_ms": [7, 7, 7, 8, 12], "claim": "no_improvement_claim"},
+        {"title": "Product performance detail", "row_count": 132, "minimum_query_count": 5, "before_ms": [8, 9, 9, 10, 11], "after_ms": [7, 7, 8, 8, 9], "claim": "no_improvement_claim"}
+      ]
+    },
+    {
+      "page": "Executive Overview",
+      "before": {
+        "file": "before-executive-overview-runs1-5.json",
+        "sha256": "9d8951ead6b1339e7a5e94e5dfbf41233272513dd8f82f7077e0846a8666c444"
+      },
+      "after": {
+        "file": "after-executive-overview-runs1-5.json",
+        "sha256": "be5733e5b62f3641672bae77e8d676922c7d0fa112935fa07d70545d54efbb14"
+      },
+      "visuals": [
+        {"title": "Executive Overview", "row_count": 1, "minimum_query_count": 4, "before_ms": [7, 7, 8, 22], "after_ms": [6, 10, 11, 12], "claim": "no_improvement_claim"},
+        {"title": "Performance summary", "row_count": 1, "minimum_query_count": 5, "before_ms": [5, 7, 7, 8, 21], "after_ms": [6, 8, 9, 10, 25], "claim": "no_improvement_claim"},
+        {"title": "Sales trend versus previous year", "row_count": 51, "minimum_query_count": 5, "before_ms": [13, 14, 16, 17, 27], "after_ms": [14, 14, 15, 16, 17], "claim": "no_improvement_claim"},
+        {"title": "Sales by product line", "row_count": 5, "minimum_query_count": 5, "before_ms": [7, 7, 7, 8, 21], "after_ms": [6, 8, 8, 9, 10], "claim": "no_improvement_claim"},
+        {"title": "Country performance", "row_count": 4, "minimum_query_count": 5, "before_ms": [129, 131, 135, 150, 161], "after_ms": [65, 68, 68, 69, 70], "claim": "improved"}
+      ]
+    }
+  ]
+}

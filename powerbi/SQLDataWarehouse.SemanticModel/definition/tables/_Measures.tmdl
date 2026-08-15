@@ -11,7 +11,7 @@ table _Measures
 		displayFolder: Sales Performance
 		lineageTag: b118f780-208b-4b29-8edb-35fd7c8d41b9
 
-	measure 'Distinct Orders' = COUNTROWS(FILTER(VALUES(Sales[order_number]), NOT ISBLANK(Sales[order_number])))
+	measure 'Distinct Orders' = DISTINCTCOUNTNOBLANK(Sales[order_number])
 		formatString: #,0
 		displayFolder: Sales Performance
 		lineageTag: 12de1838-fda3-4f83-8377-a69ad728bdc9
@@ -31,7 +31,7 @@ table _Measures
 		displayFolder: Sales Performance
 		lineageTag: 2bfe4b32-e98f-4934-8a96-b338e2433fe9
 
-	measure 'Customer Count' = COUNTROWS(FILTER(VALUES(Sales[customer_id]), NOT ISBLANK(Sales[customer_id])))
+	measure 'Customer Count' = DISTINCTCOUNTNOBLANK(Sales[customer_id])
 		formatString: #,0
 		displayFolder: Sales Performance
 		lineageTag: 51161bc3-537c-46bd-b685-dcfa867318fd
@@ -76,7 +76,19 @@ table _Measures
 		displayFolder: Fulfillment
 		lineageTag: a01c316a-db7b-49ff-b2e4-36490672f63a
 
-	measure 'On-Time Shipment %' = VAR Eligible = FILTER(VALUES(Sales[order_number]), NOT ISBLANK(CALCULATE(MAX(Sales[ship_date]))) && NOT ISBLANK(CALCULATE(MIN(Sales[due_date])))) VAR OnTime = FILTER(Eligible, CALCULATE(MAX(Sales[ship_date])) <= CALCULATE(MIN(Sales[due_date]))) RETURN DIVIDE(COUNTROWS(OnTime), COUNTROWS(Eligible))
+	measure 'On-Time Shipment %' =
+			VAR Orders =
+				ADDCOLUMNS(
+					FILTER(VALUES(Sales[order_number]), NOT ISBLANK(Sales[order_number])),
+					"@ShipDate", CALCULATE(MAX(Sales[ship_date])),
+					"@DueDate", CALCULATE(MIN(Sales[due_date]))
+				)
+			VAR Eligible =
+				FILTER(Orders, NOT ISBLANK([@ShipDate]) && NOT ISBLANK([@DueDate]))
+			VAR OnTime =
+				FILTER(Eligible, [@ShipDate] <= [@DueDate])
+			RETURN
+				DIVIDE(COUNTROWS(OnTime), COUNTROWS(Eligible))
 		formatString: 0.0%
 		displayFolder: Fulfillment
 		lineageTag: 605ffee6-64dc-474f-ba6b-c2df2c9eb51b
@@ -126,7 +138,7 @@ table _Measures
 		displayFolder: Data Quality
 		lineageTag: b2aa5108-a372-45ad-b6e1-e7c62f0945e6
 
-	measure 'DQ Failed Rows' = SUMX('Data Quality Checks', VALUE('Data Quality Checks'[FailedRows]))
+	measure 'DQ Failed Rows' = SUM('Data Quality Checks'[FailedRows])
 		formatString: #,0
 		displayFolder: Data Quality
 		lineageTag: 309533da-d38a-49e2-aaf7-8abd25e31732

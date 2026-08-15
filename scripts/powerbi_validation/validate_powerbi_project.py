@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from validate_performance_evidence import validate_performance_evidence
+
 
 ALLOWED_PREFIXES = ("powerbi/", "docs/kpi/", "docs/powerbi/", "scripts/powerbi_validation/")
 TRANSIENT_NAMES = {"cache.abf", "localSettings.json", "unappliedChanges.json", "editorSettings.json"}
@@ -41,9 +43,11 @@ def unquote(value: str) -> str:
 def load_json(path: Path, errors: list[str]) -> Any | None:
     try:
         raw = path.read_bytes()
-        if raw.startswith(b"\xef\xbb\xbf"):
+        is_performance_export = "performance" in path.parts and "raw" in path.parts
+        if raw.startswith(b"\xef\xbb\xbf") and not is_performance_export:
             errors.append(f"UTF-8 BOM is not allowed: {path}")
-        return json.loads(raw.decode("utf-8"))
+        encoding = "utf-8-sig" if raw.startswith(b"\xef\xbb\xbf") else "utf-8"
+        return json.loads(raw.decode(encoding))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         errors.append(f"Invalid JSON in {path}: {exc}")
         return None
@@ -671,9 +675,11 @@ def validate_files(root: Path, errors: list[str]) -> None:
                 errors.append(f"Path is unsafe for common Windows tooling (>=260 chars): {path}")
             try:
                 raw = path.read_bytes()
-                if raw.startswith(b"\xef\xbb\xbf"):
+                is_performance_export = "performance" in path.parts and "raw" in path.parts
+                if raw.startswith(b"\xef\xbb\xbf") and not is_performance_export:
                     errors.append(f"UTF-8 BOM is not allowed: {path}")
-                text = raw.decode("utf-8")
+                encoding = "utf-8-sig" if raw.startswith(b"\xef\xbb\xbf") else "utf-8"
+                text = raw.decode(encoding)
             except UnicodeDecodeError:
                 errors.append(f"Non-UTF-8 artifact: {path}")
                 continue
@@ -881,6 +887,7 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
     validate_report(report_dir, inventory, errors)
     validate_kpi_catalog(root, inventory, errors)
     validate_rls_documentation(root, errors)
+    errors.extend(validate_performance_evidence(root))
 
     validation_doc = (root / "docs" / "powerbi" / "validation.md").read_text(encoding="utf-8")
     architecture_doc = (root / "docs" / "powerbi" / "architecture.md").read_text(encoding="utf-8")
@@ -911,7 +918,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
     print("Power BI source validation passed.")
-    print("Validated: PBIP/PBIR structure, Fabric item metadata, TMDL inventory/references, KPI catalog, report blueprint, layouts, RLS/refresh contracts, secrets, and owned-scope changes.")
+    print("Validated: PBIP/PBIR structure, Fabric item metadata, TMDL inventory/references, KPI catalog, report blueprint, layouts, RLS/refresh contracts, performance evidence, secrets, and owned-scope changes.")
     print("Not validated: Power BI Desktop open/save, full TMDL/DAX/M parsing, refresh, rendering, RLS enforcement, interactions, accessibility, or screenshots.")
     return 0
 
