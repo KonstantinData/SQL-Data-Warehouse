@@ -88,7 +88,8 @@ SET warehouse_name = source.warehouse_name,
     is_active = 1
 FROM (VALUES
     (N'WH-BER-01', N'Berlin Demo Warehouse', 'DE'),
-    (N'WH-HAM-01', N'Hamburg Demo Warehouse', 'DE')
+    (N'WH-HAM-01', N'Hamburg Demo Warehouse', 'DE'),
+    (N'WH-USA-01', N'United States Demo Warehouse', 'US')
 ) AS source(warehouse_code, warehouse_name, country_code)
 WHERE silver.inventory_warehouse_map.warehouse_code = source.warehouse_code;
 
@@ -96,7 +97,8 @@ INSERT INTO silver.inventory_warehouse_map (warehouse_code, warehouse_name, coun
 SELECT source.warehouse_code, source.warehouse_name, source.country_code, 1
 FROM (VALUES
     (N'WH-BER-01', N'Berlin Demo Warehouse', 'DE'),
-    (N'WH-HAM-01', N'Hamburg Demo Warehouse', 'DE')
+    (N'WH-HAM-01', N'Hamburg Demo Warehouse', 'DE'),
+    (N'WH-USA-01', N'United States Demo Warehouse', 'US')
 ) AS source(warehouse_code, warehouse_name, country_code)
 WHERE NOT EXISTS (
     SELECT 1

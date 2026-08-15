@@ -52,7 +52,7 @@ Bookmark, slicer synchronization, reset controls, tooltip, drillthrough, and pag
 - Font: Segoe UI.
 - Page title: 24 pt semibold; section title: 16 pt semibold; body and axes: at least 11 pt desktop and 12 pt phone.
 - Spacing: 8 px system; 32 px desktop outer margin; 16 px gutters.
-- Colours: background `#F7F9FC`, surface `#FFFFFF`, primary `#146C94`, text `#1F2937`, muted `#52606D`, border `#D0D5DD`, positive `#16794D`, warning `#A15C00`, negative `#B42318`, focus `#005A9E`.
+- Colours: background `#F7F9FC`, surface `#FFFFFF`, primary `#146C94`, text `#1F2937`, muted `#52606D`, border `#667085`, positive `#16794D`, warning `#A15C00`, negative `#B42318`, focus `#005A9E`.
 - Status always includes text and/or icon in addition to colour.
 - No gradients, maps, custom visuals, decorative hero patterns, or undifferentiated card walls.
 
@@ -63,12 +63,12 @@ The PBIR pages use a 1280x720 canvas. The report blueprint in `powerbi/report-bl
 - Logical keyboard order: context, filters, reset, headline measures, main chart, secondary chart, detail, navigation/help.
 - Decorative objects remain outside tab order.
 - Normal text contrast target: 4.5:1. Large text and non-text controls: 3:1.
-- Touch targets: at least 44x44 px.
+- Touch targets: at least 44x44 px. PBIR container checks do not prove the internal hitboxes of native visuals.
 - Each authored visual has a meaningful title and alt-text contract in the report blueprint.
 - Tables must expose headers, units, and sort state; charts require a companion table or Show Data path.
 - Colour is never the sole status or comparison signal.
 
-PBIR stores one phone layout, not separate 320 and 390 breakpoints. The supplied mobile layouts prioritize the headline, trend/driver, and trust state; 320 and 390 are screenshot acceptance widths, not different authored layouts.
+PBIR stores one phone layout, not separate 320 and 390 breakpoints. The supplied portrait layouts use the full 320-unit authored width, at least 100 units of height, and 8-unit gaps. They prioritize the headline, trend/driver, and trust state. Wide tables are intentionally available through the standard landscape report page instead of being compressed into unreadable portrait tables. The 320 and 390 values are runtime acceptance widths, not different authored layouts.
 
 ## Acceptance viewports and states
 

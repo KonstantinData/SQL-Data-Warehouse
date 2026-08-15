@@ -25,7 +25,25 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Mixed-scope dimension and freshness exceptions'"
+                  "Value": "'Customer, product cost, and freshness exceptions — mixed scope'"
+                }
+              }
+            },
+            "fontColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "'#1F2937'"
+                    }
+                  }
+                }
+              }
+            },
+            "fontSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "12D"
                 }
               }
             }
@@ -38,7 +56,7 @@
             "altText": {
               "expr": {
                 "Literal": {
-                  "Value": "'Customer exceptions and data-through date reflect the current access scope; product-cost exceptions are global.'"
+                  "Value": "'Future customer records and data-through date use the selected access scope; nonpositive product cost records are global.'"
                 }
               }
             }
@@ -91,7 +109,7 @@
                 "color": {
                   "expr": {
                     "Literal": {
-                      "Value": "'#D0D5DD'"
+                      "Value": "'#667085'"
                     }
                   }
                 }

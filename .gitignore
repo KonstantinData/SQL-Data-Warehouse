@@ -14,3 +14,6 @@ logs/*.log
 
 # Power BI Desktop local workspace state
 **/.pbi/
+
+# Environment-specific Power BI Service evidence and identifiers
+powerbi/service/*.local.json

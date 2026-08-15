@@ -25,7 +25,25 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Quality and refresh summary'"
+                  "Value": "'Data quality and refresh status — global'"
+                }
+              }
+            },
+            "fontColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "'#1F2937'"
+                    }
+                  }
+                }
+              }
+            },
+            "fontSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "12D"
                 }
               }
             }
@@ -38,7 +56,7 @@
             "altText": {
               "expr": {
                 "Literal": {
-                  "Value": "'Summary of global refresh-time quality status and model refresh time.'"
+                  "Value": "'Global text status, pass rate, failed Error and Warning counts, not-evaluated count, and last model refresh time; status never depends on color alone.'"
                 }
               }
             }
@@ -91,7 +109,7 @@
                 "color": {
                   "expr": {
                     "Literal": {
-                      "Value": "'#D0D5DD'"
+                      "Value": "'#667085'"
                     }
                   }
                 }

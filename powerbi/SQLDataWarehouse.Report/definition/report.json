@@ -30,7 +30,7 @@
   "annotations": [
     {
       "name": "implementationStatus",
-      "value": "Synthetic reference implementation; Desktop rendering validation pending"
+      "value": "Synthetic reference implementation; core Desktop rendering passed, accessibility and responsive runtime validation pending"
     },
     {
       "name": "defaultPage",

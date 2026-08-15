@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "target": {
+    "environment": "Production",
+    "expectedTenantId": null,
+    "observedTenantId": null,
+    "workspace": {
+      "expectedId": null,
+      "observedId": null,
+      "expectedName": null,
+      "observedName": null,
+      "isPersonal": null,
+      "expectedCapacityMode": null,
+      "observedCapacityMode": null,
+      "expectedCapacityId": null,
+      "observedCapacityId": null
+    }
+  },
+  "artifacts": {
+    "provenance": {
+      "expectedSourceCommit": null,
+      "observedSourceCommit": null,
+      "logicalIdMappingVerified": null,
+      "verifiedAtUtc": null,
+      "evidenceReference": null
+    },
+    "semanticModel": {
+      "expectedDisplayName": "SQLDataWarehouse",
+      "expectedLogicalId": "c8c14294-542b-460d-aec3-f48f0fcd40fc",
+      "observedItemId": null,
+      "observedDisplayName": null
+    },
+    "report": {
+      "expectedDisplayName": "SQLDataWarehouse",
+      "expectedLogicalId": "696c2727-6eb6-4422-86a9-dc951409c8d8",
+      "observedItemId": null,
+      "observedDisplayName": null,
+      "observedSemanticModelId": null
+    },
+    "duplicateNameCount": null
+  },
+  "connection": {
+    "expected": {
+      "server": null,
+      "database": "DataWarehouse",
+      "environmentName": "Production",
+      "commandTimeoutMinutes": 10,
+      "privacyLevel": "Organizational",
+      "authenticationType": null,
+      "gatewayRequired": true
+    },
+    "observed": {
+      "server": null,
+      "database": null,
+      "environmentName": null,
+      "commandTimeoutMinutes": null,
+      "gatewayId": null,
+      "gatewayType": null,
+      "gatewayStatus": null,
+      "dataSourceId": null,
+      "dataSourceServer": null,
+      "dataSourceDatabase": null,
+      "privacyLevel": null,
+      "authenticationType": null,
+      "tlsVerified": null,
+      "leastPrivilegeVerified": null,
+      "credentialsConfigured": null,
+      "credentialsVerifiedAtUtc": null
+    }
+  },
+  "refresh": {
+    "pipelineGate": {
+      "status": null,
+      "completedAtUtc": null
+    },
+    "manual": {
+      "triggerAccepted": null,
+      "refreshId": null,
+      "status": null,
+      "startedAtUtc": null,
+      "completedAtUtc": null,
+      "serviceException": null,
+      "modelRefreshedAtUtc": null
+    },
+    "dataQuality": {
+      "overallStatus": null,
+      "verifiedAtUtc": null
+    },
+    "schedule": {
+      "expected": {
+        "enabled": true,
+        "timeZone": "W. Europe Standard Time",
+        "days": [],
+        "times": [],
+        "notifyOwner": true
+      },
+      "observed": {
+        "enabled": null,
+        "timeZone": null,
+        "days": [],
+        "times": [],
+        "notifyOwner": null
+      },
+      "configuredAtUtc": null,
+      "overlapWithWarehousePipeline": null,
+      "lastScheduledRunStatus": null,
+      "lastScheduledRunCompletedAtUtc": null
+    }
+  },
+  "security": {
+    "semanticModelOwnerObjectId": null,
+    "roleName": "CountrySalesViewer",
+    "roleExists": null,
+    "entitlementSource": {
+      "kind": null,
+      "sourceIdentifier": null,
+      "governed": null,
+      "containsOnlySyntheticInvalidIdentities": null,
+      "verifiedAtUtc": null,
+      "evidenceReference": null
+    },
+    "approvedGroups": [],
+    "observedRoleMembers": [],
+    "groupMembership": {
+      "verified": null,
+      "verifiedAtUtc": null,
+      "evidenceReference": null
+    },
+    "additiveRoleTest": {
+      "testIdentityReference": null,
+      "workspaceRole": null,
+      "roleNames": [],
+      "result": null,
+      "testedAtUtc": null,
+      "evidenceReference": null
+    },
+    "rlsTests": [
+      {"case": "Allowed", "testIdentityReference": null, "workspaceRole": null, "expectedCountries": [], "actualCountries": [], "sales": {"expectedRows": null, "actualRows": null, "expectedTotal": null, "actualTotal": null}, "inventory": {"expectedRows": null, "actualRows": null, "expectedTotal": null, "actualTotal": null}, "testedAtUtc": null, "evidenceReference": null},
+      {"case": "Multiple", "testIdentityReference": null, "workspaceRole": null, "expectedCountries": [], "actualCountries": [], "sales": {"expectedRows": null, "actualRows": null, "expectedTotal": null, "actualTotal": null}, "inventory": {"expectedRows": null, "actualRows": null, "expectedTotal": null, "actualTotal": null}, "testedAtUtc": null, "evidenceReference": null},
+      {"case": "Inactive", "testIdentityReference": null, "workspaceRole": null, "expectedCountries": [], "actualCountries": [], "sales": {"expectedRows": null, "actualRows": null, "expectedTotal": null, "actualTotal": null}, "inventory": {"expectedRows": null, "actualRows": null, "expectedTotal": null, "actualTotal": null}, "testedAtUtc": null, "evidenceReference": null},
+      {"case": "Expired", "testIdentityReference": null, "workspaceRole": null, "expectedCountries": [], "actualCountries": [], "sales": {"expectedRows": null, "actualRows": null, "expectedTotal": null, "actualTotal": null}, "inventory": {"expectedRows": null, "actualRows": null, "expectedTotal": null, "actualTotal": null}, "testedAtUtc": null, "evidenceReference": null},
+      {"case": "Unknown", "testIdentityReference": null, "workspaceRole": null, "expectedCountries": [], "actualCountries": [], "sales": {"expectedRows": null, "actualRows": null, "expectedTotal": null, "actualTotal": null}, "inventory": {"expectedRows": null, "actualRows": null, "expectedTotal": null, "actualTotal": null}, "testedAtUtc": null, "evidenceReference": null},
+      {"case": "Blank", "testIdentityReference": null, "workspaceRole": null, "expectedCountries": [], "actualCountries": [], "sales": {"expectedRows": null, "actualRows": null, "expectedTotal": null, "actualTotal": null}, "inventory": {"expectedRows": null, "actualRows": null, "expectedTotal": null, "actualTotal": null}, "testedAtUtc": null, "evidenceReference": null}
+    ],
+    "globalSurfaceTests": {
+      "Products": {"result": null, "testedAtUtc": null, "evidenceReference": null},
+      "Date": {"result": null, "testedAtUtc": null, "evidenceReference": null},
+      "Data Quality Checks": {"result": null, "testedAtUtc": null, "evidenceReference": null},
+      "Refresh Metadata": {"result": null, "testedAtUtc": null, "evidenceReference": null}
+    }
+  },
+  "approval": {
+    "releaseOwnerObjectId": null,
+    "privacyApproved": null,
+    "capacityApproved": null,
+    "evidenceCapturedAtUtc": null,
+    "maxEvidenceAgeHours": 24
+  }
+}

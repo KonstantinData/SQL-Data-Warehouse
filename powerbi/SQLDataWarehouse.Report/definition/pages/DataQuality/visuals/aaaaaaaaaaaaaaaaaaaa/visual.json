@@ -25,7 +25,25 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Data quality check register'"
+                  "Value": "'Data quality checks table — global'"
+                }
+              }
+            },
+            "fontColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "'#1F2937'"
+                    }
+                  }
+                }
+              }
+            },
+            "fontSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "12D"
                 }
               }
             }
@@ -38,7 +56,7 @@
             "altText": {
               "expr": {
                 "Literal": {
-                  "Value": "'Desktop table of check status, severity, scope, pass rate, evaluation time, and failed rows.'"
+                  "Value": "'Global check status, severity, scope, pass rate, evaluation time, and failed rows, with sortable column headers.'"
                 }
               }
             }
@@ -91,7 +109,7 @@
                 "color": {
                   "expr": {
                     "Literal": {
-                      "Value": "'#D0D5DD'"
+                      "Value": "'#667085'"
                     }
                   }
                 }

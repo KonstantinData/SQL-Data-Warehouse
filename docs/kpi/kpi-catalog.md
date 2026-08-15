@@ -27,6 +27,7 @@ Definitions apply only to the repository's synthetic CRM, ERP, and Inventory fix
 | Fulfillment | `Late Orders` | Eligible orders shipped after due date | `#,0` |
 | Fulfillment | `On-Time Shipment %` | On-time eligible orders divided by eligible orders | `0.0%` |
 | Fulfillment | `Average Fulfillment Days` | Average nonnegative order-to-ship calendar days | `0.0` |
+| Inventory | `Inventory Snapshot Lines` | Accepted Inventory Snapshot rows in the selected RLS/filter scope | `#,0` |
 | Inventory | `Available Inventory Quantity` | Available quantity at snapshot-line grain | `#,0` |
 | Inventory | `Inventory Value` | `on_hand_qty * unit_cost` from the Inventory source snapshot | `#,0.00` |
 | Inventory | `Below Reorder Snapshot Lines` | Snapshot lines at or below reorder point | `#,0` |

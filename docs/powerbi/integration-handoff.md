@@ -4,18 +4,25 @@
 
 The Power BI model now reads the curated physical Gold sales model and the Inventory Gold views. The canonical SQLCMD and Python entry points populate both source domains; CI validates runtime, model, Inventory, negative contracts, and Power BI source structure.
 
-## Remaining Desktop gate
+## Desktop gate status
 
-1. Open `powerbi/SQLDataWarehouse.pbip` in the supported Power BI Desktop version.
-2. Bind a least-privilege development connection and refresh all tables.
-3. Compare sales/model counts and Inventory `14/10/4/10` source/accepted/rejected/Gold evidence with SQL gates.
-4. Validate measures, relationships, sort order, inactive date relationships, interactions, tooltips, responsive and phone layouts.
-5. Execute the full `CountrySalesViewer` matrix (allowed, multiple countries, inactive, expired, unknown, and blank) for both Sales and Inventory; approve the implemented country boundary or replace it with a warehouse entitlement model.
-6. Inspect titles, alternative text, tab order, keyboard flow, contrast, and screen-reader names.
-7. Record screenshots and the Desktop version; do not commit credentials or transient `.pbi` state.
+The dated 2026-08-15 Desktop PoC acceptance covers open, full refresh, visible core rendering, save, close, and reopen against the loopback acceptance database. Source-level accessibility/responsive contracts, Performance Analyzer evidence, and the local RLS/SQL matrix are also versioned and validated. `validation.md` remains authoritative for accepted evidence and for runtime items that were not fully exercised.
 
-No publication is authorized until gateway, credentials, role membership, privacy review, refresh schedule, capacity, release owner, and evidence are environment-specific and approved.
+Before publishing into a real tenant or representing the model as production-ready, execute the remaining Desktop runtime gate:
+
+1. Refresh `powerbi/SQLDataWarehouse.pbip` against the intended non-secret environment and reconcile Sales plus Inventory `15/11/4/11` evidence with the SQL gates.
+2. Execute the full `CountrySalesViewer` matrix (allowed, multiple countries, inactive, expired, unknown, and blank) for both Sales and Inventory using Desktop `View as`.
+3. Complete rendered keyboard, screen-reader, High Contrast, touch-target, interaction, tooltip, responsive, and phone-layout checks; capture the Desktop version and approved screenshots.
+4. Do not commit credentials or transient `.pbi` state.
+
+## Remaining Service production gate
+
+Follow `service-production-runbook.md` and validate an environment-specific copy of `powerbi/service/service-contract.example.json`. The gate requires the authorized workspace and exact Service items, production parameters, Standard gateway/data-source mapping, managed credentials, a reconciled manual refresh, an approved schedule plus one successful scheduled run, governed entitlements, approved RLS group membership, effective Viewer tests, ownership, capacity, privacy approval, and current evidence.
+
+The repository is ready to publish as a portfolio Desktop PoC: `127.0.0.1`/`Development` and synthetic `.invalid` identities are deliberate safe defaults. The dated Desktop refresh shows no failed Error-severity data-quality gate. Known product numbers whose sales predate the first available product version remain visible as the separate `product_pre_history_coverage` warning.
+
+No **production tenant publication** is authorized until gateway, credentials, role membership, privacy review, refresh schedule, capacity, release owner, and evidence are environment-specific and approved. None of those external controls is required merely to present this synthetic repository and its dated Desktop evidence to recruiters or reviewers.
 
 Any change to table/measure/page IDs, source grain, refresh parameters, or RLS requires coordinated updates to TMDL, PBIR, KPI catalog, report blueprint, validators, and documentation.
 
-The handoff evidence must cover both domains: Sales counts/totals and Inventory `14/10/4/10` source/accepted/rejected/Gold reconciliation, Inventory quantity/value measures, protected country behaviour, and the intentionally global Product, Date, DQ, and refresh surfaces. A Sales-only screenshot or RLS result is not sufficient evidence for this combined model.
+The handoff evidence must cover both domains: Sales counts/totals and Inventory `15/11/4/11` source/accepted/rejected/Gold reconciliation, Inventory quantity/value measures, protected country behaviour, and the intentionally global Product, Date, DQ, and refresh surfaces. A Sales-only screenshot or RLS result is not sufficient evidence for this combined model.

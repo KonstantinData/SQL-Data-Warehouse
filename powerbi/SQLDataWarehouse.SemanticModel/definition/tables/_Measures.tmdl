@@ -93,6 +93,11 @@ table _Measures
 		displayFolder: Fulfillment
 		lineageTag: 605ffee6-64dc-474f-ba6b-c2df2c9eb51b
 
+	measure 'Inventory Snapshot Lines' = COUNTROWS('Inventory Snapshots')
+		formatString: #,0
+		displayFolder: Inventory
+		lineageTag: ad1e8e3a-77e2-42ed-a186-490940ba2d50
+
 	measure 'Available Inventory Quantity' = SUM('Inventory Snapshots'[available_qty])
 		formatString: #,0
 		displayFolder: Inventory

@@ -1,0 +1,96 @@
+{
+  "version": "1.0.0",
+  "evidenceBoundary": "Deterministic synthetic fixtures and Gold SQL baselines; Desktop View as and Power BI Service enforcement are separate runtime gates.",
+  "asOfUtc": "2026-08-15T10:20:00Z",
+  "role": "CountrySalesViewer",
+  "countryBaselines": {
+    "DE": {
+      "salesRows": 5625,
+      "salesTotal": 2894066.0,
+      "inventoryRows": 10,
+      "availableInventoryQuantity": 335,
+      "inventoryValue": 4826.0
+    },
+    "US": {
+      "salesRows": 20466,
+      "salesTotal": 9162225.0,
+      "inventoryRows": 1,
+      "availableInventoryQuantity": 20,
+      "inventoryValue": 312.5
+    }
+  },
+  "cases": [
+    {
+      "case": "Allowed",
+      "identity": "analyst.de@example.invalid",
+      "expectedCountries": ["DE"],
+      "expected": {
+        "salesRows": 5625,
+        "salesTotal": 2894066.0,
+        "inventoryRows": 10,
+        "availableInventoryQuantity": 335,
+        "inventoryValue": 4826.0
+      }
+    },
+    {
+      "case": "Multiple",
+      "identity": "analyst.multiple@example.invalid",
+      "expectedCountries": ["DE", "US"],
+      "expected": {
+        "salesRows": 26091,
+        "salesTotal": 12056291.0,
+        "inventoryRows": 11,
+        "availableInventoryQuantity": 355,
+        "inventoryValue": 5138.5
+      }
+    },
+    {
+      "case": "Inactive",
+      "identity": "inactive@example.invalid",
+      "expectedCountries": [],
+      "expected": {
+        "salesRows": 0,
+        "salesTotal": null,
+        "inventoryRows": 0,
+        "availableInventoryQuantity": null,
+        "inventoryValue": null
+      }
+    },
+    {
+      "case": "Expired",
+      "identity": "expired@example.invalid",
+      "expectedCountries": [],
+      "expected": {
+        "salesRows": 0,
+        "salesTotal": null,
+        "inventoryRows": 0,
+        "availableInventoryQuantity": null,
+        "inventoryValue": null
+      }
+    },
+    {
+      "case": "Unknown",
+      "identity": "unknown@example.invalid",
+      "expectedCountries": [],
+      "expected": {
+        "salesRows": 0,
+        "salesTotal": null,
+        "inventoryRows": 0,
+        "availableInventoryQuantity": null,
+        "inventoryValue": null
+      }
+    },
+    {
+      "case": "Blank",
+      "identity": "blank.country@example.invalid",
+      "expectedCountries": [],
+      "expected": {
+        "salesRows": 0,
+        "salesTotal": null,
+        "inventoryRows": 0,
+        "availableInventoryQuantity": null,
+        "inventoryValue": null
+      }
+    }
+  ]
+}

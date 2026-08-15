@@ -4,7 +4,7 @@
 
 This source-controlled Power BI Project uses the repository's synthetic CRM, ERP, and Inventory data. It demonstrates semantic modelling, explicit DAX, report definitions, refresh/RLS design, data-quality communication, and automated source validation. It is not evidence of a production deployment or operational adoption.
 
-Maturity: **source-authored reference; Power BI Desktop validation pending**. Power BI Desktop was not available in the implementation environment.
+Maturity: **Desktop refresh, source-level accessibility, Performance Analyzer, and local RLS/SQL contracts accepted; full release validation remains open**. The 2026-08-15 evidence is recorded in `validation.md`. It does not prove rendered accessibility interactions, Desktop `View as` results for all RLS identities, Service workspace mapping, gateway/credentials, refresh operations, or effective Service role membership.
 
 ## Source format
 
@@ -44,7 +44,7 @@ Customers (1) ---- (*) Sales (*) ---- (1) Product versions (1) ---- (*) Inventor
 
 ## Evidence boundary
 
-Static validation covers project structure, model references, relationships, DAX/KPI mapping, report/page/visual metadata, mobile layouts, refresh parameters, reserved synthetic RLS identities, and secret patterns. Desktop remains required for refresh, rendering, interaction, phone layout, accessibility inspection, role execution, and screenshots.
+Static validation covers project structure, model references, relationships, DAX/KPI mapping, report/page/visual metadata, mobile layouts, refresh parameters, reserved synthetic RLS identities, and secret patterns. Desktop remains required for complete rendering, interaction, phone layout, accessibility inspection, role execution, and screenshots. Power BI Service production release additionally follows `service-production-runbook.md` and requires environment-specific workspace, gateway, refresh, RLS, ownership, and approval evidence.
 
 Microsoft references:
 

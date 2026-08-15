@@ -35,7 +35,7 @@
     "uppercase": ["source_system", "warehouse_code", "product_number", "currency_code"]
   },
   "mapping": {
-    "warehouse_codes": ["WH-BER-01", "WH-HAM-01"],
+    "warehouse_codes": ["WH-BER-01", "WH-HAM-01", "WH-USA-01"],
     "product_rule": {
       "business_key": "product_id and normalized product_number",
       "temporal_predicate": "snapshot_date >= effective_from and (effective_to is null or snapshot_date < effective_to)",
@@ -45,10 +45,10 @@
   },
   "duplicate_survivor": "latest extracted_at_utc, then greatest source_row_id",
   "expected_fixture_outcomes": {
-    "bronze_rows": 14,
-    "silver_rows": 10,
+    "bronze_rows": 15,
+    "silver_rows": 11,
     "reject_rows": 4,
-    "gold_rows": 10,
+    "gold_rows": 11,
     "reject_reason_counts": {
       "DUPLICATE_SUPERSEDED": 1,
       "NEGATIVE_ON_HAND_QTY": 1,

@@ -212,7 +212,7 @@ warning_count() {
 }
 
 run_sql master scripts/ci/run_ci_pipeline.sql
-for sql_file in tests/ci_*.sql tests/quality_checks_*.sql tests/runtime_*.sql tests/model_*.sql; do
+for sql_file in tests/ci_*.sql tests/quality_checks_*.sql tests/runtime_*.sql tests/model_*.sql tests/powerbi_*.sql; do
   parse_sql_file "$sql_file"
 done
 run_sql DataWarehouse tests/ci_pipeline_contract.sql
@@ -278,6 +278,7 @@ run_sql DataWarehouse tests/model_reproducibility.sql
 run_sql DataWarehouse tests/model_sentinel_contract.sql
 run_sql DataWarehouse tests/model_decimal_arithmetic.sql
 run_sql DataWarehouse tests/model_scd2_reconciliation.sql
+run_sql DataWarehouse tests/powerbi_rls_data_contract.sql
 run_sql DataWarehouse tests/source_inventory/run_tests_ci.sql
 run_sql DataWarehouse tests/quality_checks_ci.sql
 echo "CI runtime, pipeline, model, Inventory, quality contracts, and negative self-tests passed."

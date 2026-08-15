@@ -83,7 +83,25 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Sales by category'"
+                  "Value": "'Total sales by product category — descending'"
+                }
+              }
+            },
+            "fontColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "'#1F2937'"
+                    }
+                  }
+                }
+              }
+            },
+            "fontSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "12D"
                 }
               }
             }
@@ -96,7 +114,7 @@
             "altText": {
               "expr": {
                 "Literal": {
-                  "Value": "'Ranked bar chart of total sales by product category.'"
+                  "Value": "'Selected-scope Total Sales by product category, sorted from highest to lowest; category labels provide the non-color cue.'"
                 }
               }
             }
@@ -149,7 +167,7 @@
                 "color": {
                   "expr": {
                     "Literal": {
-                      "Value": "'#D0D5DD'"
+                      "Value": "'#667085'"
                     }
                   }
                 }

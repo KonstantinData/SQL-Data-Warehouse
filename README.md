@@ -142,7 +142,13 @@ The million-row performance case is opt-in and isolated from the normal pipeline
 
 Open `powerbi/SQLDataWarehouse.pbip` in a supported Power BI Desktop version. The semantic model reads the curated Gold sales model and the new Inventory Gold views. It includes sales, profitability estimates, fulfillment, data quality, refresh context, Inventory quantities/value/reorder indicators, and country-based reference RLS.
 
-Before treating a build as publishable, complete the Desktop gate in `docs/powerbi/validation.md`: refresh, visual rendering, mobile layouts, interactions, RLS roles, accessibility, and screenshots. No Power BI Service deployment is performed by this repository.
+The functional Desktop PoC was refreshed and rendered against the synthetic loopback acceptance database in Power BI Desktop 2.156.951.0. All Error-severity data-quality gates passed; three explicit source-quality warnings remain visible. The dated screenshots, hashes, totals, and evidence boundary are versioned in `docs/powerbi/evidence/desktop-poc/2026-08-15/`.
+
+| Executive Overview | Sales Performance | Data Quality |
+| --- | --- | --- |
+| ![Executive Overview](docs/powerbi/evidence/desktop-poc/2026-08-15/executive-overview.png) | ![Sales Performance](docs/powerbi/evidence/desktop-poc/2026-08-15/sales-performance.png) | ![Data Quality](docs/powerbi/evidence/desktop-poc/2026-08-15/data-quality.png) |
+
+This is portfolio-grade Desktop PoC evidence, not a Power BI Service or production-data claim. Exact viewport, assistive-technology, Desktop `View as`, gateway, role-membership, and production refresh gates remain explicitly separated in `docs/powerbi/validation.md` and `docs/powerbi/service-production-runbook.md`.
 
 ## Data quality and operations
 

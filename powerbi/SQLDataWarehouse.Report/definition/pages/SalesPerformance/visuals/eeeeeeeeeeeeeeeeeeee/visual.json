@@ -25,7 +25,25 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Sales Performance'"
+                  "Value": "'Sales Performance context'"
+                }
+              }
+            },
+            "fontColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "'#1F2937'"
+                    }
+                  }
+                }
+              }
+            },
+            "fontSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "12D"
                 }
               }
             }
@@ -38,7 +56,7 @@
             "altText": {
               "expr": {
                 "Literal": {
-                  "Value": "'Synthetic reference data, access scope, data-through date, and refresh context.'"
+                  "Value": "'Reference data notice, selected access scope, data-through date, and refresh context for this page.'"
                 }
               }
             }
@@ -91,7 +109,7 @@
                 "color": {
                   "expr": {
                     "Literal": {
-                      "Value": "'#D0D5DD'"
+                      "Value": "'#667085'"
                     }
                   }
                 }

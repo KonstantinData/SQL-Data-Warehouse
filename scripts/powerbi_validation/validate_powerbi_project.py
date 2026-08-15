@@ -8,20 +8,40 @@ cross-file references. It is not a complete PBIR schema, TMDL, DAX, or M parser.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
 import sys
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from validate_performance_evidence import validate_performance_evidence
 
-
-ALLOWED_PREFIXES = ("powerbi/", "docs/kpi/", "docs/powerbi/", "scripts/powerbi_validation/")
+ALLOWED_PREFIXES = (
+    ".gitignore",
+    "README.md",
+    "powerbi/",
+    "docs/kpi/",
+    "docs/powerbi/",
+    "docs/data/",
+    "datasets/source_inventory/",
+    "scripts/powerbi_validation/",
+    "scripts/source_inventory/",
+    "scripts/ci/run_ci_checks.sh",
+    "tests/source_inventory/",
+    "tests/powerbi_rls_data_contract.sql",
+    "tests/runtime_silver_coverage.sql",
+)
+SECRET_SCANNER_IMPLEMENTATIONS = {
+    "validate_powerbi_project.py",
+    "powerbi_service_contract.py",
+}
 TRANSIENT_NAMES = {"cache.abf", "localSettings.json", "unappliedChanges.json", "editorSettings.json"}
+EVIDENCE_IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg"}
 SECRET_PATTERNS = {
     "password assignment": re.compile(r"(?i)(password|pwd)\s*[:=]\s*['\"]?[^\s,'\"]+"),
     "connection secret": re.compile(r"(?i)(accountkey|clientsecret|accesskey)\s*="),
@@ -196,6 +216,35 @@ def normalized_text(value: str | None) -> str:
     return " ".join((value or "").split())
 
 
+def hex_color(value: str | None) -> str | None:
+    """Return a normalized six-digit hex color or None."""
+
+    if not isinstance(value, str) or not re.fullmatch(r"#[0-9A-Fa-f]{6}", value.strip()):
+        return None
+    return value.strip().upper()
+
+
+def relative_luminance(color: str) -> float:
+    channels = [int(color[index : index + 2], 16) / 255 for index in (1, 3, 5)]
+    linear = [channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4 for channel in channels]
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+
+def contrast_ratio(foreground: str, background: str) -> float:
+    first = relative_luminance(foreground)
+    second = relative_luminance(background)
+    return (max(first, second) + 0.05) / (min(first, second) + 0.05)
+
+
+def pbir_color(value: Any) -> str | None:
+    current = value
+    for key in ("solid", "color"):
+        if not isinstance(current, dict) or key not in current:
+            return None
+        current = current[key]
+    return hex_color(pbir_literal(current))
+
+
 def markdown_table(text: str, heading: str) -> list[dict[str, str]]:
     """Parse the first Markdown table below an exact level-two heading."""
 
@@ -229,13 +278,19 @@ def validate_rls_documentation(root: Path, errors: list[str]) -> None:
     security_path = root / "docs" / "powerbi" / "security-and-refresh.md"
     validation_path = root / "docs" / "powerbi" / "validation.md"
     quality_path = root / "docs" / "powerbi" / "data-quality-reporting.md"
-    missing = [path for path in (security_path, validation_path, quality_path) if not path.is_file()]
+    acceptance_path = root / "docs" / "powerbi" / "rls-acceptance.md"
+    missing = [
+        path
+        for path in (security_path, validation_path, quality_path, acceptance_path)
+        if not path.is_file()
+    ]
     if missing:
         errors.extend(f"Required RLS documentation is missing: {path}" for path in missing)
         return
     security_text = security_path.read_text(encoding="utf-8")
     validation_text = validation_path.read_text(encoding="utf-8")
     quality_text = quality_path.read_text(encoding="utf-8")
+    acceptance_text = acceptance_path.read_text(encoding="utf-8")
 
     protection_rows = markdown_table(security_text, "RLS protection matrix")
     expected_boundaries = {
@@ -264,6 +319,15 @@ def validate_rls_documentation(root: Path, errors: list[str]) -> None:
     for identity_case, row in actual_cases.items():
         if not row.get("Expected Sales") or not row.get("Expected Inventory") or not row.get("Required evidence"):
             errors.append(f"RLS validation matrix lacks Sales, Inventory, or evidence for {identity_case}")
+    for required in (
+        "analyst.multiple@example.invalid",
+        "blank.country@example.invalid",
+        "Inventory Snapshot Lines",
+        "Desktop `View as` is a separate Tabular-engine gate",
+        "15 = 11 accepted + 4 rejected",
+    ):
+        if required not in acceptance_text:
+            errors.append(f"RLS acceptance documentation lacks {required}")
 
     evidence_rows = markdown_table(quality_text, "Global and selected-scope evidence")
     evidence_scope = {
@@ -279,6 +343,118 @@ def validate_rls_documentation(root: Path, errors: list[str]) -> None:
         scope = evidence_scope.get(evidence, "")
         if any(token not in scope for token in tokens):
             errors.append(f"Data Quality scope matrix is missing or incorrect for {evidence}")
+
+
+def validate_rls_acceptance_contract(
+    root: Path,
+    security_text: str,
+    errors: list[str],
+) -> None:
+    path = root / "powerbi" / "rls-acceptance-matrix.json"
+    contract = load_json(path, errors)
+    if not isinstance(contract, dict):
+        errors.append("RLS acceptance matrix contract is missing or invalid")
+        return
+    if contract.get("role") != "CountrySalesViewer":
+        errors.append("RLS acceptance matrix must target CountrySalesViewer")
+    try:
+        as_of = datetime.fromisoformat(str(contract["asOfUtc"]).replace("Z", "+00:00"))
+        if as_of.tzinfo is None:
+            raise ValueError("timezone is required")
+        as_of = as_of.astimezone(timezone.utc)
+    except (KeyError, TypeError, ValueError) as exc:
+        errors.append(f"RLS acceptance matrix has invalid asOfUtc: {exc}")
+        return
+
+    fixture_pattern = re.compile(
+        r'\{"(?P<upn>[^"]*)",\s*"(?P<country>[^"]*)",\s*'
+        r'(?P<active>TRUE|FALSE),\s*dt"(?P<valid_from>\d{4}-\d{2}-\d{2})",\s*'
+        r'dt"(?P<valid_to>\d{4}-\d{2}-\d{2})"\}'
+    )
+    fixtures: list[dict[str, Any]] = []
+    for match in fixture_pattern.finditer(security_text):
+        fixtures.append(
+            {
+                "identity": match.group("upn").strip().lower(),
+                "country": match.group("country").strip().upper(),
+                "active": match.group("active") == "TRUE",
+                "valid_from": datetime.fromisoformat(match.group("valid_from")).replace(tzinfo=timezone.utc),
+                "valid_to": datetime.fromisoformat(match.group("valid_to")).replace(tzinfo=timezone.utc),
+            }
+        )
+    if len(fixtures) != 7:
+        errors.append(f"RLS entitlement fixture must contain seven deterministic rows, found {len(fixtures)}")
+
+    baselines = contract.get("countryBaselines")
+    if not isinstance(baselines, dict) or set(baselines) != {"DE", "US"}:
+        errors.append("RLS acceptance matrix must define DE and US country baselines")
+        return
+    metric_names = {
+        "salesRows",
+        "salesTotal",
+        "inventoryRows",
+        "availableInventoryQuantity",
+        "inventoryValue",
+    }
+    if any(not isinstance(value, dict) or set(value) != metric_names for value in baselines.values()):
+        errors.append("RLS acceptance country baselines have an invalid metric shape")
+        return
+
+    cases = contract.get("cases")
+    if not isinstance(cases, list):
+        errors.append("RLS acceptance matrix cases are missing")
+        return
+    by_case = {str(case.get("case")): case for case in cases if isinstance(case, dict)}
+    required_cases = {"Allowed", "Multiple", "Inactive", "Expired", "Unknown", "Blank"}
+    if set(by_case) != required_cases or len(cases) != len(required_cases):
+        errors.append("RLS acceptance matrix must contain each required case exactly once")
+        return
+
+    expected_identities = {
+        "Allowed": "analyst.de@example.invalid",
+        "Multiple": "analyst.multiple@example.invalid",
+        "Inactive": "inactive@example.invalid",
+        "Expired": "expired@example.invalid",
+        "Unknown": "unknown@example.invalid",
+        "Blank": "blank.country@example.invalid",
+    }
+    for case_name, expected_identity in expected_identities.items():
+        case = by_case[case_name]
+        identity = str(case.get("identity", "")).strip().lower()
+        if identity != expected_identity:
+            errors.append(f"RLS acceptance identity differs for {case_name}")
+            continue
+        allowed = sorted(
+            {
+                fixture["country"]
+                for fixture in fixtures
+                if fixture["identity"] == identity
+                and fixture["country"]
+                and fixture["active"]
+                and fixture["valid_from"] <= as_of < fixture["valid_to"]
+            }
+        )
+        documented = case.get("expectedCountries")
+        if documented != allowed:
+            errors.append(f"RLS acceptance countries differ for {case_name}: {documented} != {allowed}")
+            continue
+        expected_metrics: dict[str, int | float | None] = {}
+        for metric in metric_names:
+            if allowed:
+                expected_metrics[metric] = sum(baselines[country][metric] for country in allowed)
+            elif metric in {"salesRows", "inventoryRows"}:
+                expected_metrics[metric] = 0
+            else:
+                expected_metrics[metric] = None
+        if case.get("expected") != expected_metrics:
+            errors.append(f"RLS acceptance metrics differ for {case_name}")
+
+    unknown_rows = [fixture for fixture in fixtures if fixture["identity"] == expected_identities["Unknown"]]
+    if unknown_rows:
+        errors.append("Unknown RLS acceptance identity must not have an entitlement fixture")
+    blank_rows = [fixture for fixture in fixtures if fixture["identity"] == expected_identities["Blank"]]
+    if len(blank_rows) != 1 or blank_rows[0]["country"] != "":
+        errors.append("Blank RLS acceptance identity must have one empty CountryCode fixture")
 
 
 def validate_relationships(definition: Path, inventory: ModelInventory, errors: list[str]) -> None:
@@ -421,11 +597,21 @@ def validate_visual_reference(reference: str, inventory: ModelInventory, errors:
 
 def validate_report(report_dir: Path, inventory: ModelInventory, errors: list[str]) -> None:
     report_metadata = load_json(report_dir / "definition" / "report.json", errors)
+    default_page: str | None = None
     if isinstance(report_metadata, dict):
         imported_version = report_metadata.get("themeCollection", {}).get("baseTheme", {}).get("reportVersionAtImport")
         expected_keys = {"visual", "page", "report"}
         if not isinstance(imported_version, dict) or set(imported_version) != expected_keys:
             errors.append("reportVersionAtImport must contain visual, page, and report versions")
+        annotations = report_metadata.get("annotations", [])
+        default_page = next(
+            (
+                annotation.get("value")
+                for annotation in annotations
+                if isinstance(annotation, dict) and annotation.get("name") == "defaultPage"
+            ),
+            None,
+        )
     pages_path = report_dir / "definition" / "pages" / "pages.json"
     pages_data = load_json(pages_path, errors)
     if not isinstance(pages_data, dict):
@@ -438,9 +624,12 @@ def validate_report(report_dir: Path, inventory: ModelInventory, errors: list[st
         errors.append("pages.json contains duplicate page IDs")
     if pages_data.get("activePageName") not in page_order:
         errors.append("activePageName is not present in pageOrder")
+    if default_page != page_order[0] or pages_data.get("activePageName") != default_page:
+        errors.append("Power BI defaultPage, activePageName, and first pageOrder entry must match")
 
     seen_visual_ids: set[str] = set()
     visual_metadata: dict[str, tuple[str, str, str, set[str]]] = {}
+    visual_layouts: dict[str, dict[str, Any]] = {}
     for page_name in page_order:
         page_dir = pages_path.parent / page_name
         page_data = load_json(page_dir / "page.json", errors)
@@ -452,8 +641,17 @@ def validate_report(report_dir: Path, inventory: ModelInventory, errors: list[st
         height = page_data.get("height")
         if width != 1280 or height != 720:
             errors.append(f"Page {page_name} must use the 1280x720 design canvas")
+        page_objects = page_data.get("objects", {})
+        page_background = None
+        if isinstance(page_objects, dict) and page_objects.get("background"):
+            page_background = pbir_color(
+                page_objects["background"][0].get("properties", {}).get("color")
+            )
+        if page_background != "#F7F9FC":
+            errors.append(f"Page {page_name} must persist the accessible #F7F9FC background")
         page_tab_orders: set[int] = set()
-        mobile_positions: list[tuple[float, float, str]] = []
+        mobile_tab_orders: set[int] = set()
+        mobile_positions: list[tuple[float, float, float, float, str]] = []
         visual_paths = sorted((page_dir / "visuals").glob("*/visual.json"))
         if len(visual_paths) < 3:
             errors.append(f"Page {page_name} must contain at least three authored visuals")
@@ -471,11 +669,18 @@ def validate_report(report_dir: Path, inventory: ModelInventory, errors: list[st
             seen_visual_ids.add(visual_id)
             position = data.get("position", {})
             required = ("x", "y", "width", "height", "tabOrder")
-            if not all(isinstance(position.get(key), (int, float)) for key in required):
+            if not all(
+                isinstance(position.get(key), (int, float)) and not isinstance(position.get(key), bool)
+                for key in required
+            ):
                 errors.append(f"Incomplete visual position in {visual_path}")
             else:
                 if position["x"] < 0 or position["y"] < 0 or position["x"] + position["width"] > width or position["y"] + position["height"] > height:
                     errors.append(f"Visual exceeds desktop canvas: {visual_path}")
+                if position["width"] <= 0 or position["height"] <= 0:
+                    errors.append(f"Visual dimensions must be positive: {visual_path}")
+                if position["tabOrder"] < 0 or position["tabOrder"] != int(position["tabOrder"]):
+                    errors.append(f"Visual tabOrder must be a nonnegative integer: {visual_path}")
                 tab_order = int(position["tabOrder"])
                 if tab_order in page_tab_orders:
                     errors.append(f"Duplicate tabOrder {tab_order} on page {page_name}")
@@ -483,12 +688,32 @@ def validate_report(report_dir: Path, inventory: ModelInventory, errors: list[st
             for query_ref in re.findall(r'"queryRef"\s*:\s*"([^"]+)"', json.dumps(data)):
                 validate_visual_reference(query_ref, inventory, errors, visual_path)
             objects = data.get("visual", {}).get("visualContainerObjects", {})
-            title_value = objects.get("title", [{}])[0].get("properties", {}).get("text") if objects.get("title") else None
+            title_properties = objects.get("title", [{}])[0].get("properties", {}) if objects.get("title") else {}
+            title_value = title_properties.get("text")
             alt_value = objects.get("general", [{}])[0].get("properties", {}).get("altText") if objects.get("general") else None
             title_text = pbir_literal(title_value)
             alt_text = pbir_literal(alt_value)
             if not title_text or not alt_text:
                 errors.append(f"PBIR title or alt text is missing: {visual_path}")
+            if pbir_literal(title_properties.get("show")) != "true":
+                errors.append(f"PBIR title must be visible: {visual_path}")
+            if alt_text and not 20 <= len(normalized_text(alt_text)) <= 250:
+                errors.append(f"PBIR alt text must contain 20 to 250 characters: {visual_path}")
+            title_color = pbir_color(title_properties.get("fontColor"))
+            background_color = (
+                pbir_color(objects["background"][0].get("properties", {}).get("color"))
+                if objects.get("background")
+                else None
+            )
+            border_color = (
+                pbir_color(objects["border"][0].get("properties", {}).get("color"))
+                if objects.get("border")
+                else None
+            )
+            if title_color is None or background_color is None or contrast_ratio(title_color, background_color) < 4.5:
+                errors.append(f"PBIR title/background contrast is below 4.5:1: {visual_path}")
+            if border_color is None or background_color is None or contrast_ratio(border_color, background_color) < 3.0:
+                errors.append(f"PBIR border/background contrast is below 3:1: {visual_path}")
             if isinstance(visual_id, str):
                 query_refs = set(re.findall(r'"queryRef"\s*:\s*"([^"]+)"', json.dumps(data)))
                 visual_metadata[visual_id] = (
@@ -497,21 +722,59 @@ def validate_report(report_dir: Path, inventory: ModelInventory, errors: list[st
                     normalized_text(alt_text),
                     query_refs,
                 )
+                visual_layouts[visual_id] = {
+                    "page": str(page_name),
+                    "desktop": dict(position),
+                    "mobile": None,
+                    "visualType": data.get("visual", {}).get("visualType"),
+                    "objects": data.get("visual", {}).get("objects", {}),
+                }
             mobile_path = visual_path.parent / "mobile.json"
             if mobile_path.is_file():
                 mobile = load_json(mobile_path, errors)
                 position = mobile.get("position", {}) if isinstance(mobile, dict) else {}
                 required_mobile = ("x", "y", "width", "height", "tabOrder")
-                if not all(isinstance(position.get(key), (int, float)) for key in required_mobile):
+                if not all(
+                    isinstance(position.get(key), (int, float)) and not isinstance(position.get(key), bool)
+                    for key in required_mobile
+                ):
                     errors.append(f"Incomplete mobile position in {mobile_path}")
                 else:
-                    if position["x"] < 0 or position["y"] < 0 or position["x"] + position["width"] > 320:
+                    if (
+                        position["x"] < 0
+                        or position["y"] < 0
+                        or position["width"] <= 0
+                        or position["height"] <= 0
+                        or position["x"] + position["width"] > 320
+                    ):
                         errors.append(f"Mobile visual exceeds the 320px baseline: {mobile_path}")
-                    mobile_positions.append((position["y"], position["y"] + position["height"], visual_id))
-        mobile_positions.sort()
+                    if position["height"] < 100:
+                        errors.append(f"Mobile visual is below the 100-unit readable-height contract: {mobile_path}")
+                    if position["tabOrder"] < 0 or position["tabOrder"] != int(position["tabOrder"]):
+                        errors.append(f"Mobile tabOrder must be a nonnegative integer: {mobile_path}")
+                    mobile_tab_order = int(position["tabOrder"])
+                    if mobile_tab_order in mobile_tab_orders:
+                        errors.append(f"Duplicate mobile tabOrder {mobile_tab_order} on page {page_name}")
+                    mobile_tab_orders.add(mobile_tab_order)
+                    mobile_positions.append(
+                        (
+                            position["x"],
+                            position["x"] + position["width"],
+                            position["y"],
+                            position["y"] + position["height"],
+                            visual_id,
+                        )
+                    )
+                    if isinstance(visual_id, str) and visual_id in visual_layouts:
+                        visual_layouts[visual_id]["mobile"] = dict(position)
+        mobile_positions.sort(key=lambda item: (item[2], item[0]))
         for previous, current in zip(mobile_positions, mobile_positions[1:]):
-            if current[0] < previous[1]:
-                errors.append(f"Mobile visuals overlap on {page_name}: {previous[2]} and {current[2]}")
+            horizontal_overlap = current[0] < previous[1] and previous[0] < current[1]
+            vertical_overlap = current[2] < previous[3] and previous[2] < current[3]
+            if horizontal_overlap and vertical_overlap:
+                errors.append(f"Mobile visuals overlap on {page_name}: {previous[4]} and {current[4]}")
+            if horizontal_overlap and current[2] - previous[3] < 8:
+                errors.append(f"Mobile visual gap is below 8 units on {page_name}: {previous[4]} and {current[4]}")
 
     blueprint_path = report_dir.parent / "report-blueprint.json"
     blueprint = load_json(blueprint_path, errors)
@@ -523,13 +786,51 @@ def validate_report(report_dir: Path, inventory: ModelInventory, errors: list[st
     blueprint_ids: set[str] = set()
     for page in blueprint_pages:
         page_name = page.get("name")
-        for visual in page.get("visuals", []):
+        page_visuals = page.get("visuals", [])
+        desktop_focus_order = page.get("desktopFocusOrder")
+        mobile_focus_order = page.get("mobileFocusOrder")
+        if not isinstance(desktop_focus_order, list) or not isinstance(mobile_focus_order, list):
+            errors.append(f"Explicit desktop/mobile focus order is missing for {page_name}")
+            desktop_focus_order = []
+            mobile_focus_order = []
+        actual_desktop_order = [
+            visual_id
+            for visual_id in sorted(
+                (visual.get("id") for visual in page_visuals if visual.get("id") in visual_layouts),
+                key=lambda visual_id: visual_layouts[visual_id]["desktop"].get("tabOrder", -1),
+            )
+        ]
+        actual_mobile_order = [
+            visual_id
+            for visual_id in sorted(
+                (
+                    visual.get("id")
+                    for visual in page_visuals
+                    if visual.get("id") in visual_layouts and visual_layouts[visual.get("id")]["mobile"] is not None
+                ),
+                key=lambda visual_id: visual_layouts[visual_id]["mobile"].get("tabOrder", -1),
+            )
+        ]
+        if desktop_focus_order != actual_desktop_order:
+            errors.append(f"Desktop focus order differs from the explicit contract on {page_name}")
+        if mobile_focus_order != actual_mobile_order:
+            errors.append(f"Mobile focus order differs from the explicit contract on {page_name}")
+        mobile_priorities = [visual.get("mobilePriority") for visual in page_visuals if visual.get("mobilePriority") is not None]
+        if sorted(mobile_priorities) != list(range(1, len(mobile_priorities) + 1)):
+            errors.append(f"Mobile priorities must be unique and consecutive on {page_name}")
+        for index, visual in enumerate(page_visuals, start=1):
             visual_id = visual.get("id")
             if visual_id in blueprint_ids:
                 errors.append(f"Duplicate blueprint visual ID: {visual_id}")
             blueprint_ids.add(visual_id)
-            if not visual.get("title") or len(str(visual.get("altText", ""))) < 20:
+            if not visual.get("title") or not 20 <= len(str(visual.get("altText", ""))) <= 250:
                 errors.append(f"Missing meaningful title/alt text for visual {visual_id}")
+            if visual.get("screenReaderName") != visual.get("title"):
+                errors.append(f"Screen-reader name must match the visible title for visual {visual_id}")
+            if visual.get("desktopOrder") != index:
+                errors.append(f"desktopOrder differs from visual inventory order for {visual_id}")
+            if not visual.get("nonColorCue"):
+                errors.append(f"Non-color encoding contract is missing for visual {visual_id}")
             visual_dir = pages_path.parent / str(page_name) / "visuals" / str(visual_id)
             if not (visual_dir / "visual.json").is_file():
                 errors.append(f"Blueprint visual is missing from PBIR: {page_name}/{visual_id}")
@@ -551,6 +852,30 @@ def validate_report(report_dir: Path, inventory: ModelInventory, errors: list[st
                     )
             if visual.get("mobilePriority") is not None and not (visual_dir / "mobile.json").is_file():
                 errors.append(f"Prioritized mobile visual lacks mobile.json: {page_name}/{visual_id}")
+            if visual.get("mobilePriority") is None:
+                if visual.get("mobileDisposition") != "landscape-desktop-detail" or not visual.get("mobileReason"):
+                    errors.append(f"Mobile omission lacks an accessible landscape alternative for {visual_id}")
+            elif visual_id in visual_layouts:
+                mobile_position = visual_layouts[visual_id]["mobile"]
+                expected_tab_order = int(visual.get("mobilePriority")) * 1000
+                if not isinstance(mobile_position, dict) or mobile_position.get("tabOrder") != expected_tab_order:
+                    errors.append(f"Mobile tabOrder differs from mobilePriority for visual {visual_id}")
+            if visual.get("nonColorCue") == "series-labels-markers-and-show-data" and visual_id in visual_layouts:
+                visual_objects = visual_layouts[visual_id].get("objects", {})
+                line_styles = visual_objects.get("lineStyles", []) if isinstance(visual_objects, dict) else []
+                legend = visual_objects.get("legend", []) if isinstance(visual_objects, dict) else []
+                marker_value = (
+                    pbir_literal(line_styles[0].get("properties", {}).get("showMarker"))
+                    if line_styles
+                    else None
+                )
+                legend_value = (
+                    pbir_literal(legend[0].get("properties", {}).get("show"))
+                    if legend
+                    else None
+                )
+                if marker_value != "true" or legend_value != "true":
+                    errors.append(f"Multi-series non-color marker/legend contract is not persisted for {visual_id}")
     if blueprint_ids != seen_visual_ids:
         errors.append("PBIR visuals and report-blueprint visual inventory differ")
     dq_status_visuals = [
@@ -563,6 +888,137 @@ def validate_report(report_dir: Path, inventory: ModelInventory, errors: list[st
     viewports = blueprint.get("responsiveAcceptance", {}).get("viewports", [])
     if viewports != [320, 390, 768, 1280, 1440]:
         errors.append("Responsive acceptance viewports are incomplete")
+    responsive = blueprint.get("responsiveAcceptance", {})
+    if responsive.get("phoneContentWidth") != 320 or responsive.get("minimumPhoneGap") < 8:
+        errors.append("Responsive phone width/gap contract is incomplete")
+    if responsive.get("minimumPhoneVisualHeight") < 100:
+        errors.append("Responsive minimum phone visual height must be at least 100")
+    if responsive.get("minimumTouchTarget") < 44 or responsive.get("horizontalOverflowAllowed") is not False:
+        errors.append("Responsive touch-target or overflow contract is unsafe")
+    if set(responsive.get("layoutEquivalents", {})) != {"320", "390", "768", "1280", "1440"}:
+        errors.append("Responsive layout equivalents are incomplete")
+    for visual_id, layout in visual_layouts.items():
+        mobile_position = layout.get("mobile")
+        if isinstance(mobile_position, dict) and (
+            mobile_position.get("x") != 0 or mobile_position.get("width") != responsive.get("phoneContentWidth")
+        ):
+            errors.append(f"Mobile visual does not use the full authored phone width: {visual_id}")
+
+    accessibility = blueprint.get("accessibilityContract", {})
+    if (
+        accessibility.get("normalTextContrastMinimum") != 4.5
+        or accessibility.get("nonTextContrastMinimum") != 3.0
+        or accessibility.get("altTextMaximumCharacters") != 250
+        or accessibility.get("statusRequiresText") is not True
+    ):
+        errors.append("Accessibility threshold contract is incomplete")
+    visual_system = blueprint.get("visualSystem", {})
+    surface = hex_color(visual_system.get("surface"))
+    for role in ("text", "mutedText", "primary", "positive", "warning", "negative"):
+        color = hex_color(visual_system.get(role))
+        if color is None or surface is None or contrast_ratio(color, surface) < 4.5:
+            errors.append(f"Visual-system color {role} is below 4.5:1 against surface")
+    for role in ("border", "focus"):
+        color = hex_color(visual_system.get(role))
+        if color is None or surface is None or contrast_ratio(color, surface) < 3.0:
+            errors.append(f"Visual-system color {role} is below 3:1 against surface")
+
+
+def validate_accessibility_evidence(root: Path, errors: list[str]) -> None:
+    manifests = sorted(
+        (root / "docs" / "powerbi" / "evidence" / "accessibility-responsive").glob("*/manifest.json")
+    )
+    if not manifests:
+        errors.append("Accessibility/responsive evidence manifest is missing")
+        return
+    manifest_path = manifests[-1]
+    manifest = load_json(manifest_path, errors)
+    if not isinstance(manifest, dict):
+        return
+    if manifest.get("schemaVersion") != "1.0.0" or manifest.get("evidenceBoundary") != "runtime-not-claimed-without-capture":
+        errors.append("Accessibility evidence schema or honesty boundary is invalid")
+    entries = manifest.get("runtimeChecks")
+    if not isinstance(entries, list):
+        errors.append("Accessibility evidence runtimeChecks must be a list")
+        return
+    required = {
+        (page, viewport, "default")
+        for page in ("ExecutiveOverview", "SalesPerformance", "DataQuality")
+        for viewport in (320, 390, 768, 1280, 1440)
+    }
+    actual: set[tuple[str, int, str]] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            errors.append("Accessibility evidence contains a non-object runtime check")
+            continue
+        key = (entry.get("page"), entry.get("viewport"), entry.get("state"))
+        if key in actual:
+            errors.append(f"Duplicate accessibility evidence row: {key}")
+        actual.add(key)
+        result = entry.get("result")
+        if result not in {"PASS", "FAIL", "NOT_EXECUTED"}:
+            errors.append(f"Invalid accessibility evidence result for {key}")
+            continue
+        if result == "PASS":
+            screenshot = entry.get("screenshot")
+            digest = entry.get("sha256")
+            if not isinstance(screenshot, str) or not re.fullmatch(r"[0-9a-f]{64}", str(digest)):
+                errors.append(f"Passing runtime evidence lacks screenshot/hash for {key}")
+                continue
+            screenshot_path = resolve_child(root, screenshot, errors, "Accessibility screenshot")
+            if not screenshot_path.is_file():
+                errors.append(f"Passing accessibility screenshot is missing for {key}")
+            elif hashlib.sha256(screenshot_path.read_bytes()).hexdigest() != digest:
+                errors.append(f"Accessibility screenshot hash differs for {key}")
+        elif len(str(entry.get("note", ""))) < 20:
+            errors.append(f"Non-passing runtime evidence needs an explanatory note for {key}")
+    if actual != required:
+        errors.append("Accessibility runtime evidence does not cover every page and viewport in the default state")
+
+
+def validate_desktop_poc_evidence(root: Path, errors: list[str]) -> None:
+    manifests = sorted((root / "docs" / "powerbi" / "evidence" / "desktop-poc").glob("*/manifest.json"))
+    if not manifests:
+        errors.append("Desktop PoC evidence manifest is missing")
+        return
+    manifest = load_json(manifests[-1], errors)
+    if not isinstance(manifest, dict):
+        return
+    if manifest.get("schemaVersion") != "1.0.0" or manifest.get("evidenceBoundary") != "desktop-poc-not-production":
+        errors.append("Desktop PoC evidence schema or honesty boundary is invalid")
+    if not re.fullmatch(r"\d+\.\d+\.\d+\.\d+", str(manifest.get("powerBIDesktopVersion", ""))):
+        errors.append("Desktop PoC evidence must record a Power BI Desktop version")
+    if manifest.get("source", {}).get("classification") != "synthetic-loopback-acceptance":
+        errors.append("Desktop PoC evidence must identify the synthetic loopback source boundary")
+    entries = manifest.get("pages")
+    if not isinstance(entries, list):
+        errors.append("Desktop PoC evidence pages must be a list")
+        return
+    required_pages = {"ExecutiveOverview", "SalesPerformance", "DataQuality"}
+    actual_pages: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            errors.append("Desktop PoC evidence contains a non-object page")
+            continue
+        page = str(entry.get("page", ""))
+        if page in actual_pages:
+            errors.append(f"Duplicate Desktop PoC evidence page: {page}")
+        actual_pages.add(page)
+        if entry.get("result") != "PASS":
+            errors.append(f"Desktop PoC page is not accepted: {page}")
+            continue
+        screenshot = entry.get("screenshot")
+        digest = entry.get("sha256")
+        if not isinstance(screenshot, str) or not re.fullmatch(r"[0-9a-f]{64}", str(digest)):
+            errors.append(f"Desktop PoC evidence lacks screenshot/hash for {page}")
+            continue
+        screenshot_path = resolve_child(root, screenshot, errors, "Desktop PoC screenshot")
+        if not screenshot_path.is_file():
+            errors.append(f"Desktop PoC screenshot is missing for {page}")
+        elif hashlib.sha256(screenshot_path.read_bytes()).hexdigest() != digest:
+            errors.append(f"Desktop PoC screenshot hash differs for {page}")
+    if actual_pages != required_pages:
+        errors.append("Desktop PoC evidence does not cover all three report pages")
 
 
 def validate_kpi_catalog(root: Path, inventory: ModelInventory, errors: list[str]) -> None:
@@ -675,6 +1131,18 @@ def validate_files(root: Path, errors: list[str]) -> None:
                 errors.append(f"Path is unsafe for common Windows tooling (>=260 chars): {path}")
             try:
                 raw = path.read_bytes()
+                is_evidence_image = (
+                    path.suffix.lower() in EVIDENCE_IMAGE_SUFFIXES
+                    and path.is_relative_to(root / "docs" / "powerbi" / "evidence")
+                )
+                if is_evidence_image:
+                    if not raw:
+                        errors.append(f"Empty Power BI evidence image: {path}")
+                    elif path.suffix.lower() == ".png" and not raw.startswith(b"\x89PNG\r\n\x1a\n"):
+                        errors.append(f"Invalid PNG Power BI evidence image: {path}")
+                    elif path.suffix.lower() in {".jpg", ".jpeg"} and not raw.startswith(b"\xff\xd8\xff"):
+                        errors.append(f"Invalid JPEG Power BI evidence image: {path}")
+                    continue
                 is_performance_export = "performance" in path.parts and "raw" in path.parts
                 if raw.startswith(b"\xef\xbb\xbf") and not is_performance_export:
                     errors.append(f"UTF-8 BOM is not allowed: {path}")
@@ -684,7 +1152,7 @@ def validate_files(root: Path, errors: list[str]) -> None:
                 errors.append(f"Non-UTF-8 artifact: {path}")
                 continue
             for label, pattern in SECRET_PATTERNS.items():
-                if path.name != "validate_powerbi_project.py" and pattern.search(text):
+                if path.name not in SECRET_SCANNER_IMPLEMENTATIONS and pattern.search(text):
                     errors.append(f"Potential {label} in {path}")
             if path.is_relative_to(root / "powerbi"):
                 if ABSOLUTE_PATH.search(text):
@@ -714,6 +1182,45 @@ def validate_git_scope(root: Path, errors: list[str]) -> None:
             index += 1  # Porcelain -z emits the second rename/copy path as a separate record.
         if path and not path.startswith(ALLOWED_PREFIXES):
             errors.append(f"Working-tree change is outside the owned slice: {path}")
+
+
+def validate_service_release_assets(root: Path, errors: list[str]) -> None:
+    contract_path = root / "powerbi" / "service" / "service-contract.example.json"
+    runbook_path = root / "docs" / "powerbi" / "service-production-runbook.md"
+    validator_path = root / "scripts" / "powerbi_validation" / "powerbi_service_contract.py"
+    for path in (contract_path, runbook_path, validator_path):
+        if not path.is_file():
+            errors.append(f"Required Power BI Service release asset is missing: {path}")
+    contract = load_json(contract_path, errors) if contract_path.is_file() else None
+    if not isinstance(contract, dict):
+        return
+    if contract.get("schemaVersion") != 1:
+        errors.append("Power BI Service example contract schemaVersion must be 1")
+    if contract.get("target", {}).get("environment") != "Production":
+        errors.append("Power BI Service example contract must explicitly target Production")
+    expected_items = {
+        "semanticModel": "c8c14294-542b-460d-aec3-f48f0fcd40fc",
+        "report": "696c2727-6eb6-4422-86a9-dc951409c8d8",
+    }
+    artifacts = contract.get("artifacts", {})
+    for item_type, logical_id in expected_items.items():
+        item = artifacts.get(item_type, {}) if isinstance(artifacts, dict) else {}
+        if item.get("expectedDisplayName") != "SQLDataWarehouse":
+            errors.append(f"Power BI Service {item_type} expectedDisplayName must be SQLDataWarehouse")
+        if item.get("expectedLogicalId") != logical_id:
+            errors.append(f"Power BI Service {item_type} logical ID differs from .platform")
+        if item.get("observedItemId") is not None:
+            errors.append(f"Power BI Service example must not claim an observed {item_type} item ID")
+    if contract.get("security", {}).get("approvedGroups"):
+        errors.append("Power BI Service example must not contain approved production group IDs")
+    if contract.get("target", {}).get("observedTenantId") is not None:
+        errors.append("Power BI Service example must not claim an observed tenant ID")
+    if contract.get("target", {}).get("workspace", {}).get("observedId") is not None:
+        errors.append("Power BI Service example must not claim an observed workspace ID")
+    if contract.get("artifacts", {}).get("provenance", {}).get("observedSourceCommit") is not None:
+        errors.append("Power BI Service example must not claim a deployed source commit")
+    if contract.get("approval", {}).get("releaseOwnerObjectId") is not None:
+        errors.append("Power BI Service example must not contain a production release owner ID")
 
 
 def validate_project(root: Path, check_git: bool = True) -> list[str]:
@@ -845,6 +1352,20 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
             errors.append(f"Data Quality Checks {numeric_column} must use int64")
         if f'{{"{numeric_column}", Int64.Type}}' not in dq_source_text:
             errors.append(f"Data Quality Checks M result must type {numeric_column} as Int64.Type")
+    for dq_contract_token in (
+        "KnownProductNumbers",
+        "GoldSourceOrphans",
+        "ProductPreHistoryRows",
+        'CheckKey = "gold_source_orphan_coverage"',
+        'CheckKey = "product_pre_history_coverage"',
+        'Scope = "Source limitation"',
+    ):
+        if dq_contract_token not in dq_source_text:
+            errors.append(
+                "Data Quality Checks must distinguish unresolved source references "
+                "from known-product pre-history coverage"
+            )
+            break
 
     role_path = definition / "roles" / "CountrySalesViewer.tmdl"
     if not role_path.is_file():
@@ -853,11 +1374,16 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
         role_text = role_path.read_text(encoding="utf-8")
         for required in (
             "USERPRINCIPALNAME()",
+            "tablePermission 'Security User Country' =",
             "tablePermission Customers =",
             "Customers[country_code]",
             "tablePermission 'Inventory Locations' =",
             "'Inventory Locations'[country_code]",
             "Security User Country",
+            "LOWER(TRIM(USERPRINCIPALNAME()))",
+            "LEN(CurrentUser) > 0",
+            "LEN(TRIM(COALESCE('Security User Country'[CountryCode], \"\"))) > 0",
+            "UPPER(TRIM('Security User Country'[CountryCode]))",
             "[IsActive] = TRUE()",
             "[ValidFromUtc] <= CurrentUtc",
             "[ValidToUtc] > CurrentUtc",
@@ -868,6 +1394,7 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
     identities = re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+", security_text)
     if any(not identity.endswith(".invalid") for identity in identities):
         errors.append("Only reserved .invalid synthetic identities may be committed")
+    validate_rls_acceptance_contract(root, security_text, errors)
     calculated_partition = re.compile(
         r"(?ms)^\tpartition\s+(.+?)\s*=\s*calculated\s*\r?\n"
         r"(.*?)(?=^\t(?:column|hierarchy|measure|partition)\s+|\Z)"
@@ -885,9 +1412,12 @@ def validate_project(root: Path, check_git: bool = True) -> list[str]:
                 )
 
     validate_report(report_dir, inventory, errors)
+    validate_accessibility_evidence(root, errors)
+    validate_desktop_poc_evidence(root, errors)
     validate_kpi_catalog(root, inventory, errors)
     validate_rls_documentation(root, errors)
     errors.extend(validate_performance_evidence(root))
+    validate_service_release_assets(root, errors)
 
     validation_doc = (root / "docs" / "powerbi" / "validation.md").read_text(encoding="utf-8")
     architecture_doc = (root / "docs" / "powerbi" / "architecture.md").read_text(encoding="utf-8")
@@ -918,8 +1448,8 @@ def main() -> int:
             print(f"- {error}")
         return 1
     print("Power BI source validation passed.")
-    print("Validated: PBIP/PBIR structure, Fabric item metadata, TMDL inventory/references, KPI catalog, report blueprint, layouts, RLS/refresh contracts, performance evidence, secrets, and owned-scope changes.")
-    print("Not validated: Power BI Desktop open/save, full TMDL/DAX/M parsing, refresh, rendering, RLS enforcement, interactions, accessibility, or screenshots.")
+    print("Validated: PBIP/PBIR structure, Fabric item metadata, TMDL inventory/references, KPI catalog, report blueprint, focus/mobile order, source-level accessibility/contrast contracts, Desktop PoC screenshot hashes, runtime and Service evidence honesty, RLS/refresh contracts, performance evidence, secrets, and owned-scope changes.")
+    print("Not validated by this command: Power BI Desktop open/save, full TMDL/DAX/M parsing, refresh, rendered content semantics, RLS enforcement, runtime interactions, screen-reader output, High Contrast, internal touch hitboxes, or exact viewport behavior.")
     return 0
 
 

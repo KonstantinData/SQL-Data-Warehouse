@@ -25,7 +25,25 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Product performance detail'"
+                  "Value": "'Product sales and estimated profit table'"
+                }
+              }
+            },
+            "fontColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "'#1F2937'"
+                    }
+                  }
+                }
+              }
+            },
+            "fontSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "12D"
                 }
               }
             }
@@ -38,7 +56,7 @@
             "altText": {
               "expr": {
                 "Literal": {
-                  "Value": "'Product table with total sales and estimated profitability.'"
+                  "Value": "'Product name and category with Total Sales, Estimated Gross Profit, and Estimated Gross Margin percentage, with sortable column headers.'"
                 }
               }
             }
@@ -91,7 +109,7 @@
                 "color": {
                   "expr": {
                     "Literal": {
-                      "Value": "'#D0D5DD'"
+                      "Value": "'#667085'"
                     }
                   }
                 }

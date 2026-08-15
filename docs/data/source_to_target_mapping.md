@@ -2,7 +2,7 @@
 
 ## Source contracts
 
-All seven files are synthetic reference fixtures. CRM/ERP loading uses SQL Server CSV parsing and positional mappings; Inventory additionally has `datasets/source_inventory/source_contract.json`. The current committed total is **116,308** data rows.
+All seven files are synthetic reference fixtures. CRM/ERP loading uses SQL Server CSV parsing and positional mappings; Inventory additionally has `datasets/source_inventory/source_contract.json`. The current committed total is **116,309** data rows.
 
 | Source file | Rows | Bronze target | Silver target | Analytical target |
 | --- | ---: | --- | --- | --- |
@@ -12,7 +12,7 @@ All seven files are synthetic reference fixtures. CRM/ERP loading uses SQL Serve
 | `datasets/source_erp/CST_AZ12.csv` | 18,484 | `bronze.erp_cust_az12` | `silver.erp_cust_az12` | customer enrichment |
 | `datasets/source_erp/LOC_A101.csv` | 18,484 | `bronze.erp_loc_a101` | `silver.erp_loc_a101` | customer country enrichment |
 | `datasets/source_erp/PX_CAT_G1V2.csv` | 37 | `bronze.erp_px_cat_g1v2` | `silver.erp_px_cat_g1v2` | product classification |
-| `datasets/source_inventory/inventory_snapshots.csv` | 14 | `bronze.inventory_snapshot_raw` | `silver.inventory_snapshot` or `silver.inventory_snapshot_reject` | `gold.fact_inventory_snapshots` |
+| `datasets/source_inventory/inventory_snapshots.csv` | 15 | `bronze.inventory_snapshot_raw` | `silver.inventory_snapshot` or `silver.inventory_snapshot_reject` | `gold.fact_inventory_snapshots` |
 
 ## Customer mapping
 
@@ -63,5 +63,5 @@ Accepted Silver sales are reconciled bidirectionally to `gold.fact_sales`. Unkno
 2. Core runtime reconciles each source row to published Bronze or `control.load_reject`.
 3. Silver tests enforce domains, unique grains, dates, references, and exact reference-fixture cardinalities.
 4. Gold tests enforce keys, trusted relationships, SCD2 non-overlap, date consistency, and bidirectional fact reconciliation.
-5. Inventory tests prove `14 = 10 accepted + 4 rejected`, deterministic reject reasons, Gold totals, and identical second-run business rowsets.
+5. Inventory tests prove `15 = 11 accepted + 4 rejected`, deterministic reject reasons, Gold totals, two-country RLS fixture coverage, and identical second-run business rowsets.
 6. Power BI source validation proves curated Gold usage, model relationships, KPI mappings, report definitions, RLS references, and refresh parameters.
