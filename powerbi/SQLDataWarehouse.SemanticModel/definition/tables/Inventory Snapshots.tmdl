@@ -2,70 +2,82 @@ table 'Inventory Snapshots'
 	lineageTag: 2a9b7574-3486-401f-8712-2fbb21fb8a90
 
 	column inventory_snapshot_id
-		dataType: int64
+		dataType: string
 		isHidden
-		sourceColumn: inventory_snapshot_id
+		lineageTag: 8fd831fb-86ef-4860-80e4-fad66d987173
 		summarizeBy: none
+		sourceColumn: inventory_snapshot_id
+
+		annotation SummarizationSetBy = Automatic
 
 	column snapshot_date
 		dataType: dateTime
 		formatString: yyyy-mm-dd
-		sourceColumn: snapshot_date
+		lineageTag: dc6a3652-e75a-46a4-a9b0-30d0a02304a9
 		summarizeBy: none
+		sourceColumn: snapshot_date
 
 	column warehouse_key
 		dataType: int64
 		isHidden
-		sourceColumn: warehouse_key
+		lineageTag: a1d5d49b-6740-4f77-937d-96222e50d53b
 		summarizeBy: none
+		sourceColumn: warehouse_key
 
 	column product_key
 		dataType: int64
 		isHidden
-		sourceColumn: product_key
+		lineageTag: a8a96d16-afba-4114-b120-7adbf2e95e7f
 		summarizeBy: none
+		sourceColumn: product_key
 
 	column on_hand_qty
 		dataType: int64
 		formatString: #,0
-		sourceColumn: on_hand_qty
+		lineageTag: aed5c95e-62ac-401f-a043-57668bc63e4a
 		summarizeBy: sum
+		sourceColumn: on_hand_qty
 
 	column reserved_qty
 		dataType: int64
 		formatString: #,0
-		sourceColumn: reserved_qty
+		lineageTag: 15642b0f-cb23-4cce-a166-1cada03902fb
 		summarizeBy: sum
+		sourceColumn: reserved_qty
 
 	column available_qty
 		dataType: int64
 		formatString: #,0
-		sourceColumn: available_qty
+		lineageTag: 0aeaa501-f636-4c10-9bf5-d8367a4630ea
 		summarizeBy: sum
+		sourceColumn: available_qty
 
 	column reorder_point_qty
 		dataType: int64
 		formatString: #,0
-		sourceColumn: reorder_point_qty
+		lineageTag: cf8296ef-8648-4690-afba-ad48e3c4fe87
 		summarizeBy: sum
+		sourceColumn: reorder_point_qty
 
 	column inventory_value
-		dataType: decimal
+		dataType: double
 		formatString: #,0.00
-		sourceColumn: inventory_value
+		lineageTag: f781b103-96ac-4b90-b263-5838735444e4
 		summarizeBy: sum
+		sourceColumn: inventory_value
 
 	column stock_status
 		dataType: string
-		sourceColumn: stock_status
+		lineageTag: 53235a6a-3d0f-4f88-b20b-cd7dd826e45a
 		summarizeBy: none
+		sourceColumn: stock_status
 
 	partition 'Inventory Snapshots' = m
 		mode: import
 		source =
-			let
-				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
-				Query = "SELECT inventory_snapshot_id, snapshot_date, warehouse_key, product_key, on_hand_qty, reserved_qty, available_qty, reorder_point_qty, CONVERT(decimal(19,4), inventory_value) AS inventory_value, stock_status FROM gold.fact_inventory_snapshots",
-				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
-			in
-				Result
+				let
+					Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
+					Query = "SELECT inventory_snapshot_id, snapshot_date, warehouse_key, product_key, on_hand_qty, reserved_qty, available_qty, reorder_point_qty, CONVERT(decimal(19,4), inventory_value) AS inventory_value, stock_status FROM gold.fact_inventory_snapshots",
+					Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
+				in
+					Result

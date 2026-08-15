@@ -1,23 +1,182 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
   "name": "44444444444444444444",
-  "position": {"x": 32, "y": 504, "z": 5000, "height": 184, "width": 1216, "tabOrder": 5000},
+  "position": {
+    "x": 32,
+    "y": 504,
+    "z": 5000,
+    "height": 184,
+    "width": 1216,
+    "tabOrder": 5000
+  },
   "visual": {
     "visualType": "tableEx",
     "visualContainerObjects": {
-      "title": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "text": {"expr": {"Literal": {"Value": "'Country performance'"}}}}}],
-      "general": [{"properties": {"altText": {"expr": {"Literal": {"Value": "'Table of normalized country code, sales, year-over-year change, and on-time shipment.'"}}}}}],
-      "background": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#FFFFFF'"}}}}}, "transparency": {"expr": {"Literal": {"Value": "0D"}}}}}],
-      "border": [{"properties": {"show": {"expr": {"Literal": {"Value": "true"}}}, "color": {"solid": {"color": {"expr": {"Literal": {"Value": "'#D0D5DD'"}}}}}, "radius": {"expr": {"Literal": {"Value": "8L"}}}, "width": {"expr": {"Literal": {"Value": "1L"}}}}}]
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Country performance'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "general": [
+        {
+          "properties": {
+            "altText": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Table of normalized country code, sales, year-over-year change, and on-time shipment.'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "background": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "color": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "'#FFFFFF'"
+                    }
+                  }
+                }
+              }
+            },
+            "transparency": {
+              "expr": {
+                "Literal": {
+                  "Value": "0D"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "border": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "color": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "'#D0D5DD'"
+                    }
+                  }
+                }
+              }
+            },
+            "radius": {
+              "expr": {
+                "Literal": {
+                  "Value": "8L"
+                }
+              }
+            },
+            "width": {
+              "expr": {
+                "Literal": {
+                  "Value": "1L"
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "query": {
       "queryState": {
-        "Values": {"projections": [
-          {"field": {"Column": {"Expression": {"SourceRef": {"Entity": "Customers"}}, "Property": "country_code"}}, "queryRef": "Customers.country_code", "nativeQueryRef": "country_code"},
-          {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Total Sales"}}, "queryRef": "_Measures.Total Sales", "nativeQueryRef": "Total Sales"},
-          {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "Sales YoY %"}}, "queryRef": "_Measures.Sales YoY %", "nativeQueryRef": "Sales YoY %"},
-          {"field": {"Measure": {"Expression": {"SourceRef": {"Entity": "_Measures"}}, "Property": "On-Time Shipment %"}}, "queryRef": "_Measures.On-Time Shipment %", "nativeQueryRef": "On-Time Shipment %"}
-        ]}
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Customers"
+                    }
+                  },
+                  "Property": "country_code"
+                }
+              },
+              "queryRef": "Customers.country_code",
+              "nativeQueryRef": "country_code"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Total Sales"
+                }
+              },
+              "queryRef": "_Measures.Total Sales",
+              "nativeQueryRef": "Total Sales"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Sales YoY %"
+                }
+              },
+              "queryRef": "_Measures.Sales YoY %",
+              "nativeQueryRef": "Sales YoY %"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "On-Time Shipment %"
+                }
+              },
+              "queryRef": "_Measures.On-Time Shipment %",
+              "nativeQueryRef": "On-Time Shipment %"
+            }
+          ]
+        }
       }
     }
   }

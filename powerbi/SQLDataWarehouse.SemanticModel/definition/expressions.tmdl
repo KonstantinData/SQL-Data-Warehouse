@@ -1,7 +1,19 @@
-expression SqlServerName = "localhost" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+expression SqlServerName = "127.0.0.1" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: aebd1c2a-d249-4715-b6be-b2b07ebfd23a
+
+	annotation PBI_ResultType = Text
 
 expression SqlDatabaseName = "DataWarehouse" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: 8078a87d-ae6a-4e16-9460-38c73d893dad
+
+	annotation PBI_ResultType = Text
 
 expression EnvironmentName = "Development" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: e6f46de8-52bc-418e-9e80-d49182c759eb
+
+	annotation PBI_ResultType = Text
 
 expression CommandTimeoutMinutes = 10 meta [IsParameterQuery=true, Type="Number", IsParameterQueryRequired=true]
+	lineageTag: 057fdbd7-4b48-4f77-9726-d74517f197cd
+
+	annotation PBI_ResultType = Number

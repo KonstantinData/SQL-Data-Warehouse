@@ -11,14 +11,14 @@ relationship c13da8ce-22f7-49ea-8a88-a1774c82af47
 	toColumn: Date.Date
 
 relationship df87be78-d4b3-43c2-8191-e8a1c63fc183
+	isActive: false
 	fromColumn: Sales.ship_date
 	toColumn: Date.Date
-	isActive: false
 
 relationship 24d07612-1ead-4134-b73f-e2e79dd1d4c2
+	isActive: false
 	fromColumn: Sales.due_date
 	toColumn: Date.Date
-	isActive: false
 
 relationship 8a71c400-b9ac-47d3-99df-194f5176a82f
 	fromColumn: 'Inventory Snapshots'.product_key

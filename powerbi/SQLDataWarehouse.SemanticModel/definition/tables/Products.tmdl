@@ -4,52 +4,62 @@ table Products
 	column product_key
 		dataType: int64
 		isHidden
-		sourceColumn: product_key
+		lineageTag: 0859e0ba-c6c2-4eea-8311-f33d0ebf0a5d
 		summarizeBy: none
+		sourceColumn: product_key
 
 	column product_number
 		dataType: string
-		sourceColumn: product_number
+		lineageTag: 291d037b-6b74-438f-ab0c-e8543c722e39
 		summarizeBy: none
+		sourceColumn: product_number
 
 	column product_name
 		dataType: string
-		sourceColumn: product_name
+		lineageTag: 2825e720-41d2-48a8-a7ed-729e65d2a39f
 		summarizeBy: none
+		sourceColumn: product_name
 
 	column product_cost
-		dataType: decimal
+		dataType: double
 		formatString: #,0.00
+		lineageTag: c26e3f0f-bffe-4fb8-b9b0-3e8ae44912b4
+		summarizeBy: sum
 		sourceColumn: product_cost
-		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
 
 	column product_line
 		dataType: string
-		sourceColumn: product_line
+		lineageTag: 83597bba-c1ee-423c-9201-927e33e82723
 		summarizeBy: none
+		sourceColumn: product_line
 
 	column category
 		dataType: string
-		sourceColumn: category
+		lineageTag: 861fdcb6-9d85-4094-a23c-e694534fe423
 		summarizeBy: none
+		sourceColumn: category
 
 	column subcategory
 		dataType: string
-		sourceColumn: subcategory
+		lineageTag: 7350be7d-28c2-4612-b765-1ccd99b48c93
 		summarizeBy: none
+		sourceColumn: subcategory
 
 	column product_start_date
 		dataType: dateTime
 		formatString: yyyy-mm-dd
-		sourceColumn: product_start_date
+		lineageTag: d67d6147-d6dc-4e59-a1fa-4d2aaccc6245
 		summarizeBy: none
+		sourceColumn: product_start_date
 
 	partition Products = m
 		mode: import
 		source =
-			let
-				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
-				Query = "SELECT product_key, product_number, product_name, CONVERT(decimal(19,4), product_cost) AS product_cost, product_line, category, subcategory, effective_from AS product_start_date FROM gold.dim_products",
-				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
-			in
-				Result
+				let
+					Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
+					Query = "SELECT product_key, product_number, product_name, CONVERT(decimal(19,4), product_cost) AS product_cost, product_line, category, subcategory, effective_from AS product_start_date FROM gold.dim_products",
+					Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
+				in
+					Result

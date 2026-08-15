@@ -4,38 +4,43 @@ table Customers
 	column customer_id
 		dataType: int64
 		isHidden
-		sourceColumn: customer_id
+		lineageTag: 6dea5e1e-f3e9-4458-b676-f7294dbfdad5
 		summarizeBy: none
+		sourceColumn: customer_id
 
 	column country
 		dataType: string
-		sourceColumn: country
+		lineageTag: cfeeaf06-7c62-4435-87f4-7698893fe74f
 		dataCategory: Country
 		summarizeBy: none
+		sourceColumn: country
 
 	column country_code
 		dataType: string
-		sourceColumn: country_code
+		lineageTag: 978ada43-03fe-4594-9ebe-1f4ccf392833
 		summarizeBy: none
+		sourceColumn: country_code
 
 	column customer_create_date
 		dataType: dateTime
 		formatString: yyyy-mm-dd
-		sourceColumn: customer_create_date
+		lineageTag: 37d4b625-1940-4a9c-bf14-5fecb49928d6
 		summarizeBy: none
+		sourceColumn: customer_create_date
 
 	column cust_is_future
 		dataType: boolean
 		isHidden
-		sourceColumn: cust_is_future
+		lineageTag: 6e41ad2c-4eb4-4336-943a-416cb9a60ac9
 		summarizeBy: none
+		sourceColumn: cust_is_future
 
 	partition Customers = m
 		mode: import
 		source =
-			let
-				Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
-				Query = "SELECT customer_id, country, CASE WHEN UPPER(LTRIM(RTRIM(country))) IN ('US','USA','UNITED STATES') THEN 'US' WHEN UPPER(LTRIM(RTRIM(country))) IN ('DE','GERMANY') THEN 'DE' ELSE NULL END AS country_code, customer_create_date, customer_is_future AS cust_is_future FROM gold.dim_customers",
-				Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
-			in
-				Result
+				let
+					Source = Sql.Database(SqlServerName, SqlDatabaseName, [CommandTimeout = #duration(0, 0, CommandTimeoutMinutes, 0)]),
+					Query = "SELECT customer_id, country, CASE WHEN UPPER(LTRIM(RTRIM(country))) IN ('US','USA','UNITED STATES') THEN 'US' WHEN UPPER(LTRIM(RTRIM(country))) IN ('DE','GERMANY') THEN 'DE' ELSE NULL END AS country_code, customer_create_date, customer_is_future AS cust_is_future FROM gold.dim_customers",
+					Result = Value.NativeQuery(Source, Query, null, [EnableFolding = true])
+				in
+					Result
