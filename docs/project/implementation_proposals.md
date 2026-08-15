@@ -12,7 +12,7 @@ Completed: persisted surrogate keys, physical customer/product/date/sales object
 
 ### E — Source-controlled reporting
 
-Completed at source level: PBIP/PBIR/TMDL, curated Gold queries, Inventory integration, explicit measures/KPI catalog, RLS/refresh design, report/mobile/accessibility metadata, and automated validators. Power BI Desktop validation remains an external release gate.
+Completed for the portfolio PoC: PBIP/PBIR/TMDL, curated Gold queries, Inventory integration, explicit measures/KPI catalog, RLS/refresh design, report/mobile/accessibility metadata, automated validators, and the dated 2026-08-15 Desktop open/refresh/render/save/reopen acceptance. Environment-specific Desktop runtime checks and Power BI Service production validation remain external release gates.
 
 ## Open proposals
 

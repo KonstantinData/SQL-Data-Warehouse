@@ -10,7 +10,7 @@ The refreshed report reconciled the visible executive totals to the SQL acceptan
 
 The three rendered page captures and their SHA-256 hashes are recorded in `docs/powerbi/evidence/desktop-poc/2026-08-15/manifest.json`. The images contain only the report canvas; Power BI application chrome and the Windows identity were excluded.
 
-Closeout verification on 2026-08-15 passed 66 Power BI tests, 6 repository tests, 7 Inventory fixture tests, 12 documentation-analysis tests, the documentation and CI-wiring validators, the versioned performance-evidence validator, and the complete isolated SQL Server CI runner. The latter passed runtime, pipeline, model, Inventory, quality, negative, restart, idempotency, reproducibility, and `powerbi_rls_data_contract.sql` gates and removed its temporary container.
+Closeout verification on 2026-08-15 passed 66 Power BI tests, 6 repository tests, 8 Inventory fixture tests, 12 documentation-analysis tests, the documentation and CI-wiring validators, the versioned performance-evidence validator, and the complete isolated SQL Server CI runner. The latter passed runtime, pipeline, model, Inventory, quality, negative, restart, idempotency, reproducibility, and `powerbi_rls_data_contract.sql` gates and removed its temporary container.
 
 Performance Analyzer acceptance also passed on 2026-08-15. The versioned raw exports, hashes, thresholds, before/after values, result-row contracts, and reproduction steps are documented in `docs/powerbi/performance-analyzer.md` and `powerbi/performance/performance-evidence.json`.
 

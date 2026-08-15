@@ -18,7 +18,7 @@ It is a **production-oriented reference implementation**, not a production deplo
 | SQLCMD, Python, and CI execution parity | one canonical SQLCMD contract; implemented |
 | Fail-closed positive and targeted negative quality tests | implemented |
 | Million-row performance case and evidence | implemented, opt-in |
-| Source-controlled Power BI semantic model and report | implemented; Desktop gate pending |
+| Source-controlled Power BI semantic model and report | implemented; Desktop PoC accepted on 2026-08-15; production and external-integration gates remain open |
 | Architecture, lineage, catalog, mapping, operations, KPI, legacy, and proposal documentation | implemented |
 | Production scheduling, backup/restore, alerting, gateway, deployment, accountable approvals | not implemented |
 

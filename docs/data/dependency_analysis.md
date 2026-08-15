@@ -37,7 +37,7 @@ Run `python scripts/analysis/repository_analysis.py --check --format markdown` t
 | SQLCMD | includes, variables, failure exit status |
 | Python 3.10+ | orchestration and standard-library validators |
 | Docker | isolated local/CI SQL Server |
-| Power BI Desktop | final open/save/refresh/render/RLS/accessibility gate |
+| Power BI Desktop | portfolio PoC open/refresh/core-render/save/reopen accepted; production/external-integration RLS, accessibility, and responsive runtime gates remain |
 | `sqlalchemy`, `pandas`, `pyodbc` | optional notebooks only |
 
 ## Legacy and removal impact
